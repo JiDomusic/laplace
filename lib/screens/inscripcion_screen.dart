@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../providers/inscripcion_provider.dart';
+import '../models/picked_file.dart';
 import '../utils/app_theme.dart';
 
 class InscripcionScreen extends StatefulWidget {
@@ -653,7 +654,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     );
   }
 
-  Widget _buildImagePicker(String label, File? file, Function(File?) onPicked) {
+  Widget _buildImagePicker(String label, PickedFile? file, Function(PickedFile?) onPicked) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -661,9 +662,18 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            final picked = await _picker.pickImage(source: ImageSource.gallery);
-            if (picked != null) {
-              onPicked(File(picked.path));
+            // Usar FilePicker para imagenes tambien (funciona en web y movil)
+            final result = await FilePicker.platform.pickFiles(
+              type: FileType.image,
+              withData: true, // Importante: obtener bytes
+            );
+            if (result != null && result.files.single.bytes != null) {
+              final platformFile = result.files.single;
+              onPicked(PickedFile(
+                name: platformFile.name,
+                bytes: platformFile.bytes!,
+                path: platformFile.path,
+              ));
             }
           },
           child: Container(
@@ -677,9 +687,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             child: file != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: kIsWeb
-                        ? Image.network(file.path, fit: BoxFit.cover)
-                        : Image.file(file, fit: BoxFit.cover),
+                    child: Image.memory(file.bytes, fit: BoxFit.cover),
                   )
                 : const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -695,7 +703,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     );
   }
 
-  Widget _buildFilePicker(String label, File? file, Function(File?) onPicked) {
+  Widget _buildFilePicker(String label, PickedFile? file, Function(PickedFile?) onPicked) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -704,9 +712,15 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             final result = await FilePicker.platform.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+              withData: true, // Importante: obtener bytes para web
             );
-            if (result != null) {
-              onPicked(File(result.files.single.path!));
+            if (result != null && result.files.single.bytes != null) {
+              final platformFile = result.files.single;
+              onPicked(PickedFile(
+                name: platformFile.name,
+                bytes: platformFile.bytes!,
+                path: platformFile.path,
+              ));
             }
           },
           icon: Icon(file != null ? Icons.check : Icons.upload_file),
@@ -719,7 +733,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              file.path.split('/').last,
+              file.name,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ),

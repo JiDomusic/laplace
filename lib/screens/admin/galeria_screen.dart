@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../services/supabase_service.dart';
+import '../../models/picked_file.dart';
 import '../../utils/app_theme.dart';
 
 class GaleriaScreen extends StatefulWidget {
@@ -14,7 +14,6 @@ class GaleriaScreen extends StatefulWidget {
 
 class _GaleriaScreenState extends State<GaleriaScreen> {
   final SupabaseService _db = SupabaseService.instance;
-  final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> _fotos = [];
   bool _isLoading = true;
 
@@ -44,7 +43,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
   Future<void> _agregarFoto() async {
     final tituloController = TextEditingController();
     final descripcionController = TextEditingController();
-    File? selectedFile;
+    PickedFile? selectedFile;
 
     final result = await showDialog<bool>(
       context: context,
@@ -74,10 +73,18 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
                 const SizedBox(height: 16),
                 InkWell(
                   onTap: () async {
-                    final picked = await _picker.pickImage(source: ImageSource.gallery);
-                    if (picked != null) {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.image,
+                      withData: true,
+                    );
+                    if (result != null && result.files.single.bytes != null) {
+                      final platformFile = result.files.single;
                       setDialogState(() {
-                        selectedFile = File(picked.path);
+                        selectedFile = PickedFile(
+                          name: platformFile.name,
+                          bytes: platformFile.bytes!,
+                          path: platformFile.path,
+                        );
                       });
                     }
                   },
@@ -92,9 +99,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
                     child: selectedFile != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: kIsWeb
-                                ? Image.network(selectedFile!.path, fit: BoxFit.cover)
-                                : Image.file(selectedFile!, fit: BoxFit.cover),
+                            child: Image.memory(selectedFile!.bytes, fit: BoxFit.cover),
                           )
                         : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -156,7 +161,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar foto'),
-        content: Text('¿Seguro que deseas eliminar "${foto['titulo']}"?'),
+        content: Text('Seguro que deseas eliminar "${foto['titulo']}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

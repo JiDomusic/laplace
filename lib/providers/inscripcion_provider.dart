@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/alumno.dart';
 import '../models/legajo.dart';
+import '../models/picked_file.dart';
 import '../services/supabase_service.dart';
 
 class InscripcionProvider with ChangeNotifier {
@@ -34,19 +34,19 @@ class InscripcionProvider with ChangeNotifier {
   String contactoUrgenciaTelefono = '';
   String contactoUrgenciaVinculo = '';
 
-  // Archivos
-  File? fotoAlumno;
-  File? certificadoTrabajo;
-  File? dniFrente;
-  File? dniDorso;
-  File? partidaNacimiento;
+  // Archivos (usando PickedFile para compatibilidad web/movil)
+  PickedFile? fotoAlumno;
+  PickedFile? certificadoTrabajo;
+  PickedFile? dniFrente;
+  PickedFile? dniDorso;
+  PickedFile? partidaNacimiento;
   bool nacidoFueraSantaFe = false;
   String estadoTitulo = '';
   String? tipoLegalizacion;
-  File? tituloArchivo;
-  File? tramiteConstancia;
+  PickedFile? tituloArchivo;
+  PickedFile? tramiteConstancia;
   String? materiasAdeudadas;
-  File? materiasConstancia;
+  PickedFile? materiasConstancia;
 
   // Resultado de inscripción
   Alumno? _alumnoRegistrado;
@@ -85,42 +85,42 @@ class InscripcionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void setFotoAlumno(File? file) {
+  void setFotoAlumno(PickedFile? file) {
     fotoAlumno = file;
     notifyListeners();
   }
 
-  void setCertificadoTrabajo(File? file) {
+  void setCertificadoTrabajo(PickedFile? file) {
     certificadoTrabajo = file;
     notifyListeners();
   }
 
-  void setDniFrente(File? file) {
+  void setDniFrente(PickedFile? file) {
     dniFrente = file;
     notifyListeners();
   }
 
-  void setDniDorso(File? file) {
+  void setDniDorso(PickedFile? file) {
     dniDorso = file;
     notifyListeners();
   }
 
-  void setPartidaNacimiento(File? file) {
+  void setPartidaNacimiento(PickedFile? file) {
     partidaNacimiento = file;
     notifyListeners();
   }
 
-  void setTituloArchivo(File? file) {
+  void setTituloArchivo(PickedFile? file) {
     tituloArchivo = file;
     notifyListeners();
   }
 
-  void setTramiteConstancia(File? file) {
+  void setTramiteConstancia(PickedFile? file) {
     tramiteConstancia = file;
     notifyListeners();
   }
 
-  void setMateriasConstancia(File? file) {
+  void setMateriasConstancia(PickedFile? file) {
     materiasConstancia = file;
     notifyListeners();
   }
@@ -189,7 +189,7 @@ class InscripcionProvider with ChangeNotifier {
         fotoUrl = await _db.uploadFotoAlumno(dni, fotoAlumno!);
       }
       if (certificadoTrabajo != null) {
-        certificadoTrabajoUrl = await _db.uploadFile('documentos-certificados', '${dni}_certificado.${certificadoTrabajo!.path.split('.').last}', certificadoTrabajo!);
+        certificadoTrabajoUrl = await _db.uploadDocumento('documentos-certificados', dni, 'certificado', certificadoTrabajo!);
       }
       if (dniFrente != null) {
         dniFrenteUrl = await _db.uploadDNI(dni, dniFrente!, 'frente');
@@ -198,16 +198,16 @@ class InscripcionProvider with ChangeNotifier {
         dniDorsoUrl = await _db.uploadDNI(dni, dniDorso!, 'dorso');
       }
       if (partidaNacimiento != null) {
-        partidaNacimientoUrl = await _db.uploadFile('documentos-partidas', '${dni}_partida.${partidaNacimiento!.path.split('.').last}', partidaNacimiento!);
+        partidaNacimientoUrl = await _db.uploadDocumento('documentos-partidas', dni, 'partida', partidaNacimiento!);
       }
       if (tituloArchivo != null) {
         tituloUrl = await _db.uploadTitulo(dni, tituloArchivo!);
       }
       if (tramiteConstancia != null) {
-        tramiteConstanciaUrl = await _db.uploadFile('documentos-certificados', '${dni}_tramite.${tramiteConstancia!.path.split('.').last}', tramiteConstancia!);
+        tramiteConstanciaUrl = await _db.uploadDocumento('documentos-certificados', dni, 'tramite', tramiteConstancia!);
       }
       if (materiasConstancia != null) {
-        materiasConstanciaUrl = await _db.uploadFile('documentos-certificados', '${dni}_materias.${materiasConstancia!.path.split('.').last}', materiasConstancia!);
+        materiasConstanciaUrl = await _db.uploadDocumento('documentos-certificados', dni, 'materias', materiasConstancia!);
       }
 
       // Crear alumno

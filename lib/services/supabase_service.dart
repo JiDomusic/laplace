@@ -1,8 +1,9 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/alumno.dart';
 import '../models/legajo.dart';
 import '../models/cuota.dart';
+import '../models/picked_file.dart';
 import '../config/supabase_config.dart';
 
 class SupabaseService {
@@ -287,8 +288,8 @@ class SupabaseService {
 
   // ==================== STORAGE ====================
 
-  Future<String> uploadFile(String bucket, String fileName, File file) async {
-    final bytes = await file.readAsBytes();
+  /// Sube un archivo usando bytes (funciona en web y movil)
+  Future<String> uploadBytes(String bucket, String fileName, Uint8List bytes) async {
     final path = '${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
     await client.storage.from(bucket).uploadBinary(path, bytes);
@@ -297,27 +298,32 @@ class SupabaseService {
     return url;
   }
 
-  Future<String> uploadFotoAlumno(String dni, File file) async {
-    return uploadFile('fotos-alumnos', '${dni}_foto.jpg', file);
+  Future<String> uploadPickedFile(String bucket, String fileName, PickedFile file) async {
+    return uploadBytes(bucket, fileName, file.bytes);
   }
 
-  Future<String> uploadDNI(String dni, File file, String lado) async {
-    final ext = file.path.split('.').last;
-    return uploadFile('documentos-dni', '${dni}_$lado.$ext', file);
+  Future<String> uploadFotoAlumno(String dni, PickedFile file) async {
+    return uploadPickedFile('fotos-alumnos', '${dni}_foto.${file.extension}', file);
   }
 
-  Future<String> uploadTitulo(String dni, File file) async {
-    final ext = file.path.split('.').last;
-    return uploadFile('documentos-titulos', '${dni}_titulo.$ext', file);
+  Future<String> uploadDNI(String dni, PickedFile file, String lado) async {
+    return uploadPickedFile('documentos-dni', '${dni}_$lado.${file.extension}', file);
+  }
+
+  Future<String> uploadTitulo(String dni, PickedFile file) async {
+    return uploadPickedFile('documentos-titulos', '${dni}_titulo.${file.extension}', file);
+  }
+
+  Future<String> uploadDocumento(String bucket, String dni, String tipo, PickedFile file) async {
+    return uploadPickedFile(bucket, '${dni}_$tipo.${file.extension}', file);
   }
 
   // ==================== GALERIA DE EVENTOS ====================
 
-  Future<String> uploadFotoGaleria(String titulo, File file) async {
-    final ext = file.path.split('.').last;
+  Future<String> uploadFotoGaleria(String titulo, PickedFile file) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = '${timestamp}_${titulo.replaceAll(' ', '_')}.$ext';
-    return uploadFile('galeria', fileName, file);
+    final fileName = '${timestamp}_${titulo.replaceAll(' ', '_')}.${file.extension}';
+    return uploadPickedFile('galeria', fileName, file);
   }
 
   Future<List<Map<String, dynamic>>> getGaleria() async {
