@@ -205,8 +205,16 @@ class SupabaseService {
 
   Future<void> generarCuotasAnuales(String alumnoId, double monto, int anio) async {
     final meses = {
-      3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
-      7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre'
+      3: 'Marzo',
+      4: 'Abril',
+      5: 'Mayo',
+      6: 'Junio',
+      7: 'Julio',
+      8: 'Agosto',
+      9: 'Septiembre',
+      10: 'Octubre',
+      11: 'Noviembre',
+      12: 'Diciembre',
     };
 
     final cuotas = meses.entries.map((entry) => {
@@ -292,6 +300,13 @@ class SupabaseService {
 
   Future<void> updateMontoCuota(String cuotaId, double nuevoMonto) async {
     await client.from('cuotas').update({'monto': nuevoMonto}).eq('id', cuotaId);
+  }
+
+  Future<void> updateFechaVencimiento(String cuotaId, DateTime nuevaFecha) async {
+    await client
+        .from('cuotas')
+        .update({'fecha_vencimiento': nuevaFecha.toIso8601String().split('T')[0]})
+        .eq('id', cuotaId);
   }
 
   Future<void> updateMontoCuotasTrimestre({

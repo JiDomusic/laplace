@@ -50,7 +50,11 @@ class _CuotasScreenState extends State<CuotasScreen> {
       final cuotas = await _db.getAllCuotas();
       for (final cuota in cuotas) {
         if (!_alumnos.containsKey(cuota.alumnoId)) {
-          _alumnos[cuota.alumnoId] = await _db.getAlumnoById(cuota.alumnoId);
+          final alumno = await _db.getAlumnoById(cuota.alumnoId);
+          if (alumno != null) {
+            final signed = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
+            _alumnos[cuota.alumnoId] = signed != null ? alumno.copyWith(fotoAlumno: signed) : alumno;
+          }
         }
       }
       _alumnosDisponibles = await _db.getAllAlumnos();
@@ -107,6 +111,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     double totalPendiente = 0;
     double totalPagado = 0;
     double totalDeuda = 0;
+    double totalFacturacion = 0;
     int cantPagadas = 0;
     int cantParciales = 0;
     int cantPendientes = 0;
@@ -115,6 +120,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     for (final cuota in _cuotas) {
       totalPagado += cuota.montoPagado;
       totalDeuda += cuota.deuda;
+      totalFacturacion += cuota.monto;
 
       final estado = _estadoCuota(cuota);
       switch (estado) {
@@ -143,6 +149,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       'cantParciales': cantParciales,
       'cantPendientes': cantPendientes,
       'cantVencidas': cantVencidas,
+      'totalFacturacion': totalFacturacion,
     };
   }
 
@@ -194,18 +201,26 @@ class _CuotasScreenState extends State<CuotasScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             color: AppTheme.primaryColor.withOpacity(0.05),
-            child: Column(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['totalPagado']))),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, null)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, null)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Vencidas', stats['cantVencidas'], AppTheme.dangerColor, _formatMoney(stats['totalPendiente']))),
-                  ],
+                _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['totalPagado']), width: 160),
+                _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, null, width: 160),
+                _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['totalPendiente']), width: 160),
+                _buildStatCard(
+                  'Vencidas',
+                  stats['cantVencidas'],
+                  (stats['totalDeuda'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
+                  _formatMoney(stats['totalDeuda']),
+                  width: 160,
+                ),
+                _buildStatCard(
+                  'Facturacion',
+                  stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
+                  AppTheme.primaryColor,
+                  _formatMoney(stats['totalFacturacion']),
+                  width: 160,
                 ),
               ],
             ),
@@ -283,8 +298,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, int count, Color color, String? subtext) {
-    return Container(
+  Widget _buildStatCard(String label, int count, Color color, String? subtext, {double? width}) {
+    final card = Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -303,6 +318,11 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ],
       ),
     );
+
+    if (width != null) {
+      return SizedBox(width: width, child: card);
+    }
+    return card;
   }
 
   Widget _buildFiltroChip(String label, String estado) {
@@ -324,9 +344,18 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final vencimiento = _formatDate(cuota.fechaVencimiento);
     final nombre = alumno?.nombreCompleto ?? 'Alumno ${cuota.alumnoId}';
     final dni = alumno?.dni ?? '';
+    final int cuotasPendAlumno = _contarCuotasPendientes(alumno?.id ?? cuota.alumnoId);
+    final bool alertaDeuda = cuotasPendAlumno >= 3;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.4) : Colors.grey.shade200,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -338,10 +367,15 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: AppTheme.primaryColor,
-                  child: Text(
-                    nombre[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
+                  backgroundImage: alumno?.fotoAlumno != null && alumno!.fotoAlumno!.isNotEmpty
+                      ? NetworkImage(alumno.fotoAlumno!)
+                      : null,
+                  child: (alumno?.fotoAlumno == null || alumno!.fotoAlumno!.isEmpty)
+                      ? Text(
+                          nombre[0].toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -436,13 +470,25 @@ class _CuotasScreenState extends State<CuotasScreen> {
                     ),
                   ),
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => _editarMonto(cuota),
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Editar monto',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.grey.shade100,
-                  ),
+                Column(
+                  children: [
+                    IconButton(
+                      onPressed: () => _editarMonto(cuota),
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Editar monto',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.shade100,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _editarVencimiento(cuota),
+                      icon: const Icon(Icons.event),
+                      tooltip: 'Editar vencimiento',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.shade100,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -615,6 +661,27 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
+  Future<void> _editarVencimiento(Cuota cuota) async {
+    DateTime fechaSeleccionada = cuota.fechaVencimiento;
+
+    final confirmar = await showDatePicker(
+      context: context,
+      initialDate: fechaSeleccionada,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(DateTime.now().year + 2, 12, 31),
+    );
+
+    if (confirmar != null && cuota.id != null) {
+      await _db.updateFechaVencimiento(cuota.id!, confirmar);
+      await _loadCuotas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fecha de vencimiento actualizada')),
+        );
+      }
+    }
+  }
+
   Widget _buildEstadoBadge(String estado) {
     Color color;
     String texto;
@@ -657,6 +724,10 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ],
       ),
     );
+  }
+
+  int _contarCuotasPendientes(String alumnoId) {
+    return _cuotas.where((c) => c.alumnoId == alumnoId && !c.estaPagada).length;
   }
 
   Future<void> _registrarPagoTotal(Cuota cuota) async {
