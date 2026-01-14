@@ -167,6 +167,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Navigator.pushNamed(context, '/admin/cuotas');
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Galeria'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/admin/galeria');
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.home),

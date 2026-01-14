@@ -311,6 +311,42 @@ class SupabaseService {
     return uploadFile('documentos-titulos', '${dni}_titulo.$ext', file);
   }
 
+  // ==================== GALERIA DE EVENTOS ====================
+
+  Future<String> uploadFotoGaleria(String titulo, File file) async {
+    final ext = file.path.split('.').last;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName = '${timestamp}_${titulo.replaceAll(' ', '_')}.$ext';
+    return uploadFile('galeria', fileName, file);
+  }
+
+  Future<List<Map<String, dynamic>>> getGaleria() async {
+    final response = await client
+        .from('galeria')
+        .select()
+        .eq('activo', true)
+        .order('fecha_creacion', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> insertFotoGaleria({
+    required String titulo,
+    required String url,
+    String? descripcion,
+  }) async {
+    await client.from('galeria').insert({
+      'titulo': titulo,
+      'url_imagen': url,
+      'descripcion': descripcion,
+      'activo': true,
+    });
+  }
+
+  Future<void> deleteFotoGaleria(String id) async {
+    await client.from('galeria').delete().eq('id', id);
+  }
+
   // ==================== CONFIGURACIÓN ====================
 
   Future<String?> getConfig(String clave) async {
