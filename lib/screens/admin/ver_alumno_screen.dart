@@ -24,6 +24,14 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
   List<Cuota> _cuotas = [];
   bool _isLoading = true;
 
+  // URLs firmadas de documentos
+  String? _dniFrenteUrl;
+  String? _dniDorsoUrl;
+  String? _partidaNacimientoUrl;
+  String? _tituloUrl;
+  String? _tramiteConstanciaUrl;
+  String? _materiasConstanciaUrl;
+
   @override
   void initState() {
     super.initState();
@@ -36,16 +44,39 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
       Alumno? alumnoProcesado = alumno;
       Legajo? legajo;
       List<Cuota> cuotas = [];
+      String? dniFrenteUrl;
+      String? dniDorsoUrl;
+      String? partidaNacimientoUrl;
+      String? tituloUrl;
+      String? tramiteConstanciaUrl;
+      String? materiasConstanciaUrl;
+
       if (alumno != null) {
         legajo = await _db.getLegajoByAlumnoId(alumno.id!);
         cuotas = await _db.getCuotasByAlumno(alumno.id!);
         final signedFoto = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
         if (signedFoto != null) alumnoProcesado = alumno.copyWith(fotoAlumno: signedFoto);
+
+        // Cargar URLs firmadas de documentos
+        if (legajo != null) {
+          dniFrenteUrl = await _db.getSignedUrl('documentos-dni', legajo.dniFrente);
+          dniDorsoUrl = await _db.getSignedUrl('documentos-dni', legajo.dniDorso);
+          partidaNacimientoUrl = await _db.getSignedUrl('documentos-partidas', legajo.partidaNacimiento);
+          tituloUrl = await _db.getSignedUrl('documentos-titulos', legajo.tituloArchivo);
+          tramiteConstanciaUrl = await _db.getSignedUrl('documentos-certificados', legajo.tramiteConstancia);
+          materiasConstanciaUrl = await _db.getSignedUrl('documentos-certificados', legajo.materiasConstancia);
+        }
       }
       setState(() {
         _alumno = alumnoProcesado;
         _legajo = legajo;
         _cuotas = cuotas;
+        _dniFrenteUrl = dniFrenteUrl;
+        _dniDorsoUrl = dniDorsoUrl;
+        _partidaNacimientoUrl = partidaNacimientoUrl;
+        _tituloUrl = tituloUrl;
+        _tramiteConstanciaUrl = tramiteConstanciaUrl;
+        _materiasConstanciaUrl = materiasConstanciaUrl;
         _isLoading = false;
       });
     } catch (e) {
@@ -117,11 +148,20 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                         ]),
                       if (_legajo != null)
                         _buildSeccion('Documentacion', [
-                          _buildInfo('DNI Frente', _legajo!.dniFrente != null ? 'Adjuntado' : 'Pendiente'),
-                          _buildInfo('DNI Dorso', _legajo!.dniDorso != null ? 'Adjuntado' : 'Pendiente'),
+                          _buildDocumento('DNI Frente', _dniFrenteUrl),
+                          _buildDocumento('DNI Dorso', _dniDorsoUrl),
                           if (_legajo!.nacidoFueraSantaFe)
-                            _buildInfo('Partida Nacimiento', _legajo!.partidaNacimiento != null ? 'Adjuntada' : 'Pendiente'),
+                            _buildDocumento('Partida Nacimiento', _partidaNacimientoUrl),
                           _buildInfo('Estado Titulo', _legajo!.estadoTituloTexto),
+                          if (_legajo!.estadoTitulo == 'terminado')
+                            _buildDocumento('Titulo Legalizado', _tituloUrl),
+                          if (_legajo!.estadoTitulo == 'en_tramite')
+                            _buildDocumento('Constancia Tramite', _tramiteConstanciaUrl),
+                          if (_legajo!.estadoTitulo == 'debe_materias') ...[
+                            if (_legajo!.materiasAdeudadas != null && _legajo!.materiasAdeudadas!.isNotEmpty)
+                              _buildInfo('Materias Adeudadas', _legajo!.materiasAdeudadas!),
+                            _buildDocumento('Constancia Materias', _materiasConstanciaUrl),
+                          ],
                         ]),
                       const SizedBox(height: 24),
                       _buildCambiarEstado(),
@@ -330,6 +370,135 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDocumento(String label, String? url) {
+    final tieneDocumento = url != null && url.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(
+                  tieneDocumento ? Icons.check_circle : Icons.pending,
+                  size: 16,
+                  color: tieneDocumento ? AppTheme.successColor : AppTheme.warningColor,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  tieneDocumento ? 'Adjuntado' : 'Pendiente',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: tieneDocumento ? AppTheme.successColor : AppTheme.warningColor,
+                  ),
+                ),
+                if (tieneDocumento) ...[
+                  const SizedBox(width: 12),
+                  InkWell(
+                    onTap: () => _verDocumento(label, url),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.visibility, size: 14, color: AppTheme.primaryColor),
+                          SizedBox(width: 4),
+                          Text(
+                            'Ver',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _verDocumento(String titulo, String url) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(titulo),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('No se pudo cargar el documento'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -66,49 +66,53 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Barra de búsqueda y filtros
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey.shade100,
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nombre, DNI o codigo...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadAlumnos,
+              child: CustomScrollView(
+                slivers: [
+                  // Barra de búsqueda y filtros
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.grey.shade100,
+                      child: Column(
+                        children: [
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Buscar por nombre, DNI o codigo...',
+                              prefixIcon: const Icon(Icons.search),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (v) => setState(() => _busqueda = v),
+                          ),
+                          const SizedBox(height: 12),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildFiltroChip('Todos', ''),
+                                _buildFiltroChip('Pendientes', 'pendiente'),
+                                _buildFiltroChip('Aprobados', 'aprobado'),
+                                _buildFiltroChip('Rechazados', 'rechazado'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  onChanged: (v) => setState(() => _busqueda = v),
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFiltroChip('Todos', ''),
-                      _buildFiltroChip('Pendientes', 'pendiente'),
-                      _buildFiltroChip('Aprobados', 'aprobado'),
-                      _buildFiltroChip('Rechazados', 'rechazado'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          // Lista de alumnos
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _alumnosFiltrados.isEmpty
-                    ? Center(
+                  // Lista de alumnos
+                  if (_alumnosFiltrados.isEmpty)
+                    SliverFillRemaining(
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -120,20 +124,21 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
                             ),
                           ],
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadAlumnos,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _alumnosFiltrados.length,
-                          itemBuilder: (context, index) {
-                            return _buildAlumnoCard(_alumnosFiltrados[index]);
-                          },
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildAlumnoCard(_alumnosFiltrados[index]),
+                          childCount: _alumnosFiltrados.length,
                         ),
                       ),
-          ),
-        ],
-      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 
