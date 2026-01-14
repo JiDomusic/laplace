@@ -656,43 +656,49 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: () async {
-            // Usar FilePicker para imagenes (funciona en web y movil)
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.image,
-              withData: true, // Importante: obtener bytes para web
-            );
-            if (result != null && result.files.single.bytes != null) {
-              final platformFile = result.files.single;
-              onPicked(SelectedFile(
-                name: platformFile.name,
-                bytes: platformFile.bytes!,
-                // No acceder a path en web - causa excepcion
-              ));
-            }
-          },
-          child: Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: file != null
-                ? ClipRRect(
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: AspectRatio(
+              aspectRatio: 3 / 4, // Evita que el card quede demasiado horizontal
+              child: InkWell(
+                onTap: () async {
+                  // Usar FilePicker para imagenes (funciona en web y movil)
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.image,
+                    withData: true, // Importante: obtener bytes para web
+                  );
+                  if (result != null && result.files.single.bytes != null) {
+                    final platformFile = result.files.single;
+                    onPicked(SelectedFile(
+                      name: platformFile.name,
+                      bytes: platformFile.bytes!,
+                      // No acceder a path en web - causa excepcion
+                    ));
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(file.bytes, fit: BoxFit.cover),
-                  )
-                : const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text('Toca para seleccionar'),
-                    ],
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
+                  child: file != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(file.bytes, fit: BoxFit.cover),
+                        )
+                      : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text('Toca para seleccionar'),
+                          ],
+                        ),
+                ),
+              ),
+            ),
           ),
         ),
       ],

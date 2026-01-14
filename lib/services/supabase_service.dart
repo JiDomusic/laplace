@@ -114,6 +114,21 @@ class SupabaseService {
     };
   }
 
+  Future<List<Map<String, dynamic>>> getInscripcionesRecientes(int cantidad) async {
+    final response = await client
+        .from('alumnos')
+        .select('id, nombre, apellido, estado, nivel_inscripcion, fecha_inscripcion')
+        .order('fecha_inscripcion', ascending: false)
+        .limit(cantidad);
+
+    return List<Map<String, dynamic>>.from(response).map((item) {
+      return {
+        ...item,
+        'id': item['id']?.toString(),
+      };
+    }).toList();
+  }
+
   Alumno _alumnoFromSupabase(Map<String, dynamic> map) {
     return Alumno(
       id: map['id']?.toString(),
