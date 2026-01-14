@@ -20,6 +20,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
   bool _isLoading = true;
   String _busqueda = '';
   String _filtroEstado = 'todas';
+  List<Alumno> _alumnosDisponibles = [];
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
           _alumnos[cuota.alumnoId] = await _db.getAlumnoById(cuota.alumnoId);
         }
       }
+      _alumnosDisponibles = await _db.getAllAlumnos();
       setState(() {
         _cuotas = cuotas;
         _isLoading = false;
@@ -155,6 +157,34 @@ class _CuotasScreenState extends State<CuotasScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadCuotas,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'generar':
+                  _abrirGenerarCuotas();
+                  break;
+                case 'ajustar_trimestre':
+                  _abrirAjustarTrimestre();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'generar',
+                child: ListTile(
+                  leading: Icon(Icons.add_card),
+                  title: Text('Generar cuotas'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'ajustar_trimestre',
+                child: ListTile(
+                  leading: Icon(Icons.change_circle_outlined),
+                  title: Text('Ajustar monto trimestral'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -420,6 +450,169 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _abrirGenerarCuotas() async {
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
+    final montoController = TextEditingController();
+    final anioController = TextEditingController(text: DateTime.now().year.toString());
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar cuotas anuales'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Selecciona alumno y define el monto mensual. Se generarán cuotas de marzo a noviembre.'),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<String?>(
+              valueListenable: alumnoSeleccionado,
+              builder: (_, value, __) {
+                return DropdownButtonFormField<String>(
+                  value: value,
+                  items: _alumnosDisponibles
+                      .map(
+                        (a) => DropdownMenuItem(
+                          value: a.id,
+                          child: Text(a.nombreCompleto),
+                        ),
+                      )
+                      .toList(),
+                  decoration: const InputDecoration(labelText: 'Alumno'),
+                  onChanged: (v) => alumnoSeleccionado.value = v,
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: montoController,
+              decoration: const InputDecoration(labelText: 'Monto mensual', prefixText: '\$ '),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: anioController,
+              decoration: const InputDecoration(labelText: 'Año'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Generar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && alumnoSeleccionado.value != null) {
+      final monto = double.tryParse(montoController.text) ?? 0;
+      final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
+      if (monto <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      await _db.generarCuotasAnuales(alumnoSeleccionado.value!, monto, anio);
+      await _loadCuotas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cuotas generadas'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  Future<void> _abrirAjustarTrimestre() async {
+    final montoController = TextEditingController();
+    final anioController = TextEditingController(text: DateTime.now().year.toString());
+    final trimestreController = ValueNotifier<int>(1);
+    final soloPendientes = ValueNotifier<bool>(true);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ajustar monto trimestral'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Actualiza el monto de las cuotas de un trimestre (mar-may, jun-ago, sep-nov).'),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              value: trimestreController.value,
+              decoration: const InputDecoration(labelText: 'Trimestre'),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('1° Trimestre (Mar-May)')),
+                DropdownMenuItem(value: 2, child: Text('2° Trimestre (Jun-Ago)')),
+                DropdownMenuItem(value: 3, child: Text('3° Trimestre (Sep-Nov)')),
+              ],
+              onChanged: (v) => trimestreController.value = v ?? 1,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: montoController,
+              decoration: const InputDecoration(labelText: 'Nuevo monto mensual', prefixText: '\$ '),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: anioController,
+              decoration: const InputDecoration(labelText: 'Año'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<bool>(
+              valueListenable: soloPendientes,
+              builder: (_, value, __) {
+                return CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Solo cuotas no pagadas'),
+                  value: value,
+                  onChanged: (v) => soloPendientes.value = v ?? true,
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Actualizar')),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final monto = double.tryParse(montoController.text) ?? 0;
+      final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
+      if (monto <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      await _db.updateMontoCuotasTrimestre(
+        anio: anio,
+        trimestre: trimestreController.value,
+        nuevoMonto: monto,
+        soloPendientes: soloPendientes.value,
+      );
+      await _loadCuotas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Montos actualizados'), backgroundColor: Colors.green),
+        );
+      }
+    }
   }
 
   Widget _buildEstadoBadge(String estado) {

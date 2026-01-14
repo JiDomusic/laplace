@@ -30,8 +30,12 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
       final alumnos = _filtroEstado.isEmpty
           ? await _db.getAllAlumnos()
           : await _db.getAlumnosByEstado(_filtroEstado);
+      final alumnosConFoto = await Future.wait(alumnos.map((alumno) async {
+        final signed = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
+        return signed != null ? alumno.copyWith(fotoAlumno: signed) : alumno;
+      }));
       setState(() {
-        _alumnos = alumnos;
+        _alumnos = alumnosConFoto;
         _isLoading = false;
       });
     } catch (e) {
@@ -167,14 +171,19 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: AppTheme.primaryColor,
-                    child: Text(
-                      alumno.nombre[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
+                    backgroundImage: (alumno.fotoAlumno != null && alumno.fotoAlumno!.isNotEmpty)
+                        ? NetworkImage(alumno.fotoAlumno!)
+                        : null,
+                    child: (alumno.fotoAlumno == null || alumno.fotoAlumno!.isEmpty)
+                        ? Text(
+                            alumno.nombre[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
 

@@ -140,7 +140,12 @@ class ExitoScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   if (alumno != null) {
-                    final pdfData = await PdfService.generarComprobante(alumno);
+                      final pdfData = await PdfService.generarComprobante(
+                        alumno,
+                        totalMonto: null,
+                        totalPagado: null,
+                        saldoPendiente: null,
+                      );
                     await Printing.layoutPdf(onLayout: (_) => pdfData);
                   }
                 },

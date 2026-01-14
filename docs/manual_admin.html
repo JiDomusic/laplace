@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Manual de Uso - Panel Admin Laplace</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #0f172a; margin: 32px; line-height: 1.6; }
+    h1, h2, h3 { color: #0b4da2; margin-bottom: 8px; }
+    h2 { border-bottom: 2px solid #0b4da2; padding-bottom: 6px; }
+    code { background: #f4f6fa; padding: 2px 6px; border-radius: 4px; }
+    ul { margin-top: 0; }
+    .box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+    .tag { display: inline-block; padding: 2px 8px; background: #e8f1ff; color: #0b4da2; border-radius: 10px; font-size: 12px; margin-right: 6px; }
+    .step { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Manual de uso (dummy) - Panel Administrativo</h1>
+  <p>Guía breve para operadores del Instituto Laplace. Incluye flujo básico de inscripciones, gestión de cuotas y navegación general.</p>
+
+  <h2>Acceso</h2>
+  <div class="box">
+    <div class="step"><strong>1.</strong> Abrí la app y toca <strong>Ingresar</strong>.</div>
+    <div class="step"><strong>2.</strong> Usá el correo y contraseña asignados por sistemas. Si hay error 400, revisa credenciales o que el usuario exista.</div>
+    <div class="step"><strong>3.</strong> Tras loguear, verás el <strong>Dashboard</strong> con estadísticas y accesos rápidos.</div>
+  </div>
+
+  <h2>Dashboard</h2>
+  <ul>
+    <li><strong>Tarjeta de bienvenida:</strong> muestra tu rol, total de alumnos y acceso rápido a inscripciones.</li>
+    <li><strong>Estadísticas:</strong> Total, Pendientes, Aprobados y Cuotas pendientes (visible para admins que gestionan pagos).</li>
+    <li><strong>Acciones rápidas:</strong> Inscripciones, Cuotas, Galería y Nueva inscripción.</li>
+    <li><strong>Inscripciones recientes:</strong> últimas solicitudes con estado.</li>
+  </ul>
+
+  <h2>Inscripciones (panel admin)</h2>
+  <div class="box">
+    <div class="tag">Ruta</div> <code>Menu → Inscripciones</code>
+    <div class="step"><strong>1.</strong> Filtra por estado (Todos, Pendientes, Aprobados, Rechazados) o busca por nombre/DNI/código.</div>
+    <div class="step"><strong>2.</strong> Toca una tarjeta para ver el detalle del alumno.</div>
+    <div class="step"><strong>3.</strong> En el detalle podes:</div>
+    <ul>
+      <li>Ver foto, datos personales y documentación adjunta.</li>
+      <li>Contactar por WhatsApp/Email.</li>
+      <li><strong>Aprobar</strong> o <strong>Rechazar</strong> la solicitud según la documentación.</li>
+    </ul>
+  </div>
+
+  <h2>Quién carga qué (cuotas e inscripciones)</h2>
+  <ul>
+    <li><strong>Solicitudes de inscripción:</strong> las inicia el alumno/familia desde el formulario público. El admin revisa y aprueba.</li>
+    <li><strong>Cuotas:</strong> las genera el admin financiero (rol admin/superadmin). No las genera el alumno.</li>
+    <li><strong>Pagos:</strong> los registra el admin financiero cuando recibe comprobante (efectivo, transferencia, etc.).</li>
+  </ul>
+
+  <h2>Gestión de Cuotas</h2>
+  <div class="box">
+    <div class="tag">Ruta</div> <code>Menu → Cuotas</code>
+    <div class="step"><strong>1. Generar cuotas anuales:</strong></div>
+    <ul>
+      <li>Ingresá al alumno, elegí monto y año.</li>
+      <li>El sistema crea cuotas de Marzo a Noviembre con vencimiento día 10.</li>
+    </ul>
+    <div class="step"><strong>2. Registrar pago total:</strong></div>
+    <ul>
+      <li>Seleccioná la cuota → <em>Registrar pago</em> → elegí método y guarda.</li>
+      <li>Estado pasa a <strong>pagada</strong>.</li>
+    </ul>
+    <div class="step"><strong>3. Registrar pago parcial:</strong></div>
+    <ul>
+      <li>Seleccioná la cuota → <em>Pago parcial</em> → ingresá el monto.</li>
+      <li>El sistema suma al monto pagado y deja la cuota en <strong>parcial</strong> o <strong>pagada</strong> según corresponda.</li>
+    </ul>
+    <div class="step"><strong>4. Ajustar monto:</strong> Si hubo error, edita el monto de la cuota y guarda.</div>
+    <div class="step"><strong>5. Vencidas:</strong> se muestran como <strong>vencida</strong> si superan la fecha de vencimiento sin pago.</div>
+  </div>
+
+  <h2>Galería</h2>
+  <ul>
+    <li>Subí fotos de eventos institucionales con título y descripción opcional.</li>
+    <li>Podés eliminarlas desde la misma lista.</li>
+  </ul>
+
+  <h2>Cierre de sesión</h2>
+  <p>Usá el botón de salir en el menú lateral o en el avatar del dashboard. Si ves mensajes de sign-out automático, suele ser por credenciales inválidas o sesión expirada.</p>
+
+  <h2>Recomendaciones operativas</h2>
+  <ul>
+    <li>Revisá inscripciones pendientes diariamente.</li>
+    <li>Confirmá DNI y documentación antes de aprobar.</li>
+    <li>Registrá pagos solo al recibir comprobante válido.</li>
+    <li>Mantené actualizada la galería con contenido institucional.</li>
+  </ul>
+</body>
+</html>

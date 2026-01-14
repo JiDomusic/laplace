@@ -41,92 +41,101 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: IconThemeData(color: Colors.grey.shade800),
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  'assets/images/logo_laplace.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.school,
-                    color: AppTheme.primaryColor,
-                    size: 24,
+    return WillPopScope(
+      onWillPop: () async {
+        _auth.logout();
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade100,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          iconTheme: IconThemeData(color: Colors.grey.shade800),
+          titleSpacing: 0,
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/images/logo_laplace.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.school,
+                      color: AppTheme.primaryColor,
+                      size: 24,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Instituto Laplace',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.w700,
+              const SizedBox(width: 12),
+              const Text(
+                'Instituto Laplace',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.black87),
+              onPressed: () {
+                setState(() => _isLoading = true);
+                _loadData();
+              },
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: () {
-              setState(() => _isLoading = true);
-              _loadData();
-            },
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _loadData,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildWelcomeCard(),
-                      const SizedBox(height: 16),
-                      _buildStatsRow(),
-                      const SizedBox(height: 20),
-                      _buildSeccionTitulo(
-                        'Acciones rapidas',
-                        descripcion: 'Atajos para las tareas que mas usas',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildAccionesGrid(),
-                      const SizedBox(height: 20),
-                      _buildSeccionTitulo(
-                        'Inscripciones recientes',
-                        descripcion: 'Actividad de los ultimos dias',
-                        action: TextButton.icon(
-                          onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
-                          icon: const Icon(Icons.arrow_forward, size: 16),
-                          label: const Text('Ver todo'),
+        drawer: _buildDrawer(),
+        body: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildWelcomeCard(),
+                        const SizedBox(height: 16),
+                        _buildStatsRow(),
+                        const SizedBox(height: 20),
+                        _buildSeccionTitulo(
+                          'Acciones rapidas',
+                          descripcion: 'Atajos para las tareas que mas usas',
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInscripcionesRecientes(),
-                    ],
+                        const SizedBox(height: 12),
+                        _buildAccionesGrid(),
+                        const SizedBox(height: 20),
+                        _buildSeccionTitulo(
+                          'Inscripciones recientes',
+                          descripcion: 'Actividad de los ultimos dias',
+                          action: TextButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
+                            icon: const Icon(Icons.arrow_forward, size: 16),
+                            label: const Text('Ver todo'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInscripcionesRecientes(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }

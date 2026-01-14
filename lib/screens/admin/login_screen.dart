@@ -14,6 +14,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _auth = AuthService.instance;
+  final List<String> _correosSugeridos = const [
+    'programcionjjj@gmail.com',
+    'mirisarac@gmail.com',
+  ];
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -154,6 +158,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                       onFieldSubmitted: (_) => _login(),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Autocompletar correo
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _correosSugeridos
+                          .map(
+                            (correo) => ActionChip(
+                              label: Text(correo),
+                              avatar: const Icon(Icons.person_outline, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _emailController.text = correo;
+                                });
+                              },
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 24),
 

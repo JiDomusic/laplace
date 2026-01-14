@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:printing/printing.dart';
 import '../../models/alumno.dart';
 import '../../models/legajo.dart';
+import '../../models/cuota.dart';
 import '../../services/supabase_service.dart';
 import '../../services/pdf_service.dart';
 import '../../utils/app_theme.dart';
@@ -20,6 +21,7 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
   final SupabaseService _db = SupabaseService.instance;
   Alumno? _alumno;
   Legajo? _legajo;
+  List<Cuota> _cuotas = [];
   bool _isLoading = true;
 
   @override
@@ -31,13 +33,19 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
   Future<void> _loadData() async {
     try {
       final alumno = await _db.getAlumnoById(widget.alumnoId);
+      Alumno? alumnoProcesado = alumno;
       Legajo? legajo;
+      List<Cuota> cuotas = [];
       if (alumno != null) {
         legajo = await _db.getLegajoByAlumnoId(alumno.id!);
+        cuotas = await _db.getCuotasByAlumno(alumno.id!);
+        final signedFoto = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
+        if (signedFoto != null) alumnoProcesado = alumno.copyWith(fotoAlumno: signedFoto);
       }
       setState(() {
-        _alumno = alumno;
+        _alumno = alumnoProcesado;
         _legajo = legajo;
+        _cuotas = cuotas;
         _isLoading = false;
       });
     } catch (e) {
@@ -55,7 +63,13 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
               onPressed: () async {
-                final pdfData = await PdfService.generarComprobante(_alumno!);
+                final resumen = _resumenCuotas();
+                final pdfData = await PdfService.generarComprobante(
+                  _alumno!,
+                  totalMonto: resumen['totalMonto'],
+                  totalPagado: resumen['totalPagado'],
+                  saldoPendiente: resumen['saldoPendiente'],
+                );
                 await Printing.layoutPdf(onLayout: (_) => pdfData);
               },
               tooltip: 'Ver PDF',
@@ -115,6 +129,21 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                   ),
                 ),
     );
+  }
+
+  Map<String, double> _resumenCuotas() {
+    double totalMonto = 0;
+    double totalPagado = 0;
+    for (final cuota in _cuotas) {
+      totalMonto += cuota.monto;
+      totalPagado += cuota.montoPagado;
+    }
+    final saldoPendiente = totalMonto - totalPagado;
+    return {
+      'totalMonto': totalMonto,
+      'totalPagado': totalPagado,
+      'saldoPendiente': saldoPendiente < 0 ? 0 : saldoPendiente,
+    };
   }
 
   Widget _buildHeader() {

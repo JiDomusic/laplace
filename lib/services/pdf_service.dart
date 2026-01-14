@@ -5,7 +5,12 @@ import 'package:intl/intl.dart';
 import '../models/alumno.dart';
 
 class PdfService {
-  static Future<Uint8List> generarComprobante(Alumno alumno) async {
+  static Future<Uint8List> generarComprobante(
+    Alumno alumno, {
+    double? totalMonto,
+    double? totalPagado,
+    double? saldoPendiente,
+  }) async {
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -127,6 +132,14 @@ class PdfService {
                   _buildFila('Telefono', alumno.telefono!),
               ]),
               pw.SizedBox(height: 30),
+
+              // Estado de cuotas
+              _buildSeccion('ESTADO DE CUOTAS', [
+                _buildFila('Monto total asignado', totalMonto != null ? _formatMoney(totalMonto) : 'Pendiente de asignar'),
+                _buildFila('Pagado', totalPagado != null ? _formatMoney(totalPagado) : 'Pendiente'),
+                _buildFila('Saldo pendiente', saldoPendiente != null ? _formatMoney(saldoPendiente) : 'Pendiente'),
+              ]),
+              pw.SizedBox(height: 20),
 
               // Firmas
               pw.Row(
@@ -253,5 +266,10 @@ class PdfService {
         ],
       ),
     );
+  }
+
+  static String _formatMoney(double value) {
+    final formatted = value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    return '\$$formatted';
   }
 }

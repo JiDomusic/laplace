@@ -240,6 +240,16 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Future<List<Cuota>> getCuotasByAlumno(String alumnoId) async {
+    final response = await client
+        .from('cuotas')
+        .select()
+        .eq('alumno_id', alumnoId)
+        .order('fecha_vencimiento', ascending: true);
+
+    return (response as List).map((map) => _cuotaFromSupabase(map)).toList();
+  }
+
   Future<void> registrarPago(String cuotaId, String metodoPago, {String? observaciones}) async {
     await client.from('cuotas').update({
       'estado': 'pagada',
@@ -284,6 +294,33 @@ class SupabaseService {
     await client.from('cuotas').update({'monto': nuevoMonto}).eq('id', cuotaId);
   }
 
+  Future<void> updateMontoCuotasTrimestre({
+    required int anio,
+    required int trimestre,
+    required double nuevoMonto,
+    bool soloPendientes = true,
+  }) async {
+    final Map<int, List<int>> trimestres = {
+      1: [3, 4, 5],
+      2: [6, 7, 8],
+      3: [9, 10, 11],
+    };
+    final meses = trimestres[trimestre] ?? [];
+    if (meses.isEmpty) return;
+
+    final filter = client
+        .from('cuotas')
+        .update({'monto': nuevoMonto})
+        .eq('anio', anio)
+        .inFilter('mes', meses);
+
+    if (soloPendientes) {
+      filter.neq('estado', 'pagada');
+    }
+
+    await filter;
+  }
+
   Cuota _cuotaFromSupabase(Map<String, dynamic> map) {
     return Cuota(
       id: map['id']?.toString(),
@@ -309,8 +346,7 @@ class SupabaseService {
 
     await client.storage.from(bucket).uploadBinary(path, bytes);
 
-    final url = client.storage.from(bucket).getPublicUrl(path);
-    return url;
+    return path;
   }
 
   Future<String> uploadSelectedFile(String bucket, String fileName, SelectedFile file) async {
@@ -331,6 +367,40 @@ class SupabaseService {
 
   Future<String> uploadDocumento(String bucket, String dni, String tipo, SelectedFile file) async {
     return uploadSelectedFile(bucket, '${dni}_$tipo.${file.extension}', file);
+  }
+
+  Future<String?> getSignedUrl(String bucket, String? storedPathOrUrl, {int expiresInSeconds = 3600}) async {
+    if (storedPathOrUrl == null || storedPathOrUrl.isEmpty) return null;
+    try {
+      final path = _extractStoragePath(bucket, storedPathOrUrl);
+      final dynamic result = await client.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+      if (result is String) return result;
+      if (result is Map<String, dynamic>) {
+        final signedUrl = result['signedUrl'] ?? result['signed_url'];
+        return signedUrl is String ? signedUrl : null;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> getSignedFotoAlumno(String? storedPathOrUrl) {
+    return getSignedUrl('fotos-alumnos', storedPathOrUrl);
+  }
+
+  String _extractStoragePath(String bucket, String stored) {
+    // Maneja URL publica o firmada y devuelve solo el path interno del bucket
+    final publicPrefix = '/object/public/$bucket/';
+    final signedPrefix = '/object/sign/$bucket/';
+    if (stored.contains(publicPrefix)) {
+      return stored.split(publicPrefix).last;
+    }
+    if (stored.contains(signedPrefix)) {
+      return stored.split(signedPrefix).last;
+    }
+    // Si ya es un path interno, se devuelve tal cual
+    return stored;
   }
 
   // ==================== GALERIA DE EVENTOS ====================
