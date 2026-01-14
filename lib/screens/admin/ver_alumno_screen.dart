@@ -127,7 +127,7 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                       _buildSeccion('Datos Personales', [
                         _buildInfo('DNI', _alumno!.dni),
                         _buildInfo('Sexo', _alumno!.sexo),
-                        _buildInfo('Fecha Nacimiento', _formatDate(_alumno!.fechaNacimiento)),
+
                         _buildInfo('Nacionalidad', _alumno!.nacionalidad),
                       ]),
                       _buildSeccion('Domicilio', [
@@ -560,16 +560,28 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
   }
 
   Future<void> _cambiarDivision(String? division) async {
-    await _db.updateDivisionAlumno(_alumno!.id!, division);
-    _loadData();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(division != null
-              ? 'Division asignada: $division'
-              : 'Division removida'),
-        ),
-      );
+    try {
+      await _db.updateDivisionAlumno(_alumno!.id!, division);
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(division != null
+                ? 'Division asignada: $division'
+                : 'Division removida'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al asignar division: $e'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
     }
   }
 

@@ -34,6 +34,7 @@ class Alumno {
 
   // Inscripción
   final String nivelInscripcion;
+  final String? division; // A, B, C - asignado por admin
   final String estado;
   final String? observaciones;
   final String? codigoInscripcion;
@@ -63,6 +64,7 @@ class Alumno {
     this.contactoUrgenciaVinculo,
     this.fotoAlumno,
     required this.nivelInscripcion,
+    this.division,
     this.estado = 'pendiente',
     this.observaciones,
     this.codigoInscripcion,
@@ -94,6 +96,7 @@ class Alumno {
       'contacto_urgencia_vinculo': contactoUrgenciaVinculo,
       'foto_alumno': fotoAlumno,
       'nivel_inscripcion': nivelInscripcion,
+      'division': division,
       'estado': estado,
       'observaciones': observaciones,
       'codigo_inscripcion': codigoInscripcion,
@@ -127,6 +130,7 @@ class Alumno {
       contactoUrgenciaVinculo: map['contacto_urgencia_vinculo'],
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
+      division: map['division'],
       estado: map['estado'] ?? 'pendiente',
       observaciones: map['observaciones'],
       codigoInscripcion: map['codigo_inscripcion'],
@@ -160,6 +164,7 @@ class Alumno {
     String? contactoUrgenciaVinculo,
     String? fotoAlumno,
     String? nivelInscripcion,
+    String? division,
     String? estado,
     String? observaciones,
     String? codigoInscripcion,
@@ -189,6 +194,7 @@ class Alumno {
       contactoUrgenciaVinculo: contactoUrgenciaVinculo ?? this.contactoUrgenciaVinculo,
       fotoAlumno: fotoAlumno ?? this.fotoAlumno,
       nivelInscripcion: nivelInscripcion ?? this.nivelInscripcion,
+      division: division ?? this.division,
       estado: estado ?? this.estado,
       observaciones: observaciones ?? this.observaciones,
       codigoInscripcion: codigoInscripcion ?? this.codigoInscripcion,
@@ -197,6 +203,13 @@ class Alumno {
   }
 
   String get nombreCompleto => '$apellido, $nombre';
+
+  String get nivelCompleto {
+    if (division != null && division!.isNotEmpty) {
+      return '$nivelInscripcion $division';
+    }
+    return nivelInscripcion;
+  }
 
   String get direccionCompleta {
     String dir = '$calle $numero';

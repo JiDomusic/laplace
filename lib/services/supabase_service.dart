@@ -166,6 +166,7 @@ class SupabaseService {
       contactoUrgenciaVinculo: map['contacto_urgencia_vinculo'],
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
+      division: map['division'],
       estado: map['estado'] ?? 'pendiente',
       observaciones: map['observaciones'],
       codigoInscripcion: map['codigo_inscripcion'],

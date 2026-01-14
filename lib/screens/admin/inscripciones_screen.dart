@@ -11,17 +11,33 @@ class InscripcionesScreen extends StatefulWidget {
   State<InscripcionesScreen> createState() => _InscripcionesScreenState();
 }
 
-class _InscripcionesScreenState extends State<InscripcionesScreen> {
+class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTickerProviderStateMixin {
   final SupabaseService _db = SupabaseService.instance;
   List<Alumno> _alumnos = [];
   bool _isLoading = true;
   String _filtroEstado = '';
   String _busqueda = '';
+  late TabController _tabController;
+
+  final List<String> _niveles = ['Todos', 'Primer Año', 'Segundo Año', 'Tercer Año'];
+  final List<String> _divisiones = ['A', 'B', 'C'];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _niveles.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
     _loadAlumnos();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAlumnos() async {
@@ -43,15 +59,46 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
     }
   }
 
-  List<Alumno> get _alumnosFiltrados {
-    if (_busqueda.isEmpty) return _alumnos;
-    final busqueda = _busqueda.toLowerCase();
-    return _alumnos.where((a) {
-      return a.nombre.toLowerCase().contains(busqueda) ||
-          a.apellido.toLowerCase().contains(busqueda) ||
-          a.dni.contains(busqueda) ||
-          (a.codigoInscripcion?.toLowerCase().contains(busqueda) ?? false);
-    }).toList();
+  List<Alumno> _filtrarAlumnos(String nivel, String? division) {
+    var lista = _alumnos;
+
+    // Filtrar por nivel
+    if (nivel != 'Todos') {
+      lista = lista.where((a) => a.nivelInscripcion == nivel).toList();
+    }
+
+    // Filtrar por división
+    if (division != null) {
+      if (division == 'sin_asignar') {
+        lista = lista.where((a) => a.division == null || a.division!.isEmpty).toList();
+      } else {
+        lista = lista.where((a) => a.division == division).toList();
+      }
+    }
+
+    // Filtrar por búsqueda
+    if (_busqueda.isNotEmpty) {
+      final busqueda = _busqueda.toLowerCase();
+      lista = lista.where((a) {
+        return a.nombre.toLowerCase().contains(busqueda) ||
+            a.apellido.toLowerCase().contains(busqueda) ||
+            a.dni.contains(busqueda) ||
+            (a.codigoInscripcion?.toLowerCase().contains(busqueda) ?? false);
+      }).toList();
+    }
+
+    // Ordenar por apellido
+    lista.sort((a, b) => a.apellido.compareTo(b.apellido));
+    return lista;
+  }
+
+  int _contarPorNivel(String nivel) {
+    if (nivel == 'Todos') return _alumnos.length;
+    return _alumnos.where((a) => a.nivelInscripcion == nivel).length;
+  }
+
+  int _contarPorDivision(String nivel, String? division) {
+    return _filtrarAlumnos(nivel, division).length;
   }
 
   @override
@@ -65,80 +112,228 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
             onPressed: _loadAlumnos,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppTheme.accentColor,
+          indicatorWeight: 3,
+          tabs: _niveles.map((nivel) {
+            final count = _contarPorNivel(nivel);
+            return Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(nivel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (count > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadAlumnos,
-              child: CustomScrollView(
-                slivers: [
-                  // Barra de búsqueda y filtros
-                  SliverToBoxAdapter(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      color: Colors.grey.shade100,
-                      child: Column(
-                        children: [
-                          TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Buscar por nombre, DNI o codigo...',
-                              prefixIcon: const Icon(Icons.search),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                            onChanged: (v) => setState(() => _busqueda = v),
-                          ),
-                          const SizedBox(height: 12),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _buildFiltroChip('Todos', ''),
-                                _buildFiltroChip('Pendientes', 'pendiente'),
-                                _buildFiltroChip('Aprobados', 'aprobado'),
-                                _buildFiltroChip('Rechazados', 'rechazado'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+          : Column(
+              children: [
+                // Barra de búsqueda y filtros
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade300),
                     ),
                   ),
-
-                  // Lista de alumnos
-                  if (_alumnosFiltrados.isEmpty)
-                    SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
+                    children: [
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nombre, DNI o codigo...',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) => setState(() => _busqueda = v),
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
                           children: [
-                            Icon(Icons.inbox, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No hay inscripciones',
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
+                            _buildFiltroChip('Todos', ''),
+                            _buildFiltroChip('Pendientes', 'pendiente'),
+                            _buildFiltroChip('Aprobados', 'aprobado'),
+                            _buildFiltroChip('Rechazados', 'rechazado'),
                           ],
                         ),
                       ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.all(16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _buildAlumnoCard(_alumnosFiltrados[index]),
-                          childCount: _alumnosFiltrados.length,
-                        ),
+                    ],
+                  ),
+                ),
+
+                // Lista de alumnos
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: _niveles.map((nivel) {
+                      if (nivel == 'Todos') {
+                        return _buildListaSimple(nivel);
+                      } else {
+                        return _buildListaAgrupada(nivel);
+                      }
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // Lista simple para "Todos"
+  Widget _buildListaSimple(String nivel) {
+    final alumnos = _filtrarAlumnos(nivel, null);
+    if (alumnos.isEmpty) {
+      return _buildEmptyState('No hay alumnos');
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAlumnos,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: alumnos.length,
+        itemBuilder: (context, index) => _buildAlumnoCard(alumnos[index]),
+      ),
+    );
+  }
+
+  // Lista agrupada por división para cada año
+  Widget _buildListaAgrupada(String nivel) {
+    final divisiones = ['A', 'B', 'C', 'sin_asignar'];
+    final labels = {'A': 'Division A', 'B': 'Division B', 'C': 'Division C', 'sin_asignar': 'Sin Asignar'};
+    final colors = {
+      'A': AppTheme.accentColor,
+      'B': AppTheme.successColor,
+      'C': AppTheme.primaryColor,
+      'sin_asignar': Colors.grey,
+    };
+
+    return RefreshIndicator(
+      onRefresh: _loadAlumnos,
+      child: CustomScrollView(
+        slivers: [
+          ...divisiones.map((division) {
+            final alumnos = _filtrarAlumnos(nivel, division);
+            if (alumnos.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+            final color = colors[division]!;
+            final label = labels[division]!;
+
+            return SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header de la división
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withOpacity(0.7)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          division == 'sin_asignar' ? Icons.help_outline : Icons.groups,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '$nivel - $label',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${alumnos.length} alumnos',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Lista de alumnos de esta división
+                  ...alumnos.map((alumno) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildAlumnoCard(alumno, divisionColor: color),
+                  )),
                 ],
               ),
-            ),
+            );
+          }),
+          // Espacio al final
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inbox, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(message, style: TextStyle(color: Colors.grey.shade600)),
+        ],
+      ),
     );
   }
 
@@ -147,108 +342,156 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
-        label: Text(label),
+        label: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
         selected: isSelected,
         onSelected: (selected) {
           setState(() => _filtroEstado = selected ? estado : '');
           _loadAlumnos();
         },
-        selectedColor: AppTheme.primaryColor.withOpacity(0.2),
-        checkmarkColor: AppTheme.primaryColor,
+        selectedColor: AppTheme.accentColor,
+        backgroundColor: Colors.white,
+        checkmarkColor: Colors.white,
+        side: BorderSide(
+          color: isSelected ? AppTheme.accentColor : Colors.grey.shade300,
+          width: isSelected ? 2 : 1,
+        ),
       ),
     );
   }
 
-  Widget _buildAlumnoCard(Alumno alumno) {
+  Widget _buildAlumnoCard(Alumno alumno, {Color? divisionColor}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: divisionColor?.withOpacity(0.3) ?? Colors.transparent,
+          width: 2,
+        ),
+      ),
       child: InkWell(
-        onTap: () => Navigator.pushNamed(context, '/admin/alumno/${alumno.id}'),
-        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          await Navigator.pushNamed(context, '/admin/alumno/${alumno.id}');
+          _loadAlumnos(); // Recargar al volver
+        },
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(12),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  // Avatar
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppTheme.primaryColor,
-                    backgroundImage: (alumno.fotoAlumno != null && alumno.fotoAlumno!.isNotEmpty)
-                        ? NetworkImage(alumno.fotoAlumno!)
-                        : null,
-                    child: (alumno.fotoAlumno == null || alumno.fotoAlumno!.isEmpty)
-                        ? Text(
-                            alumno.nombre[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
+              // Avatar
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: divisionColor ?? AppTheme.primaryColor,
+                backgroundImage: (alumno.fotoAlumno != null && alumno.fotoAlumno!.isNotEmpty)
+                    ? NetworkImage(alumno.fotoAlumno!)
+                    : null,
+                child: (alumno.fotoAlumno == null || alumno.fotoAlumno!.isEmpty)
+                    ? Text(
+                        '${alumno.nombre[0]}${alumno.apellido[0]}'.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
 
-                  // Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alumno.nombreCompleto,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'DNI: ${alumno.dni}',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
                       children: [
+                        // Nivel
                         Text(
-                          alumno.nombreCompleto,
-                          style: const TextStyle(
+                          alumno.nivelInscripcion,
+                          style: TextStyle(
+                            color: AppTheme.accentColor,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
                           ),
                         ),
-                        Text(
-                          'DNI: ${alumno.dni}',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
+                        // División badge
+                        if (alumno.division != null && alumno.division!.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: divisionColor ?? AppTheme.accentColor,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              alumno.division!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-
-                  // Estado
-                  _buildEstadoBadge(alumno.estado),
-                ],
+                  ],
+                ),
               ),
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+              // Acciones
+              Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        alumno.codigoInscripcion ?? 'Sin codigo',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      Text(
-                        alumno.nivelInscripcion,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                      ),
-                    ],
-                  ),
+                  _buildEstadoBadge(alumno.estado),
+                  const SizedBox(height: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.chat, color: AppTheme.whatsappColor),
-                        onPressed: () => _abrirWhatsApp(alumno),
-                        tooltip: 'WhatsApp',
-                      ),
-                      if (alumno.estado == 'pendiente')
-                        IconButton(
-                          icon: const Icon(Icons.check_circle, color: AppTheme.successColor),
-                          onPressed: () => _aprobarInscripcion(alumno),
-                          tooltip: 'Aprobar',
+                      InkWell(
+                        onTap: () => _abrirWhatsApp(alumno),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.whatsappColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.chat, color: AppTheme.whatsappColor, size: 20),
                         ),
+                      ),
+                      if (alumno.estado == 'pendiente') ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () => _aprobarInscripcion(alumno),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.successColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.check, color: AppTheme.successColor, size: 20),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -282,14 +525,18 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: color,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         texto,
-        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -315,6 +562,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
             child: const Text('Aprobar'),
           ),
         ],

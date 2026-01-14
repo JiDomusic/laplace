@@ -29,9 +29,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       final stats = await _db.getEstadisticas();
       final inscripciones = await _db.getInscripcionesRecientes(5);
+
+      // Cargar URLs firmadas de las fotos de alumnos
+      final inscripcionesConFoto = await Future.wait(
+        inscripciones.map((inscripcion) async {
+          final fotoPath = inscripcion['foto_alumno'];
+          if (fotoPath != null && fotoPath.toString().isNotEmpty) {
+            final signedUrl = await _db.getSignedFotoAlumno(fotoPath);
+            return {...inscripcion, 'foto_url': signedUrl};
+          }
+          return inscripcion;
+        }),
+      );
+
       setState(() {
         _stats = stats;
-        _inscripcionesRecientes = inscripciones;
+        _inscripcionesRecientes = inscripcionesConFoto;
         _isLoading = false;
       });
     } catch (e) {
@@ -587,17 +600,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
               separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
               itemBuilder: (context, index) {
                 final inscripcion = _inscripcionesRecientes[index];
+                final fotoUrl = inscripcion['foto_url'] as String?;
+                final tienePhoto = fotoUrl != null && fotoUrl.isNotEmpty;
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   leading: CircleAvatar(
                     backgroundColor: _getColorEstado(inscripcion['estado']).withOpacity(0.12),
-                    child: Text(
-                      '${inscripcion['nombre']?[0] ?? ''}${inscripcion['apellido']?[0] ?? ''}',
-                      style: TextStyle(
-                        color: _getColorEstado(inscripcion['estado']),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    backgroundImage: tienePhoto ? NetworkImage(fotoUrl) : null,
+                    child: !tienePhoto
+                        ? Text(
+                            '${inscripcion['nombre']?[0] ?? ''}${inscripcion['apellido']?[0] ?? ''}',
+                            style: TextStyle(
+                              color: _getColorEstado(inscripcion['estado']),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   title: Text(
                     '${inscripcion['apellido']}, ${inscripcion['nombre']}',
