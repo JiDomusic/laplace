@@ -658,17 +658,17 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            // Usar FilePicker para imagenes tambien (funciona en web y movil)
+            // Usar FilePicker para imagenes (funciona en web y movil)
             final result = await FilePicker.platform.pickFiles(
               type: FileType.image,
-              withData: true, // Importante: obtener bytes
+              withData: true, // Importante: obtener bytes para web
             );
             if (result != null && result.files.single.bytes != null) {
               final platformFile = result.files.single;
               onPicked(SelectedFile(
                 name: platformFile.name,
                 bytes: platformFile.bytes!,
-                path: platformFile.path,
+                // No acceder a path en web - causa excepcion
               ));
             }
           },
@@ -715,7 +715,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
               onPicked(SelectedFile(
                 name: platformFile.name,
                 bytes: platformFile.bytes!,
-                path: platformFile.path,
+                // No acceder a path en web - causa excepcion
               ));
             }
           },

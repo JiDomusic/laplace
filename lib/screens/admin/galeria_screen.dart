@@ -82,7 +82,6 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
                         selectedFile = SelectedFile(
                           name: platformFile.name,
                           bytes: platformFile.bytes!,
-                          path: platformFile.path,
                         );
                       });
                     }
