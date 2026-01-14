@@ -121,52 +121,107 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: AppTheme.primaryColor,
-              child: Text(
-                '${_alumno!.nombre[0]}${_alumno!.apellido[0]}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+            // Foto del alumno
+            if (_alumno!.fotoAlumno != null && _alumno!.fotoAlumno!.isNotEmpty)
+              GestureDetector(
+                onTap: () => _verFotoCompleta(),
+                child: Container(
+                  width: 120,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300, width: 2),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      _alumno!.fotoAlumno!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildInitialsAvatar(),
+                    ),
+                  ),
                 ),
-              ),
+              )
+            else
+              _buildInitialsAvatar(),
+            const SizedBox(height: 12),
+            // Nombre y codigo
+            Text(
+              _alumno!.nombreCompleto,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _alumno!.nombreCompleto,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    _alumno!.codigoInscripcion ?? 'Sin codigo',
-                    style: const TextStyle(color: AppTheme.primaryColor),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildActionButton(
-                        Icons.chat,
-                        'WhatsApp',
-                        AppTheme.whatsappColor,
-                        () => _abrirWhatsApp(),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildActionButton(
-                        Icons.email,
-                        'Email',
-                        AppTheme.primaryColor,
-                        () => _enviarEmail(),
-                      ),
-                    ],
-                  ),
-                ],
+            Text(
+              _alumno!.codigoInscripcion ?? 'Sin codigo',
+              style: const TextStyle(color: AppTheme.primaryColor),
+            ),
+            const SizedBox(height: 12),
+            // Botones de accion
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildActionButton(
+                  Icons.chat,
+                  'WhatsApp',
+                  AppTheme.whatsappColor,
+                  () => _abrirWhatsApp(),
+                ),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                  Icons.email,
+                  'Email',
+                  AppTheme.primaryColor,
+                  () => _enviarEmail(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitialsAvatar() {
+    return CircleAvatar(
+      radius: 50,
+      backgroundColor: AppTheme.primaryColor,
+      child: Text(
+        '${_alumno!.nombre[0]}${_alumno!.apellido[0]}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _verFotoCompleta() {
+    if (_alumno?.fotoAlumno == null) return;
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(_alumno!.nombreCompleto),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            Image.network(
+              _alumno!.fotoAlumno!,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox(
+                height: 200,
+                child: Center(child: Icon(Icons.broken_image, size: 64)),
               ),
             ),
           ],
