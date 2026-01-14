@@ -38,6 +38,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: "assets/images/logo_laplace.jpg"
+    background_color: "#FFFFFF"
+    theme_color: "#1a237e"
+  image_path: "assets/images/logo_laplace.jpg"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_laplace.jpg"
 
 flutter:
   uses-material-design: true
