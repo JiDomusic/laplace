@@ -426,13 +426,15 @@ class _CuotasScreenState extends State<CuotasScreen> {
               children: [
                 if (!cuota.estaPagada) ...[
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ElevatedButton.icon(
                       onPressed: () => _registrarPagoParcial(cuota),
                       icon: const Icon(Icons.payments_outlined, size: 18),
                       label: const Text('Pago Parcial'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                        side: const BorderSide(color: Colors.orange),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
@@ -669,6 +671,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       initialDate: fechaSeleccionada,
       firstDate: DateTime(2020),
       lastDate: DateTime(DateTime.now().year + 2, 12, 31),
+      locale: const Locale('es', 'AR'),
     );
 
     if (confirmar != null && cuota.id != null) {

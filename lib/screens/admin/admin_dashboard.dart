@@ -41,13 +41,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
         _auth.logout();
         if (mounted) {
           Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
         }
-        return false;
       },
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,

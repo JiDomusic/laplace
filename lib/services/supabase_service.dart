@@ -83,6 +83,12 @@ class SupabaseService {
     return _alumnoFromSupabase(response);
   }
 
+  Future<Alumno?> getAlumnoByDni(String dni) async {
+    final response = await client.from('alumnos').select().eq('dni', dni).maybeSingle();
+    if (response == null) return null;
+    return _alumnoFromSupabase(response);
+  }
+
   Future<void> updateEstadoAlumno(String id, String estado, {String? observaciones}) async {
     final map = {'estado': estado};
     if (observaciones != null) map['observaciones'] = observaciones;

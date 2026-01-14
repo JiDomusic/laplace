@@ -174,6 +174,15 @@ class InscripcionProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Validar duplicado por DNI antes de subir archivos
+      final existe = await _db.getAlumnoByDni(dni);
+      if (existe != null) {
+        _error = 'Ya existe un alumno con DNI $dni';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
       // Crear alumno
       // Subir archivos al storage
       String? fotoUrl;
