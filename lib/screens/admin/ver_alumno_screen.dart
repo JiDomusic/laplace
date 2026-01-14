@@ -120,8 +120,10 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                       const SizedBox(height: 16),
                       _buildSeccion('Nivel de Inscripcion', [
                         _buildInfo('Nivel', _alumno!.nivelInscripcion),
+                        _buildInfo('Division', _alumno!.division ?? 'Sin asignar'),
                         _buildInfo('Estado', _alumno!.estado.toUpperCase()),
                       ]),
+                      _buildAsignarDivision(),
                       _buildSeccion('Datos Personales', [
                         _buildInfo('DNI', _alumno!.dni),
                         _buildInfo('Sexo', _alumno!.sexo),
@@ -501,6 +503,74 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildAsignarDivision() {
+    final divisiones = ['A', 'B', 'C'];
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Asignar Division',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Selecciona la division para este alumno',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...divisiones.map((div) => _buildDivisionButton(div)),
+                if (_alumno?.division != null)
+                  TextButton(
+                    onPressed: () => _cambiarDivision(null),
+                    child: Text(
+                      'Quitar',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivisionButton(String division) {
+    final isSelected = _alumno?.division == division;
+    return ElevatedButton(
+      onPressed: isSelected ? null : () => _cambiarDivision(division),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor.withOpacity(0.1),
+        foregroundColor: isSelected ? Colors.white : AppTheme.primaryColor,
+        elevation: isSelected ? 2 : 0,
+        minimumSize: const Size(60, 40),
+      ),
+      child: Text(division, style: const TextStyle(fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Future<void> _cambiarDivision(String? division) async {
+    await _db.updateDivisionAlumno(_alumno!.id!, division);
+    _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(division != null
+              ? 'Division asignada: $division'
+              : 'Division removida'),
+        ),
+      );
+    }
   }
 
   Widget _buildCambiarEstado() {

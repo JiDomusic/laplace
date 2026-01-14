@@ -96,6 +96,10 @@ class SupabaseService {
     await client.from('alumnos').update(map).eq('id', id);
   }
 
+  Future<void> updateDivisionAlumno(String id, String? division) async {
+    await client.from('alumnos').update({'division': division}).eq('id', id);
+  }
+
   Future<void> deleteAlumno(String id) async {
     await client.from('alumnos').delete().eq('id', id);
   }
