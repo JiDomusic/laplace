@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/inscripcion_provider.dart';
 import 'services/auth_service.dart';
@@ -36,6 +37,17 @@ class MyApp extends StatelessWidget {
         title: 'Instituto Laplace',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'AR'),
+          Locale('es'),
+          Locale('en'),
+        ],
+        locale: const Locale('es', 'AR'),
         initialRoute: '/',
         routes: {
           '/': (context) => const HomeScreen(),

@@ -433,8 +433,26 @@ class SupabaseService {
 
   Future<String> uploadFotoGaleria(String titulo, SelectedFile file) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = '${timestamp}_${titulo.replaceAll(' ', '_')}.${file.extension}';
+    final tituloSanitizado = _sanitizarNombreArchivo(titulo);
+    final fileName = '${timestamp}_$tituloSanitizado.${file.extension}';
     return uploadSelectedFile('galeria', fileName, file);
+  }
+
+  String _sanitizarNombreArchivo(String nombre) {
+    // Reemplazar caracteres especiales
+    final reemplazos = {
+      'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+      'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+      'ñ': 'n', 'Ñ': 'N', 'ü': 'u', 'Ü': 'U',
+      ' ': '_',
+    };
+    var resultado = nombre;
+    reemplazos.forEach((key, value) {
+      resultado = resultado.replaceAll(key, value);
+    });
+    // Remover cualquier otro carácter no alfanumérico excepto _ y -
+    resultado = resultado.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '');
+    return resultado;
   }
 
   Future<List<Map<String, dynamic>>> getGaleria() async {
