@@ -1,8 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../providers/inscripcion_provider.dart';
@@ -18,7 +15,6 @@ class InscripcionScreen extends StatefulWidget {
 
 class _InscripcionScreenState extends State<InscripcionScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -654,7 +650,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     );
   }
 
-  Widget _buildImagePicker(String label, PickedFile? file, Function(PickedFile?) onPicked) {
+  Widget _buildImagePicker(String label, SelectedFile? file, Function(SelectedFile?) onPicked) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -669,7 +665,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             );
             if (result != null && result.files.single.bytes != null) {
               final platformFile = result.files.single;
-              onPicked(PickedFile(
+              onPicked(SelectedFile(
                 name: platformFile.name,
                 bytes: platformFile.bytes!,
                 path: platformFile.path,
@@ -703,7 +699,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     );
   }
 
-  Widget _buildFilePicker(String label, PickedFile? file, Function(PickedFile?) onPicked) {
+  Widget _buildFilePicker(String label, SelectedFile? file, Function(SelectedFile?) onPicked) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -716,7 +712,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             );
             if (result != null && result.files.single.bytes != null) {
               final platformFile = result.files.single;
-              onPicked(PickedFile(
+              onPicked(SelectedFile(
                 name: platformFile.name,
                 bytes: platformFile.bytes!,
                 path: platformFile.path,

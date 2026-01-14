@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../services/supabase_service.dart';
@@ -43,7 +42,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
   Future<void> _agregarFoto() async {
     final tituloController = TextEditingController();
     final descripcionController = TextEditingController();
-    PickedFile? selectedFile;
+    SelectedFile? selectedFile;
 
     final result = await showDialog<bool>(
       context: context,
@@ -80,7 +79,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
                     if (result != null && result.files.single.bytes != null) {
                       final platformFile = result.files.single;
                       setDialogState(() {
-                        selectedFile = PickedFile(
+                        selectedFile = SelectedFile(
                           name: platformFile.name,
                           bytes: platformFile.bytes!,
                           path: platformFile.path,

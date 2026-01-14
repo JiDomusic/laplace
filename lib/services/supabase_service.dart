@@ -298,32 +298,32 @@ class SupabaseService {
     return url;
   }
 
-  Future<String> uploadPickedFile(String bucket, String fileName, PickedFile file) async {
+  Future<String> uploadSelectedFile(String bucket, String fileName, SelectedFile file) async {
     return uploadBytes(bucket, fileName, file.bytes);
   }
 
-  Future<String> uploadFotoAlumno(String dni, PickedFile file) async {
-    return uploadPickedFile('fotos-alumnos', '${dni}_foto.${file.extension}', file);
+  Future<String> uploadFotoAlumno(String dni, SelectedFile file) async {
+    return uploadSelectedFile('fotos-alumnos', '${dni}_foto.${file.extension}', file);
   }
 
-  Future<String> uploadDNI(String dni, PickedFile file, String lado) async {
-    return uploadPickedFile('documentos-dni', '${dni}_$lado.${file.extension}', file);
+  Future<String> uploadDNI(String dni, SelectedFile file, String lado) async {
+    return uploadSelectedFile('documentos-dni', '${dni}_$lado.${file.extension}', file);
   }
 
-  Future<String> uploadTitulo(String dni, PickedFile file) async {
-    return uploadPickedFile('documentos-titulos', '${dni}_titulo.${file.extension}', file);
+  Future<String> uploadTitulo(String dni, SelectedFile file) async {
+    return uploadSelectedFile('documentos-titulos', '${dni}_titulo.${file.extension}', file);
   }
 
-  Future<String> uploadDocumento(String bucket, String dni, String tipo, PickedFile file) async {
-    return uploadPickedFile(bucket, '${dni}_$tipo.${file.extension}', file);
+  Future<String> uploadDocumento(String bucket, String dni, String tipo, SelectedFile file) async {
+    return uploadSelectedFile(bucket, '${dni}_$tipo.${file.extension}', file);
   }
 
   // ==================== GALERIA DE EVENTOS ====================
 
-  Future<String> uploadFotoGaleria(String titulo, PickedFile file) async {
+  Future<String> uploadFotoGaleria(String titulo, SelectedFile file) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = '${timestamp}_${titulo.replaceAll(' ', '_')}.${file.extension}';
-    return uploadPickedFile('galeria', fileName, file);
+    return uploadSelectedFile('galeria', fileName, file);
   }
 
   Future<List<Map<String, dynamic>>> getGaleria() async {

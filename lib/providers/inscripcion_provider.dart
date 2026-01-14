@@ -34,19 +34,19 @@ class InscripcionProvider with ChangeNotifier {
   String contactoUrgenciaTelefono = '';
   String contactoUrgenciaVinculo = '';
 
-  // Archivos (usando PickedFile para compatibilidad web/movil)
-  PickedFile? fotoAlumno;
-  PickedFile? certificadoTrabajo;
-  PickedFile? dniFrente;
-  PickedFile? dniDorso;
-  PickedFile? partidaNacimiento;
+  // Archivos (usando SelectedFile para compatibilidad web/movil)
+  SelectedFile? fotoAlumno;
+  SelectedFile? certificadoTrabajo;
+  SelectedFile? dniFrente;
+  SelectedFile? dniDorso;
+  SelectedFile? partidaNacimiento;
   bool nacidoFueraSantaFe = false;
   String estadoTitulo = '';
   String? tipoLegalizacion;
-  PickedFile? tituloArchivo;
-  PickedFile? tramiteConstancia;
+  SelectedFile? tituloArchivo;
+  SelectedFile? tramiteConstancia;
   String? materiasAdeudadas;
-  PickedFile? materiasConstancia;
+  SelectedFile? materiasConstancia;
 
   // Resultado de inscripción
   Alumno? _alumnoRegistrado;
@@ -85,42 +85,42 @@ class InscripcionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void setFotoAlumno(PickedFile? file) {
+  void setFotoAlumno(SelectedFile? file) {
     fotoAlumno = file;
     notifyListeners();
   }
 
-  void setCertificadoTrabajo(PickedFile? file) {
+  void setCertificadoTrabajo(SelectedFile? file) {
     certificadoTrabajo = file;
     notifyListeners();
   }
 
-  void setDniFrente(PickedFile? file) {
+  void setDniFrente(SelectedFile? file) {
     dniFrente = file;
     notifyListeners();
   }
 
-  void setDniDorso(PickedFile? file) {
+  void setDniDorso(SelectedFile? file) {
     dniDorso = file;
     notifyListeners();
   }
 
-  void setPartidaNacimiento(PickedFile? file) {
+  void setPartidaNacimiento(SelectedFile? file) {
     partidaNacimiento = file;
     notifyListeners();
   }
 
-  void setTituloArchivo(PickedFile? file) {
+  void setTituloArchivo(SelectedFile? file) {
     tituloArchivo = file;
     notifyListeners();
   }
 
-  void setTramiteConstancia(PickedFile? file) {
+  void setTramiteConstancia(SelectedFile? file) {
     tramiteConstancia = file;
     notifyListeners();
   }
 
-  void setMateriasConstancia(PickedFile? file) {
+  void setMateriasConstancia(SelectedFile? file) {
     materiasConstancia = file;
     notifyListeners();
   }
