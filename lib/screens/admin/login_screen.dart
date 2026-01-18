@@ -15,7 +15,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _auth = AuthService.instance;
   final List<String> _correosSugeridos = const [
-    'programcionjjj@gmail.com',
     'mirisarac@gmail.com',
   ];
   bool _obscurePassword = true;
