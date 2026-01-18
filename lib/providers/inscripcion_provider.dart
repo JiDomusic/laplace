@@ -18,6 +18,8 @@ class InscripcionProvider with ChangeNotifier {
   String sexo = '';
   DateTime? fechaNacimiento;
   String nacionalidad = 'Argentina';
+  String localidadNacimiento = '';
+  String provinciaNacimiento = '';
   String calle = '';
   String numero = '';
   String? piso;
@@ -28,11 +30,16 @@ class InscripcionProvider with ChangeNotifier {
   String? telefono;
   String celular = '';
   bool trabaja = false;
+  String cicloLectivo = DateTime.now().year.toString();
 
   // Contacto de urgencia
   String contactoUrgenciaNombre = '';
   String contactoUrgenciaTelefono = '';
   String contactoUrgenciaVinculo = '';
+  String contactoUrgenciaOtro = ''; // Cuando es "Otro"
+
+  // Título secundario
+  String observacionesTitulo = ''; // Para fecha y materias adeudadas
 
   // Archivos (usando SelectedFile para compatibilidad web/movil)
   SelectedFile? fotoAlumno;
@@ -227,6 +234,8 @@ class InscripcionProvider with ChangeNotifier {
         sexo: sexo,
         fechaNacimiento: fechaNacimiento!,
         nacionalidad: nacionalidad,
+        localidadNacimiento: localidadNacimiento.isNotEmpty ? localidadNacimiento : null,
+        provinciaNacimiento: provinciaNacimiento.isNotEmpty ? provinciaNacimiento : null,
         calle: calle,
         numero: numero,
         piso: piso,
@@ -241,6 +250,9 @@ class InscripcionProvider with ChangeNotifier {
         contactoUrgenciaNombre: contactoUrgenciaNombre,
         contactoUrgenciaTelefono: contactoUrgenciaTelefono,
         contactoUrgenciaVinculo: contactoUrgenciaVinculo,
+        contactoUrgenciaOtro: contactoUrgenciaOtro.isNotEmpty ? contactoUrgenciaOtro : null,
+        observacionesTitulo: observacionesTitulo.isNotEmpty ? observacionesTitulo : null,
+        cicloLectivo: cicloLectivo,
         fotoAlumno: fotoUrl,
         nivelInscripcion: _nivelSeleccionado!,
       );
@@ -289,6 +301,8 @@ class InscripcionProvider with ChangeNotifier {
     sexo = '';
     fechaNacimiento = null;
     nacionalidad = 'Argentina';
+    localidadNacimiento = '';
+    provinciaNacimiento = '';
     calle = '';
     numero = '';
     piso = null;
@@ -299,9 +313,12 @@ class InscripcionProvider with ChangeNotifier {
     telefono = null;
     celular = '';
     trabaja = false;
+    cicloLectivo = DateTime.now().year.toString();
     contactoUrgenciaNombre = '';
     contactoUrgenciaTelefono = '';
     contactoUrgenciaVinculo = '';
+    contactoUrgenciaOtro = '';
+    observacionesTitulo = '';
     fotoAlumno = null;
     certificadoTrabajo = null;
     dniFrente = null;

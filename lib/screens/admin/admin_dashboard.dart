@@ -14,7 +14,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final SupabaseService _db = SupabaseService.instance;
   final AuthService _auth = AuthService.instance;
   Map<String, int> _stats = {};
-  List<Map<String, dynamic>> _inscripcionesRecientes = [];
   bool _isLoading = true;
 
   bool get _puedeGestionarPagos => _auth.userRole == 'admin' || _auth.userRole == 'superadmin';
@@ -28,23 +27,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _loadData() async {
     try {
       final stats = await _db.getEstadisticas();
-      final inscripciones = await _db.getInscripcionesRecientes(5);
-
-      // Cargar URLs firmadas de las fotos de alumnos
-      final inscripcionesConFoto = await Future.wait(
-        inscripciones.map((inscripcion) async {
-          final fotoPath = inscripcion['foto_alumno'];
-          if (fotoPath != null && fotoPath.toString().isNotEmpty) {
-            final signedUrl = await _db.getSignedFotoAlumno(fotoPath);
-            return {...inscripcion, 'foto_url': signedUrl};
-          }
-          return inscripcion;
-        }),
-      );
 
       setState(() {
         _stats = stats;
-        _inscripcionesRecientes = inscripcionesConFoto;
         _isLoading = false;
       });
     } catch (e) {
@@ -133,18 +118,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ),
                         const SizedBox(height: 12),
                         _buildAccionesGrid(),
-                        const SizedBox(height: 20),
-                        _buildSeccionTitulo(
-                          'Inscripciones recientes',
-                          descripcion: 'Actividad de los ultimos dias',
-                          action: TextButton.icon(
-                            onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
-                            icon: const Icon(Icons.arrow_forward, size: 16),
-                            label: const Text('Ver todo'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInscripcionesRecientes(),
                       ],
                     ),
                   ),
@@ -540,142 +513,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInscripcionesRecientes() {
-    if (_inscripcionesRecientes.isEmpty) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Icon(Icons.inbox_outlined, color: Colors.grey),
-              const SizedBox(height: 10),
-              Text(
-                'No hay inscripciones recientes',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          children: [
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.history, color: AppTheme.primaryColor),
-              ),
-              title: const Text(
-                'Ultimas solicitudes',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(
-                'Registro de alumnos recientemente cargados',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-              ),
-            ),
-            const Divider(height: 1),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _inscripcionesRecientes.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
-              itemBuilder: (context, index) {
-                final inscripcion = _inscripcionesRecientes[index];
-                final fotoUrl = inscripcion['foto_url'] as String?;
-                final tienePhoto = fotoUrl != null && fotoUrl.isNotEmpty;
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  leading: CircleAvatar(
-                    backgroundColor: _getColorEstado(inscripcion['estado']).withOpacity(0.12),
-                    backgroundImage: tienePhoto ? NetworkImage(fotoUrl) : null,
-                    child: !tienePhoto
-                        ? Text(
-                            '${inscripcion['nombre']?[0] ?? ''}${inscripcion['apellido']?[0] ?? ''}',
-                            style: TextStyle(
-                              color: _getColorEstado(inscripcion['estado']),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : null,
-                  ),
-                  title: Text(
-                    '${inscripcion['apellido']}, ${inscripcion['nombre']}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    inscripcion['nivel_inscripcion'] ?? '',
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-                  ),
-                  trailing: _buildEstadoChip(inscripcion['estado']),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/admin/alumno/${inscripcion['id']}');
-                  },
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getColorEstado(String? estado) {
-    switch (estado) {
-      case 'aprobado':
-        return AppTheme.successColor;
-      case 'rechazado':
-        return AppTheme.dangerColor;
-      case 'pendiente':
-      default:
-        return AppTheme.warningColor;
-    }
-  }
-
-  String _getTextoEstado(String? estado) {
-    switch (estado) {
-      case 'aprobado':
-        return 'Aprobado';
-      case 'rechazado':
-        return 'Rechazado';
-      case 'pendiente':
-      default:
-        return 'Pendiente';
-    }
-  }
-
-  Widget _buildEstadoChip(String? estado) {
-    final color = _getColorEstado(estado);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        _getTextoEstado(estado),
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

@@ -20,6 +20,16 @@ class _LoginScreenState extends State<LoginScreen> {
   ];
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberEmail = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar email guardado si existe
+    if (_auth.savedEmail != null && _auth.savedEmail!.isNotEmpty) {
+      _emailController.text = _auth.savedEmail!;
+    }
+  }
 
   @override
   void dispose() {
@@ -36,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await _auth.login(
       _emailController.text,
       _passwordController.text,
+      rememberEmail: _rememberEmail,
     );
 
     setState(() => _isLoading = false);
@@ -159,7 +170,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       onFieldSubmitted: (_) => _login(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+
+                    // Recordar email
+                    CheckboxListTile(
+                      value: _rememberEmail,
+                      onChanged: (v) => setState(() => _rememberEmail = v ?? true),
+                      title: const Text('Recordar mi email', style: TextStyle(fontSize: 14)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                    const SizedBox(height: 16),
 
                     // Autocompletar correo
                     Wrap(
@@ -168,8 +190,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: _correosSugeridos
                           .map(
                             (correo) => ActionChip(
-                              label: Text(correo),
-                              avatar: const Icon(Icons.person_outline, size: 18),
+                              label: Text(correo, style: const TextStyle(fontSize: 12)),
+                              avatar: const Icon(Icons.person_outline, size: 16),
                               onPressed: () {
                                 setState(() {
                                   _emailController.text = correo;

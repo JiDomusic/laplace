@@ -20,7 +20,9 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   late TabController _tabController;
 
   final List<String> _niveles = ['Todos', 'Primer Año', 'Segundo Año', 'Tercer Año'];
-  final List<String> _divisiones = ['A', 'B', 'C'];
+  // Primer Año: divisiones A y B
+  // Segundo y Tercer Año: sin divisiones
+  final List<String> _divisionesPrimerAnio = ['A', 'B'];
 
   @override
   void initState() {
@@ -71,6 +73,9 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     if (division != null) {
       if (division == 'sin_asignar') {
         lista = lista.where((a) => a.division == null || a.division!.isEmpty).toList();
+      } else if (division == 'sin_division') {
+        // Para Segundo y Tercer Año - mostrar todos los alumnos del nivel
+        // No filtrar por división
       } else {
         lista = lista.where((a) => a.division == division).toList();
       }
@@ -230,14 +235,26 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
 
   // Lista agrupada por división para cada año
   Widget _buildListaAgrupada(String nivel) {
-    final divisiones = ['A', 'B', 'C', 'sin_asignar'];
-    final labels = {'A': 'Division A', 'B': 'Division B', 'C': 'Division C', 'sin_asignar': 'Sin Asignar'};
-    final colors = {
-      'A': AppTheme.accentColor,
-      'B': AppTheme.successColor,
-      'C': AppTheme.primaryColor,
-      'sin_asignar': Colors.grey,
-    };
+    // Primer Año tiene divisiones A y B
+    // Segundo y Tercer Año no tienen divisiones
+    final List<String> divisiones;
+    final Map<String, String> labels;
+    final Map<String, Color> colors;
+
+    if (nivel == 'Primer Año') {
+      divisiones = ['A', 'B', 'sin_asignar'];
+      labels = {'A': 'Division A', 'B': 'Division B', 'sin_asignar': 'Sin Asignar'};
+      colors = {
+        'A': AppTheme.accentColor,
+        'B': AppTheme.successColor,
+        'sin_asignar': Colors.grey,
+      };
+    } else {
+      // Segundo y Tercer Año no tienen divisiones
+      divisiones = ['sin_division'];
+      labels = {'sin_division': 'Alumnos'};
+      colors = {'sin_division': AppTheme.primaryColor};
+    }
 
     return RefreshIndicator(
       onRefresh: _loadAlumnos,

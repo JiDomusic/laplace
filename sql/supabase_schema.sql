@@ -3,13 +3,35 @@
 -- Base de Datos PostgreSQL para Supabase
 -- =====================================================
 
--- Habilitar extensión UUID
+-- =====================================================
+-- BORRAR TABLAS EXISTENTES (para reinstalacion limpia)
+-- =====================================================
+DROP TABLE IF EXISTS cuotas CASCADE;
+DROP TABLE IF EXISTS legajo_documentos CASCADE;
+DROP TABLE IF EXISTS alumnos CASCADE;
+DROP TABLE IF EXISTS galeria CASCADE;
+DROP TABLE IF EXISTS banners CASCADE;
+DROP TABLE IF EXISTS configuracion CASCADE;
+DROP TABLE IF EXISTS administradores CASCADE;
+
+-- Borrar vistas
+DROP VIEW IF EXISTS vista_alumnos_completa CASCADE;
+DROP VIEW IF EXISTS vista_cuotas_pendientes CASCADE;
+DROP VIEW IF EXISTS vista_inscripciones_nivel CASCADE;
+DROP VIEW IF EXISTS vista_estado_pagos_alumno CASCADE;
+DROP VIEW IF EXISTS vista_cuotas_parciales CASCADE;
+
+-- Borrar funciones
+DROP FUNCTION IF EXISTS generar_codigo_inscripcion CASCADE;
+DROP FUNCTION IF EXISTS actualizar_fecha_modificacion CASCADE;
+
+-- Habilitar extension UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =====================================================
 -- TABLA DE ALUMNOS
 -- =====================================================
-CREATE TABLE IF NOT EXISTS alumnos (
+CREATE TABLE alumnos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Datos Personales
@@ -19,6 +41,8 @@ CREATE TABLE IF NOT EXISTS alumnos (
     sexo VARCHAR(20) NOT NULL CHECK (sexo IN ('Masculino', 'Femenino', 'Otro')),
     fecha_nacimiento DATE NOT NULL,
     nacionalidad VARCHAR(50) NOT NULL,
+    localidad_nacimiento VARCHAR(100) DEFAULT NULL,
+    provincia_nacimiento VARCHAR(100) DEFAULT NULL,
 
     -- Domicilio
     calle VARCHAR(150) NOT NULL,
@@ -42,12 +66,18 @@ CREATE TABLE IF NOT EXISTS alumnos (
     contacto_urgencia_nombre VARCHAR(150) DEFAULT NULL,
     contacto_urgencia_telefono VARCHAR(30) DEFAULT NULL,
     contacto_urgencia_vinculo VARCHAR(50) DEFAULT NULL,
+    contacto_urgencia_otro VARCHAR(100) DEFAULT NULL,
+
+    -- Titulo Secundario
+    observaciones_titulo TEXT DEFAULT NULL,
+
+    -- Ciclo Lectivo e Inscripcion
+    ciclo_lectivo VARCHAR(10) DEFAULT NULL,
+    nivel_inscripcion VARCHAR(20) NOT NULL CHECK (nivel_inscripcion IN ('Primer Año', 'Segundo Año', 'Tercer Año')),
+    division VARCHAR(10) DEFAULT NULL,
 
     -- Foto del alumno
     foto_alumno TEXT DEFAULT NULL,
-
-    -- Nivel de inscripcion
-    nivel_inscripcion VARCHAR(20) NOT NULL CHECK (nivel_inscripcion IN ('Primer Año', 'Segundo Año', 'Tercer Año')),
 
     -- Estado de inscripcion
     estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'completo')),
@@ -59,16 +89,17 @@ CREATE TABLE IF NOT EXISTS alumnos (
     fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Índices para alumnos
+-- Indices para alumnos
 CREATE INDEX idx_alumnos_dni ON alumnos(dni);
 CREATE INDEX idx_alumnos_estado ON alumnos(estado);
 CREATE INDEX idx_alumnos_nivel ON alumnos(nivel_inscripcion);
 CREATE INDEX idx_alumnos_fecha ON alumnos(fecha_inscripcion);
+CREATE INDEX idx_alumnos_division ON alumnos(division);
 
 -- =====================================================
 -- TABLA DE LEGAJO (DOCUMENTOS)
 -- =====================================================
-CREATE TABLE IF NOT EXISTS legajo_documentos (
+CREATE TABLE legajo_documentos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     alumno_id UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
 
@@ -96,10 +127,13 @@ CREATE TABLE IF NOT EXISTS legajo_documentos (
     fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indice para legajo
+CREATE INDEX idx_legajo_alumno ON legajo_documentos(alumno_id);
+
 -- =====================================================
 -- TABLA DE CUOTAS
 -- =====================================================
-CREATE TABLE IF NOT EXISTS cuotas (
+CREATE TABLE cuotas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     alumno_id UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
 
@@ -110,11 +144,15 @@ CREATE TABLE IF NOT EXISTS cuotas (
     anio INTEGER NOT NULL,
 
     fecha_vencimiento DATE NOT NULL,
-    fecha_pago DATE DEFAULT NULL,
+    fecha_pago TIMESTAMP WITH TIME ZONE DEFAULT NULL,
 
     estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'pagada', 'vencida', 'parcial')),
     metodo_pago VARCHAR(50) DEFAULT NULL,
     comprobante TEXT DEFAULT NULL,
+
+    -- Campos de registro de pago
+    num_recibo VARCHAR(50) DEFAULT NULL,
+    detalle_pago TEXT DEFAULT NULL,
 
     notificacion_enviada BOOLEAN DEFAULT FALSE,
     fecha_notificacion TIMESTAMP WITH TIME ZONE DEFAULT NULL,
@@ -123,15 +161,16 @@ CREATE TABLE IF NOT EXISTS cuotas (
     fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Índices para cuotas
+-- Indices para cuotas
 CREATE INDEX idx_cuotas_alumno ON cuotas(alumno_id);
 CREATE INDEX idx_cuotas_estado ON cuotas(estado);
 CREATE INDEX idx_cuotas_vencimiento ON cuotas(fecha_vencimiento);
+CREATE INDEX idx_cuotas_anio ON cuotas(anio);
 
 -- =====================================================
 -- TABLA DE ADMINISTRADORES
 -- =====================================================
-CREATE TABLE IF NOT EXISTS administradores (
+CREATE TABLE administradores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -148,13 +187,13 @@ INSERT INTO administradores (email, password, nombre, rol) VALUES
 ('mirisarac@gmail.com', '987654', 'Miri', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
--- Índice para login
+-- Indice para login
 CREATE INDEX idx_admin_email ON administradores(email);
 
 -- =====================================================
 -- TABLA DE CONFIGURACION DEL SISTEMA
 -- =====================================================
-CREATE TABLE IF NOT EXISTS configuracion (
+CREATE TABLE configuracion (
     id SERIAL PRIMARY KEY,
     clave VARCHAR(50) NOT NULL UNIQUE,
     valor TEXT NOT NULL,
@@ -164,22 +203,56 @@ CREATE TABLE IF NOT EXISTS configuracion (
 
 -- Configuraciones iniciales
 INSERT INTO configuracion (clave, valor, descripcion) VALUES
-('nombre_instituto', 'Instituto Laplace', 'Nombre del instituto'),
-('direccion_instituto', 'Rosario, Santa Fe', 'Direccion del instituto'),
+('nombre_instituto', 'Instituto Superior Laplace', 'Nombre del instituto'),
+('numero_autorizacion', '9250', 'Numero de autorizacion oficial'),
+('carrera', 'Tecnico Superior en Seguridad e Higiene en el Trabajo', 'Nombre de la carrera'),
+('direccion_instituto', 'Lavalle 575, Rosario, Santa Fe', 'Direccion del instituto'),
 ('telefono_instituto', '3413513973', 'Telefono de contacto'),
 ('whatsapp_numero', '5493413513973', 'Numero de WhatsApp con codigo de pais'),
 ('email_instituto', 'info@laplace.edu.ar', 'Email de contacto'),
 ('monto_matricula', '50000', 'Monto de matricula por defecto'),
 ('monto_cuota', '35000', 'Monto de cuota mensual por defecto'),
-('inscripciones_abiertas', 'true', 'Estado de inscripciones'),
+('inscripciones_abiertas', 'false', 'Inscripciones solo presenciales'),
 ('ciclo_lectivo_actual', '2026', 'Año lectivo actual')
 ON CONFLICT (clave) DO NOTHING;
+
+-- =====================================================
+-- TABLA DE GALERIA (fotos para el front)
+-- =====================================================
+CREATE TABLE galeria (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    titulo VARCHAR(150),
+    descripcion TEXT,
+    url_imagen TEXT NOT NULL,
+    orden INTEGER DEFAULT 0,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indices para galeria
+CREATE INDEX idx_galeria_orden ON galeria(orden);
+CREATE INDEX idx_galeria_activo ON galeria(activo);
+
+-- =====================================================
+-- TABLA DE BANNERS (mensajes para el front)
+-- =====================================================
+CREATE TABLE banners (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    titulo VARCHAR(150) NOT NULL,
+    mensaje TEXT NOT NULL,
+    tipo VARCHAR(20) DEFAULT 'info' CHECK (tipo IN ('info', 'warning', 'success', 'error')),
+    url_enlace TEXT,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_inicio DATE,
+    fecha_fin DATE,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- =====================================================
 -- FUNCIONES
 -- =====================================================
 
--- Función para generar código de inscripción
+-- Funcion para generar codigo de inscripcion
 CREATE OR REPLACE FUNCTION generar_codigo_inscripcion()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -191,15 +264,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para generar código automáticamente
-DROP TRIGGER IF EXISTS trigger_generar_codigo ON alumnos;
+-- Trigger para generar codigo automaticamente
 CREATE TRIGGER trigger_generar_codigo
     BEFORE INSERT ON alumnos
     FOR EACH ROW
     WHEN (NEW.codigo_inscripcion IS NULL)
     EXECUTE FUNCTION generar_codigo_inscripcion();
 
--- Función para actualizar fecha_actualizacion
+-- Funcion para actualizar fecha_actualizacion
 CREATE OR REPLACE FUNCTION actualizar_fecha_modificacion()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -251,15 +323,16 @@ INNER JOIN alumnos a ON c.alumno_id = a.id
 WHERE c.estado IN ('pendiente', 'vencida')
 ORDER BY c.fecha_vencimiento ASC;
 
--- Vista de estadísticas por nivel
+-- Vista de estadisticas por nivel
 CREATE OR REPLACE VIEW vista_inscripciones_nivel AS
 SELECT
     nivel_inscripcion,
+    division,
     COUNT(*) as total_alumnos,
     SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
     SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes
 FROM alumnos
-GROUP BY nivel_inscripcion;
+GROUP BY nivel_inscripcion, division;
 
 -- Vista de estado de pagos por alumno (para admin)
 CREATE OR REPLACE VIEW vista_estado_pagos_alumno AS
@@ -271,16 +344,18 @@ SELECT
     a.celular,
     a.email,
     a.codigo_inscripcion,
+    a.nivel_inscripcion,
+    a.division,
     COUNT(c.id) as total_cuotas,
-    SUM(c.monto) as monto_total,
-    SUM(c.monto_pagado) as total_pagado,
-    SUM(c.monto - c.monto_pagado) as deuda_total,
+    COALESCE(SUM(c.monto), 0) as monto_total,
+    COALESCE(SUM(c.monto_pagado), 0) as total_pagado,
+    COALESCE(SUM(c.monto - c.monto_pagado), 0) as deuda_total,
     SUM(CASE WHEN c.estado = 'pagada' THEN 1 ELSE 0 END) as cuotas_pagadas,
     SUM(CASE WHEN c.estado = 'parcial' THEN 1 ELSE 0 END) as cuotas_parciales,
     SUM(CASE WHEN c.estado IN ('pendiente', 'vencida') THEN 1 ELSE 0 END) as cuotas_pendientes
 FROM alumnos a
 LEFT JOIN cuotas c ON a.id = c.alumno_id
-GROUP BY a.id, a.nombre, a.apellido, a.dni, a.celular, a.email, a.codigo_inscripcion;
+GROUP BY a.id, a.nombre, a.apellido, a.dni, a.celular, a.email, a.codigo_inscripcion, a.nivel_inscripcion, a.division;
 
 -- Vista de cuotas parciales
 CREATE OR REPLACE VIEW vista_cuotas_parciales AS
@@ -297,7 +372,7 @@ WHERE c.estado = 'parcial'
 ORDER BY c.fecha_vencimiento ASC;
 
 -- =====================================================
--- POLÍTICAS RLS (Row Level Security) para Supabase
+-- POLITICAS RLS (Row Level Security) para Supabase
 -- =====================================================
 
 -- Habilitar RLS
@@ -306,25 +381,35 @@ ALTER TABLE legajo_documentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cuotas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE administradores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE galeria ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
 
--- Política para administradores (solo lectura para verificar login)
+-- Politicas para administradores
 CREATE POLICY "Permitir lectura de administradores" ON administradores
     FOR SELECT USING (true);
 
--- Políticas públicas de lectura (ajustar según necesidad)
-CREATE POLICY "Permitir lectura pública de alumnos" ON alumnos
+-- Politicas para alumnos
+CREATE POLICY "Permitir lectura publica de alumnos" ON alumnos
     FOR SELECT USING (true);
 
-CREATE POLICY "Permitir inserción pública de alumnos" ON alumnos
+CREATE POLICY "Permitir insercion publica de alumnos" ON alumnos
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Permitir lectura pública de legajo" ON legajo_documentos
+CREATE POLICY "Permitir actualizacion de alumnos" ON alumnos
+    FOR UPDATE USING (true);
+
+-- Politicas para legajo
+CREATE POLICY "Permitir lectura publica de legajo" ON legajo_documentos
     FOR SELECT USING (true);
 
-CREATE POLICY "Permitir inserción pública de legajo" ON legajo_documentos
+CREATE POLICY "Permitir insercion publica de legajo" ON legajo_documentos
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Permitir lectura pública de cuotas" ON cuotas
+CREATE POLICY "Permitir actualizacion de legajo" ON legajo_documentos
+    FOR UPDATE USING (true);
+
+-- Politicas para cuotas
+CREATE POLICY "Permitir lectura publica de cuotas" ON cuotas
     FOR SELECT USING (true);
 
 CREATE POLICY "Permitir insercion de cuotas" ON cuotas
@@ -333,59 +418,21 @@ CREATE POLICY "Permitir insercion de cuotas" ON cuotas
 CREATE POLICY "Permitir actualizacion de cuotas" ON cuotas
     FOR UPDATE USING (true);
 
-CREATE POLICY "Permitir actualizacion de alumnos" ON alumnos
-    FOR UPDATE USING (true);
-
-CREATE POLICY "Permitir lectura pública de configuración" ON configuracion
+-- Politicas para configuracion
+CREATE POLICY "Permitir lectura publica de configuracion" ON configuracion
     FOR SELECT USING (true);
 
 CREATE POLICY "Permitir actualizacion de configuracion" ON configuracion
     FOR UPDATE USING (true);
 
--- =====================================================
--- TABLA DE GALERIA (fotos para el front)
--- =====================================================
-CREATE TABLE IF NOT EXISTS galeria (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    titulo VARCHAR(150),
-    descripcion TEXT,
-    url_imagen TEXT NOT NULL,
-    orden INTEGER DEFAULT 0,
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Índice para galería
-CREATE INDEX idx_galeria_orden ON galeria(orden);
-CREATE INDEX idx_galeria_activo ON galeria(activo);
-
--- RLS para galería
-ALTER TABLE galeria ENABLE ROW LEVEL SECURITY;
-
+-- Politicas para galeria
 CREATE POLICY "Permitir lectura publica de galeria" ON galeria
     FOR SELECT USING (activo = true);
 
 CREATE POLICY "Permitir gestion de galeria" ON galeria
     FOR ALL USING (true);
 
--- =====================================================
--- TABLA DE BANNERS (mensajes para el front)
--- =====================================================
-CREATE TABLE IF NOT EXISTS banners (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    titulo VARCHAR(150) NOT NULL,
-    mensaje TEXT NOT NULL,
-    tipo VARCHAR(20) DEFAULT 'info' CHECK (tipo IN ('info', 'warning', 'success', 'error')),
-    url_enlace TEXT,
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_inicio DATE,
-    fecha_fin DATE,
-    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLS para banners
-ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
-
+-- Politicas para banners
 CREATE POLICY "Permitir lectura publica de banners" ON banners
     FOR SELECT USING (activo = true);
 
@@ -393,7 +440,7 @@ CREATE POLICY "Permitir gestion de banners" ON banners
     FOR ALL USING (true);
 
 -- =====================================================
--- STORAGE BUCKETS para Supabase (ejecutar en Dashboard)
+-- STORAGE BUCKETS para Supabase (crear en Dashboard)
 -- =====================================================
 -- Crear estos buckets manualmente en Supabase Dashboard:
 -- 1. fotos-alumnos
@@ -401,4 +448,4 @@ CREATE POLICY "Permitir gestion de banners" ON banners
 -- 3. documentos-partidas
 -- 4. documentos-titulos
 -- 5. documentos-certificados
--- 6. galeria (para fotos de la galeria del front)
+-- 6. galeria

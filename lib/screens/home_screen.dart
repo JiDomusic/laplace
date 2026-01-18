@@ -109,20 +109,21 @@ class HomeScreen extends StatelessWidget {
                       children: [
                         Icon(Icons.info_outline, color: Colors.white),
                         SizedBox(width: 8),
-                        Text(
-                          'Bienvenido al Sistema de Inscripcion',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Expanded(
+                          child: Text(
+                            'Informacion Importante',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Si te inscribis por primera vez en nuestro instituto, completa el formulario. '
-                      'En caso de que quieras consultar por materias o homologaciones:',
+                      'Para consultar por materias, homologaciones o informacion sobre inscripciones:',
                       style: TextStyle(color: Colors.white),
                     ),
                     const SizedBox(height: 16),
@@ -145,23 +146,96 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
+              // Información de Inscripción Presencial
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.school, color: AppTheme.primaryColor, size: 28),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'INSTITUTO SUPERIOR LAPLACE',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              Text(
+                                'Autorizado a la enseñanza oficial N°9250',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Carrera: Tecnico Superior en Seguridad e Higiene en el Trabajo',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'SOLO USO INTERNO. Los alumnos se inscriben de manera presencial.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // Opciones principales
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // Botón de Inscripción
-                    _buildOptionCard(
-                      context,
-                      icon: Icons.person_add,
-                      title: 'Nueva Inscripcion',
-                      subtitle: 'Completa el formulario de inscripcion',
-                      color: AppTheme.primaryColor,
-                      onTap: () => Navigator.pushNamed(context, '/inscripcion'),
-                    ),
-
-                    const SizedBox(height: 16),
-
                     // Botón de Panel Admin
                     _buildOptionCard(
                       context,

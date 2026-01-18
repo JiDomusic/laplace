@@ -20,6 +20,9 @@ void main() async {
 
   await SupabaseService.initialize();
 
+  // Restaurar sesión guardada
+  await AuthService.instance.init();
+
   runApp(const MyApp());
 }
 

@@ -6,6 +6,8 @@ class Alumno {
   final String sexo;
   final DateTime fechaNacimiento;
   final String nacionalidad;
+  final String? localidadNacimiento;
+  final String? provinciaNacimiento;
 
   // Domicilio
   final String calle;
@@ -28,6 +30,13 @@ class Alumno {
   final String? contactoUrgenciaNombre;
   final String? contactoUrgenciaTelefono;
   final String? contactoUrgenciaVinculo;
+  final String? contactoUrgenciaOtro; // Cuando vínculo es "Otro"
+
+  // Título Secundario
+  final String? observacionesTitulo; // Para fecha certificado y materias adeudadas
+
+  // Inscripción
+  final String? cicloLectivo;
 
   // Foto
   final String? fotoAlumno;
@@ -48,6 +57,8 @@ class Alumno {
     required this.sexo,
     required this.fechaNacimiento,
     required this.nacionalidad,
+    this.localidadNacimiento,
+    this.provinciaNacimiento,
     required this.calle,
     required this.numero,
     this.piso,
@@ -62,6 +73,9 @@ class Alumno {
     this.contactoUrgenciaNombre,
     this.contactoUrgenciaTelefono,
     this.contactoUrgenciaVinculo,
+    this.contactoUrgenciaOtro,
+    this.observacionesTitulo,
+    this.cicloLectivo,
     this.fotoAlumno,
     required this.nivelInscripcion,
     this.division,
@@ -80,6 +94,8 @@ class Alumno {
       'sexo': sexo,
       'fecha_nacimiento': fechaNacimiento.toIso8601String(),
       'nacionalidad': nacionalidad,
+      'localidad_nacimiento': localidadNacimiento,
+      'provincia_nacimiento': provinciaNacimiento,
       'calle': calle,
       'numero': numero,
       'piso': piso,
@@ -94,6 +110,9 @@ class Alumno {
       'contacto_urgencia_nombre': contactoUrgenciaNombre,
       'contacto_urgencia_telefono': contactoUrgenciaTelefono,
       'contacto_urgencia_vinculo': contactoUrgenciaVinculo,
+      'contacto_urgencia_otro': contactoUrgenciaOtro,
+      'observaciones_titulo': observacionesTitulo,
+      'ciclo_lectivo': cicloLectivo,
       'foto_alumno': fotoAlumno,
       'nivel_inscripcion': nivelInscripcion,
       'division': division,
@@ -114,6 +133,8 @@ class Alumno {
       sexo: map['sexo'],
       fechaNacimiento: DateTime.parse(map['fecha_nacimiento']),
       nacionalidad: map['nacionalidad'],
+      localidadNacimiento: map['localidad_nacimiento'],
+      provinciaNacimiento: map['provincia_nacimiento'],
       calle: map['calle'],
       numero: map['numero'],
       piso: map['piso'],
@@ -128,6 +149,9 @@ class Alumno {
       contactoUrgenciaNombre: map['contacto_urgencia_nombre'],
       contactoUrgenciaTelefono: map['contacto_urgencia_telefono'],
       contactoUrgenciaVinculo: map['contacto_urgencia_vinculo'],
+      contactoUrgenciaOtro: map['contacto_urgencia_otro'],
+      observacionesTitulo: map['observaciones_titulo'],
+      cicloLectivo: map['ciclo_lectivo'],
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
       division: map['division'],
@@ -148,6 +172,8 @@ class Alumno {
     String? sexo,
     DateTime? fechaNacimiento,
     String? nacionalidad,
+    String? localidadNacimiento,
+    String? provinciaNacimiento,
     String? calle,
     String? numero,
     String? piso,
@@ -162,6 +188,9 @@ class Alumno {
     String? contactoUrgenciaNombre,
     String? contactoUrgenciaTelefono,
     String? contactoUrgenciaVinculo,
+    String? contactoUrgenciaOtro,
+    String? observacionesTitulo,
+    String? cicloLectivo,
     String? fotoAlumno,
     String? nivelInscripcion,
     String? division,
@@ -178,6 +207,8 @@ class Alumno {
       sexo: sexo ?? this.sexo,
       fechaNacimiento: fechaNacimiento ?? this.fechaNacimiento,
       nacionalidad: nacionalidad ?? this.nacionalidad,
+      localidadNacimiento: localidadNacimiento ?? this.localidadNacimiento,
+      provinciaNacimiento: provinciaNacimiento ?? this.provinciaNacimiento,
       calle: calle ?? this.calle,
       numero: numero ?? this.numero,
       piso: piso ?? this.piso,
@@ -192,6 +223,9 @@ class Alumno {
       contactoUrgenciaNombre: contactoUrgenciaNombre ?? this.contactoUrgenciaNombre,
       contactoUrgenciaTelefono: contactoUrgenciaTelefono ?? this.contactoUrgenciaTelefono,
       contactoUrgenciaVinculo: contactoUrgenciaVinculo ?? this.contactoUrgenciaVinculo,
+      contactoUrgenciaOtro: contactoUrgenciaOtro ?? this.contactoUrgenciaOtro,
+      observacionesTitulo: observacionesTitulo ?? this.observacionesTitulo,
+      cicloLectivo: cicloLectivo ?? this.cicloLectivo,
       fotoAlumno: fotoAlumno ?? this.fotoAlumno,
       nivelInscripcion: nivelInscripcion ?? this.nivelInscripcion,
       division: division ?? this.division,

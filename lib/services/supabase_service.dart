@@ -278,7 +278,7 @@ class SupabaseService {
     }).eq('id', cuotaId);
   }
 
-  Future<void> registrarPagoTotal(String cuotaId, String metodoPago, {String? observaciones}) async {
+  Future<void> registrarPagoTotal(String cuotaId, String metodoPago, {String? observaciones, String? numRecibo, String? detallePago}) async {
     final cuota = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuota == null) return;
 
@@ -288,10 +288,12 @@ class SupabaseService {
       'fecha_pago': DateTime.now().toIso8601String(),
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
+      'num_recibo': numRecibo,
+      'detalle_pago': detallePago,
     }).eq('id', cuotaId);
   }
 
-  Future<void> registrarPagoParcial(String cuotaId, double monto, String metodoPago, {String? observaciones}) async {
+  Future<void> registrarPagoParcial(String cuotaId, double monto, String metodoPago, {String? observaciones, String? numRecibo, String? detallePago}) async {
     final cuota = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuota == null) return;
 
@@ -306,6 +308,8 @@ class SupabaseService {
       'fecha_pago': estaPagada ? DateTime.now().toIso8601String() : null,
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
+      'num_recibo': numRecibo,
+      'detalle_pago': detallePago,
     }).eq('id', cuotaId);
   }
 

@@ -118,11 +118,67 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Selecciona el nivel al que te vas a inscribir',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        // Encabezado con información de la carrera
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.school, color: AppTheme.primaryColor),
+                  SizedBox(width: 8),
+                  Text(
+                    'INSTITUTO SUPERIOR LAPLACE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Autorizado a la enseñanza oficial N°9250',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const Divider(height: 24),
+              const Text(
+                'Carrera: Tecnico Superior en Seguridad e Higiene en el Trabajo',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('Ciclo Lectivo: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                  SizedBox(
+                    width: 100,
+                    child: TextFormField(
+                      initialValue: provider.cicloLectivo,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (v) => provider.cicloLectivo = v,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
+        const Text(
+          'Selecciona el nivel al que se inscribe',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
         ...niveles.map((nivel) => _buildNivelCard(nivel, provider)),
         const SizedBox(height: 32),
         SizedBox(
@@ -246,6 +302,28 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             initialValue: provider.nacionalidad,
             onChanged: (v) => provider.nacionalidad = v,
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  decoration: const InputDecoration(labelText: 'Localidad de Nacimiento *'),
+                  initialValue: provider.localidadNacimiento,
+                  onChanged: (v) => provider.localidadNacimiento = v,
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  decoration: const InputDecoration(labelText: 'Provincia *'),
+                  initialValue: provider.provinciaNacimiento,
+                  onChanged: (v) => provider.provinciaNacimiento = v,
+                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                ),
+              ),
+            ],
+          ),
         ]),
 
         // Domicilio
@@ -363,28 +441,36 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
             decoration: const InputDecoration(labelText: 'Vinculo con el Alumno *'),
             value: provider.contactoUrgenciaVinculo.isEmpty ? null : provider.contactoUrgenciaVinculo,
             items: const [
-              DropdownMenuItem(value: 'Padre', child: Text('Padre')),
               DropdownMenuItem(value: 'Madre', child: Text('Madre')),
-              DropdownMenuItem(value: 'Hermano/a', child: Text('Hermano/a')),
-              DropdownMenuItem(value: 'Esposo/a', child: Text('Esposo/a')),
-              DropdownMenuItem(value: 'Hijo/a', child: Text('Hijo/a')),
-              DropdownMenuItem(value: 'Tio/a', child: Text('Tio/a')),
-              DropdownMenuItem(value: 'Abuelo/a', child: Text('Abuelo/a')),
-              DropdownMenuItem(value: 'Primo/a', child: Text('Primo/a')),
-              DropdownMenuItem(value: 'Amigo/a', child: Text('Amigo/a')),
+              DropdownMenuItem(value: 'Padre', child: Text('Padre')),
+              DropdownMenuItem(value: 'Tutora', child: Text('Tutor/a')),
               DropdownMenuItem(value: 'Otro', child: Text('Otro')),
             ],
-            onChanged: (v) => provider.contactoUrgenciaVinculo = v ?? '',
+            onChanged: (v) => setState(() => provider.contactoUrgenciaVinculo = v ?? ''),
             validator: (v) => v == null ? 'Requerido' : null,
           ),
+          if (provider.contactoUrgenciaVinculo == 'Otro') ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Especificar vinculo *',
+                hintText: 'Ej: Hermano, Abuelo, Amigo...',
+              ),
+              initialValue: provider.contactoUrgenciaOtro,
+              onChanged: (v) => provider.contactoUrgenciaOtro = v,
+              validator: (v) => provider.contactoUrgenciaVinculo == 'Otro' && v!.isEmpty ? 'Requerido' : null,
+            ),
+          ],
         ]),
 
         // Situación laboral
         _buildSeccion('Situacion Laboral', [
-          SwitchListTile(
-            title: const Text('¿Actualmente trabajas?'),
+          CheckboxListTile(
+            title: const Text('¿TRABAJA?'),
             value: provider.trabaja,
-            onChanged: (v) => setState(() => provider.trabaja = v),
+            onChanged: (v) => setState(() => provider.trabaja = v ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
           ),
           if (provider.trabaja)
             _buildFilePicker(
@@ -420,71 +506,127 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         ]),
 
         _buildSeccion('Partida de Nacimiento', [
-          SwitchListTile(
-            title: const Text('¿Naciste fuera de Santa Fe?'),
-            value: provider.nacidoFueraSantaFe,
-            onChanged: (v) => setState(() => provider.nacidoFueraSantaFe = v),
+          const Text(
+            'ADJUNTAR (+)',
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
           ),
-          if (provider.nacidoFueraSantaFe)
-            _buildFilePicker(
-              'Partida de Nacimiento *',
-              provider.partidaNacimiento,
-              (file) => provider.setPartidaNacimiento(file),
-            ),
+          const SizedBox(height: 8),
+          _buildFilePicker(
+            'Agregar Partida de Nacimiento',
+            provider.partidaNacimiento,
+            (file) => provider.setPartidaNacimiento(file),
+          ),
         ]),
 
         _buildSeccion('Titulo Secundario', [
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(labelText: 'Estado del titulo *'),
-            value: provider.estadoTitulo.isEmpty ? null : provider.estadoTitulo,
-            items: const [
-              DropdownMenuItem(value: 'terminado', child: Text('Tengo el titulo')),
-              DropdownMenuItem(value: 'en_tramite', child: Text('Esta en tramite')),
-              DropdownMenuItem(value: 'debe_materias', child: Text('Debo materias')),
-            ],
-            onChanged: (v) => setState(() => provider.estadoTitulo = v ?? ''),
+          const Text(
+            'Seleccione una opcion:',
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          // Opción 1: Título Legalizado o Digital
+          CheckboxListTile(
+            title: const Text('TITULO LEGALIZADO O DIGITAL'),
+            value: provider.estadoTitulo == 'terminado',
+            onChanged: (v) => setState(() {
+              if (v == true) {
+                provider.estadoTitulo = 'terminado';
+              } else {
+                provider.estadoTitulo = '';
+              }
+            }),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
           if (provider.estadoTitulo == 'terminado') ...[
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Tipo de legalizacion *'),
-              value: provider.tipoLegalizacion,
-              items: const [
-                DropdownMenuItem(value: 'tribunales', child: Text('Legalizado por Tribunales')),
-                DropdownMenuItem(value: 'institucion', child: Text('Legalizado por la institucion')),
-                DropdownMenuItem(value: 'digital', child: Text('Titulo Digital')),
-              ],
-              onChanged: (v) => setState(() => provider.tipoLegalizacion = v),
-            ),
-            const SizedBox(height: 12),
-            _buildFilePicker(
-              'Titulo Legalizado *',
-              provider.tituloArchivo,
-              (file) => provider.setTituloArchivo(file),
-            ),
-          ],
-          if (provider.estadoTitulo == 'en_tramite')
-            _buildFilePicker(
-              'Constancia de Tramite *',
-              provider.tramiteConstancia,
-              (file) => provider.setTramiteConstancia(file),
-            ),
-          if (provider.estadoTitulo == 'debe_materias') ...[
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Materias que adeudas *',
-                hintText: 'Ej: Matematica, Historia',
+            Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: _buildFilePicker(
+                'Adjuntar Titulo *',
+                provider.tituloArchivo,
+                (file) => provider.setTituloArchivo(file),
               ),
-              maxLines: 2,
-              onChanged: (v) => provider.materiasAdeudadas = v,
-            ),
-            const SizedBox(height: 12),
-            _buildFilePicker(
-              'Constancia de Materias *',
-              provider.materiasConstancia,
-              (file) => provider.setMateriasConstancia(file),
             ),
           ],
+          // Opción 2: Constancia de Título en Trámite
+          CheckboxListTile(
+            title: const Text('CONSTANCIA DE TITULO EN TRAMITE'),
+            value: provider.estadoTitulo == 'en_tramite',
+            onChanged: (v) => setState(() {
+              if (v == true) {
+                provider.estadoTitulo = 'en_tramite';
+              } else {
+                provider.estadoTitulo = '';
+              }
+            }),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (provider.estadoTitulo == 'en_tramite') ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFilePicker(
+                    'Adjuntar Constancia *',
+                    provider.tramiteConstancia,
+                    (file) => provider.setTramiteConstancia(file),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // Opción 3: Certificado de Estudios Incompletos
+          CheckboxListTile(
+            title: const Text('CERTIFICADO DE ESTUDIOS INCOMPLETOS'),
+            value: provider.estadoTitulo == 'debe_materias',
+            onChanged: (v) => setState(() {
+              if (v == true) {
+                provider.estadoTitulo = 'debe_materias';
+              } else {
+                provider.estadoTitulo = '';
+              }
+            }),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (provider.estadoTitulo == 'debe_materias') ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFilePicker(
+                    'Adjuntar Certificado *',
+                    provider.materiasConstancia,
+                    (file) => provider.setMateriasConstancia(file),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Materias adeudadas *',
+                      hintText: 'Ej: Matematica, Historia',
+                    ),
+                    maxLines: 2,
+                    initialValue: provider.materiasAdeudadas,
+                    onChanged: (v) => provider.materiasAdeudadas = v,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          // Campo de observaciones para fecha y notas
+          TextFormField(
+            decoration: const InputDecoration(
+              labelText: 'Observaciones',
+              hintText: 'Fecha del certificado, notas adicionales...',
+            ),
+            maxLines: 3,
+            initialValue: provider.observacionesTitulo,
+            onChanged: (v) => provider.observacionesTitulo = v,
+          ),
         ]),
 
         const SizedBox(height: 24),

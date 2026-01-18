@@ -11,6 +11,8 @@ class Cuota {
   final String estado; // pendiente, pagada, vencida, parcial
   final String? metodoPago;
   final String? observaciones;
+  final String? numRecibo; // N° de recibo
+  final String? detallePago; // Detalle de qué cuotas abona
 
   Cuota({
     this.id,
@@ -25,6 +27,8 @@ class Cuota {
     this.estado = 'pendiente',
     this.metodoPago,
     this.observaciones,
+    this.numRecibo,
+    this.detallePago,
   });
 
   // Calcula la deuda restante
@@ -50,6 +54,8 @@ class Cuota {
       'estado': estado,
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
+      'num_recibo': numRecibo,
+      'detalle_pago': detallePago,
     };
   }
 
@@ -67,6 +73,8 @@ class Cuota {
       estado: map['estado'] ?? 'pendiente',
       metodoPago: map['metodo_pago'],
       observaciones: map['observaciones'],
+      numRecibo: map['num_recibo'],
+      detallePago: map['detalle_pago'],
     );
   }
 
@@ -83,6 +91,8 @@ class Cuota {
     String? estado,
     String? metodoPago,
     String? observaciones,
+    String? numRecibo,
+    String? detallePago,
   }) {
     return Cuota(
       id: id ?? this.id,
@@ -97,6 +107,8 @@ class Cuota {
       estado: estado ?? this.estado,
       metodoPago: metodoPago ?? this.metodoPago,
       observaciones: observaciones ?? this.observaciones,
+      numRecibo: numRecibo ?? this.numRecibo,
+      detallePago: detallePago ?? this.detallePago,
     );
   }
 

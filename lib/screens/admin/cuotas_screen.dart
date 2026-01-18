@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import '../../models/alumno.dart';
 import '../../models/cuota.dart';
 import '../../services/supabase_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/pdf_service.dart';
 import '../../utils/app_theme.dart';
 
 class CuotasScreen extends StatefulWidget {
@@ -174,6 +176,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 case 'ajustar_trimestre':
                   _abrirAjustarTrimestre();
                   break;
+                case 'generar_pdf':
+                  _abrirGenerarPDF();
+                  break;
               }
             },
             itemBuilder: (context) => [
@@ -189,6 +194,13 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 child: ListTile(
                   leading: Icon(Icons.change_circle_outlined),
                   title: Text('Ajustar monto trimestral'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'generar_pdf',
+                child: ListTile(
+                  leading: Icon(Icons.picture_as_pdf),
+                  title: Text('Generar PDF de alumno'),
                 ),
               ),
             ],
@@ -736,37 +748,55 @@ class _CuotasScreenState extends State<CuotasScreen> {
   Future<void> _registrarPagoTotal(Cuota cuota) async {
     final metodoController = TextEditingController(text: 'efectivo');
     final obsController = TextEditingController();
+    final reciboController = TextEditingController();
+    final detalleController = TextEditingController(text: cuota.concepto);
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago Total'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Monto a pagar: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.successColor, fontSize: 18)),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: metodoController.text,
-              decoration: const InputDecoration(labelText: 'Metodo de pago'),
-              items: const [
-                DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
-                DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
-                DropdownMenuItem(value: 'tarjeta', child: Text('Tarjeta')),
-                DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-              ],
-              onChanged: (v) => metodoController.text = v ?? 'efectivo',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: obsController,
-              decoration: const InputDecoration(labelText: 'Observaciones'),
-              maxLines: 2,
-            ),
-          ],
+        title: const Text('Registrar Pago'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Importe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.successColor, fontSize: 18)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reciboController,
+                decoration: const InputDecoration(
+                  labelText: 'N° Recibo *',
+                  hintText: 'Ej: 00001',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: detalleController,
+                decoration: const InputDecoration(
+                  labelText: 'Detalle (que cuotas abona)',
+                  hintText: 'Ej: Cuota Marzo 2026',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: metodoController.text,
+                decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
+                items: const [
+                  DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                  DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                ],
+                onChanged: (v) => metodoController.text = v ?? 'efectivo',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: obsController,
+                decoration: const InputDecoration(labelText: 'Observaciones'),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -788,11 +818,13 @@ class _CuotasScreenState extends State<CuotasScreen> {
         cuota.id!,
         metodoController.text,
         observaciones: obsController.text.isEmpty ? null : obsController.text,
+        numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
+        detallePago: detalleController.text.isEmpty ? null : detalleController.text,
       );
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pago total registrado'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Pago registrado'), backgroundColor: Colors.green),
         );
       }
     }
@@ -802,6 +834,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final montoController = TextEditingController();
     final metodoController = TextEditingController(text: 'efectivo');
     final obsController = TextEditingController();
+    final reciboController = TextEditingController();
+    final detalleController = TextEditingController(text: 'Pago parcial - ${cuota.concepto}');
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -837,23 +871,36 @@ class _CuotasScreenState extends State<CuotasScreen> {
               ),
               const Divider(height: 24),
               TextField(
+                controller: reciboController,
+                decoration: const InputDecoration(
+                  labelText: 'N° Recibo *',
+                  hintText: 'Ej: 00001',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
                 controller: montoController,
                 decoration: InputDecoration(
-                  labelText: 'Monto a pagar ahora',
+                  labelText: 'Importe a pagar ahora',
                   prefixText: '\$ ',
                   helperText: 'Maximo: ${_formatMoney(cuota.deuda)}',
                 ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: detalleController,
+                decoration: const InputDecoration(
+                  labelText: 'Detalle (que cuotas abona)',
+                ),
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: metodoController.text,
-                decoration: const InputDecoration(labelText: 'Metodo de pago'),
+                decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
                 items: const [
                   DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
                   DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
-                  DropdownMenuItem(value: 'tarjeta', child: Text('Tarjeta')),
-                  DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
                 ],
                 onChanged: (v) => metodoController.text = v ?? 'efectivo',
               ),
@@ -889,6 +936,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
           monto,
           metodoController.text,
           observaciones: obsController.text.isEmpty ? null : obsController.text,
+          numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
+          detallePago: detalleController.text.isEmpty ? null : detalleController.text,
         );
         await _loadCuotas();
         if (mounted) {
@@ -954,6 +1003,80 @@ class _CuotasScreenState extends State<CuotasScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Monto actualizado')),
+        );
+      }
+    }
+  }
+
+  Future<void> _abrirGenerarPDF() async {
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar PDF de Cuotas'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Selecciona un alumno para generar el detalle de sus cuotas y pagos.'),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<String?>(
+              valueListenable: alumnoSeleccionado,
+              builder: (_, value, __) {
+                return DropdownButtonFormField<String>(
+                  value: value,
+                  items: _alumnosDisponibles
+                      .map(
+                        (a) => DropdownMenuItem(
+                          value: a.id,
+                          child: Text('${a.nombreCompleto} - DNI: ${a.dni}'),
+                        ),
+                      )
+                      .toList(),
+                  decoration: const InputDecoration(labelText: 'Alumno'),
+                  onChanged: (v) => alumnoSeleccionado.value = v,
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.picture_as_pdf),
+            label: const Text('Generar PDF'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && alumnoSeleccionado.value != null) {
+      // Obtener alumno y sus cuotas
+      final alumno = _alumnosDisponibles.firstWhere((a) => a.id == alumnoSeleccionado.value);
+      final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumnoSeleccionado.value).toList();
+
+      if (cuotasAlumno.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('El alumno no tiene cuotas registradas'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+
+      // Generar y mostrar PDF
+      final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
+
+      if (mounted) {
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfData,
+          name: 'Cuotas_${alumno.apellido}_${alumno.nombre}.pdf',
         );
       }
     }
