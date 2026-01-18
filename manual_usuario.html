@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario - Instituto Laplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1A237E, #303F9F);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 15px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: #1A237E;
+        }
+
+        nav {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav h2 {
+            color: #1A237E;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        nav ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        nav a {
+            color: #303F9F;
+            text-decoration: none;
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            display: block;
+            transition: all 0.3s;
+        }
+
+        nav a:hover {
+            background: #1A237E;
+            color: white;
+        }
+
+        section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        section h2 {
+            color: #1A237E;
+            border-bottom: 3px solid #FF6F00;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        section h3 {
+            color: #303F9F;
+            margin: 20px 0 10px;
+            font-size: 1.2em;
+        }
+
+        section h4 {
+            color: #666;
+            margin: 15px 0 8px;
+            font-size: 1em;
+        }
+
+        ul, ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #FF6F00;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .step-number {
+            background: #FF6F00;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .highlight {
+            background: #FFF3E0;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid #FFE0B2;
+        }
+
+        .highlight strong {
+            color: #E65100;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #1A237E;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .badge-naranja { background: #FFF3E0; color: #E65100; }
+        .badge-verde { background: #E8F5E9; color: #2E7D32; }
+        .badge-rojo { background: #FFEBEE; color: #C62828; }
+        .badge-azul { background: #E3F2FD; color: #1565C0; }
+        .badge-gris { background: #ECEFF1; color: #546E7A; }
+
+        .division-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 5px;
+        }
+
+        .division-a { background: linear-gradient(135deg, #FF6F00, #FF8F00); color: white; }
+        .division-b { background: linear-gradient(135deg, #2E7D32, #43A047); color: white; }
+        .division-c { background: linear-gradient(135deg, #1A237E, #303F9F); color: white; }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .action-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .action-card h4 {
+            margin-bottom: 5px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #1A237E, #303F9F);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            margin-top: 30px;
+        }
+
+        footer h3 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        footer p {
+            opacity: 0.8;
+        }
+
+        .firma {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            section {
+                padding: 20px;
+            }
+
+            nav ul {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">IL</div>
+        <h1>Manual de Usuario</h1>
+        <p>Sistema de Gestión de Inscripciones y Administración</p>
+    </header>
+
+    <div class="container">
+        <nav>
+            <h2>Índice</h2>
+            <ul>
+                <li><a href="#acceso">1. Acceso al Sistema</a></li>
+                <li><a href="#inscripcion">2. Inscripción de Alumnos</a></li>
+                <li><a href="#panel">3. Panel de Administración</a></li>
+                <li><a href="#gestion">4. Gestión de Inscripciones</a></li>
+                <li><a href="#divisiones">5. Asignación de Divisiones</a></li>
+                <li><a href="#cuotas">6. Gestión de Cuotas</a></li>
+                <li><a href="#galeria">7. Galería de Fotos</a></li>
+                <li><a href="#documentacion">8. Documentación del Alumno</a></li>
+            </ul>
+        </nav>
+
+        <section id="acceso">
+            <h2>1. Acceso al Sistema</h2>
+
+            <h3>Para Alumnos (Inscripción)</h3>
+            <div class="step">
+                <span class="step-number">1</span> Ingresar a la página principal del Instituto Laplace
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Hacer clic en el botón <strong>"Inscribirme"</strong>
+            </div>
+
+            <h3>Para Administradores</h3>
+            <div class="step">
+                <span class="step-number">1</span> Ingresar a la página principal
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Hacer clic en <strong>"Acceso Admin"</strong> o ir a <code>/login</code>
+            </div>
+            <div class="step">
+                <span class="step-number">3</span> Ingresar usuario y contraseña
+            </div>
+            <div class="step">
+                <span class="step-number">4</span> Se accederá al <strong>Panel de Administración</strong>
+            </div>
+        </section>
+
+        <section id="inscripcion">
+            <h2>2. Inscripción de Alumnos</h2>
+            <p>El proceso de inscripción consta de <strong>4 pasos</strong>:</p>
+
+            <h3>Paso 1: Selección de Nivel</h3>
+            <p>Seleccionar el año al que se inscribe:</p>
+            <ul>
+                <li><strong>Primer Año</strong></li>
+                <li><strong>Segundo Año</strong></li>
+                <li><strong>Tercer Año</strong></li>
+            </ul>
+            <p>Hacer clic en <strong>"Continuar"</strong></p>
+
+            <h3>Paso 2: Datos Personales</h3>
+
+            <h4>Datos Básicos:</h4>
+            <ul>
+                <li>Nombre y Apellido</li>
+                <li>DNI (sin puntos)</li>
+                <li>Sexo</li>
+                <li>Fecha de Nacimiento</li>
+                <li>Nacionalidad</li>
+            </ul>
+
+            <h4>Domicilio:</h4>
+            <ul>
+                <li>Calle y Número</li>
+                <li>Piso y Departamento (opcional)</li>
+                <li>Localidad</li>
+                <li>Código Postal</li>
+            </ul>
+
+            <h4>Contacto:</h4>
+            <ul>
+                <li>Email</li>
+                <li>Celular</li>
+                <li>Teléfono fijo (opcional)</li>
+                <li>¿Trabaja? (Sí/No)</li>
+            </ul>
+
+            <h4>Contacto de Urgencia:</h4>
+            <ul>
+                <li>Nombre del contacto</li>
+                <li>Teléfono</li>
+                <li>Vínculo (padre, madre, tutor, etc.)</li>
+            </ul>
+
+            <h4>Foto del Alumno:</h4>
+            <p>Subir una foto tipo carnet</p>
+
+            <h3>Paso 3: Documentación</h3>
+
+            <h4>DNI (obligatorio):</h4>
+            <ul>
+                <li>DNI Frente</li>
+                <li>DNI Dorso</li>
+            </ul>
+
+            <h4>Partida de Nacimiento:</h4>
+            <p>Solo si nació fuera de Santa Fe</p>
+
+            <h4>Título Secundario:</h4>
+            <p>Según el estado del título:</p>
+            <ul>
+                <li><strong>Título Completo:</strong> Subir título legalizado</li>
+                <li><strong>En Trámite:</strong> Subir constancia de trámite</li>
+                <li><strong>Adeuda Materias:</strong> Indicar materias y subir constancia</li>
+            </ul>
+
+            <h3>Paso 4: Confirmación</h3>
+            <div class="step">
+                <span class="step-number">1</span> Revisar todos los datos ingresados
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Hacer clic en <strong>"Confirmar Inscripción"</strong>
+            </div>
+            <div class="step">
+                <span class="step-number">3</span> Se generará un <strong>código de inscripción</strong> único
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2>3. Panel de Administración</h2>
+
+            <h3>Dashboard Principal</h3>
+            <p>El panel muestra:</p>
+
+            <h4>Estadísticas:</h4>
+            <ul>
+                <li>Total de alumnos matriculados</li>
+                <li>Inscripciones pendientes de revisión</li>
+                <li>Inscripciones aprobadas</li>
+                <li>Cuotas pendientes de pago</li>
+            </ul>
+
+            <h4>Acciones Rápidas:</h4>
+            <div class="actions-grid">
+                <div class="action-card">
+                    <h4>Inscripciones</h4>
+                    <p>Ver y gestionar alumnos</p>
+                </div>
+                <div class="action-card">
+                    <h4>Cuotas</h4>
+                    <p>Gestionar pagos</p>
+                </div>
+                <div class="action-card">
+                    <h4>Galería</h4>
+                    <p>Fotos de eventos</p>
+                </div>
+                <div class="action-card">
+                    <h4>Nueva Inscripción</h4>
+                    <p>Registrar alumno</p>
+                </div>
+            </div>
+
+            <h4>Inscripciones Recientes:</h4>
+            <p>Lista de los últimos alumnos inscriptos con foto y estado</p>
+        </section>
+
+        <section id="gestion">
+            <h2>4. Gestión de Inscripciones</h2>
+
+            <h3>Organización por Tabs</h3>
+            <p>La pantalla está organizada en pestañas:</p>
+            <ul>
+                <li><strong>Todos:</strong> Muestra todos los alumnos</li>
+                <li><strong>Primer Año:</strong> Solo alumnos de primer año</li>
+                <li><strong>Segundo Año:</strong> Solo alumnos de segundo año</li>
+                <li><strong>Tercer Año:</strong> Solo alumnos de tercer año</li>
+            </ul>
+
+            <h3>Filtros Disponibles</h3>
+            <ul>
+                <li><strong>Búsqueda:</strong> Por nombre, DNI o código de inscripción</li>
+                <li><strong>Estado:</strong> Todos, Pendientes, Aprobados, Rechazados</li>
+            </ul>
+
+            <h3>Visualización por División</h3>
+            <p>Dentro de cada año, los alumnos se agrupan por división:</p>
+            <div>
+                <span class="division-box division-a"><strong>División A</strong></span>
+                <span class="division-box division-b"><strong>División B</strong></span>
+                <span class="division-box division-c"><strong>División C</strong></span>
+                <span class="division-box" style="background: #9E9E9E; color: white;"><strong>Sin Asignar</strong></span>
+            </div>
+
+            <h3>Acciones en cada Alumno</h3>
+            <ul>
+                <li><strong>Ver detalle:</strong> Tocar la tarjeta del alumno</li>
+                <li><strong>WhatsApp:</strong> Enviar mensaje directo</li>
+                <li><strong>Aprobar:</strong> Aprobar inscripción pendiente</li>
+            </ul>
+        </section>
+
+        <section id="divisiones">
+            <h2>5. Asignación de Divisiones</h2>
+
+            <h3>Cómo Asignar División a un Alumno</h3>
+            <div class="step">
+                <span class="step-number">1</span> Ir a <strong>Inscripciones</strong>
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Seleccionar el año correspondiente (Primer, Segundo o Tercer Año)
+            </div>
+            <div class="step">
+                <span class="step-number">3</span> Tocar la tarjeta del alumno para ver su detalle
+            </div>
+            <div class="step">
+                <span class="step-number">4</span> En la sección <strong>"Asignar División"</strong>: hacer clic en <strong>A</strong>, <strong>B</strong> o <strong>C</strong>
+            </div>
+            <div class="step">
+                <span class="step-number">5</span> Para quitar la división: hacer clic en <strong>"Quitar"</strong>
+            </div>
+
+            <div class="highlight">
+                <strong>Verificación:</strong> Al volver a la lista de inscripciones, el alumno aparecerá en la sección de su división asignada con un badge indicando la letra (A, B o C).
+            </div>
+        </section>
+
+        <section id="cuotas">
+            <h2>6. Gestión de Cuotas</h2>
+
+            <h3>Visualización</h3>
+            <ul>
+                <li>Lista de cuotas por alumno</li>
+                <li>Filtros por estado: Todas, Pagadas, Parciales, Pendientes, Vencidas</li>
+            </ul>
+
+            <h3>Información de cada Cuota</h3>
+            <ul>
+                <li>Nombre del alumno y DNI</li>
+                <li>Mes y año de la cuota</li>
+                <li>Fecha de vencimiento</li>
+                <li>Monto total</li>
+                <li>Monto pagado / Saldo pendiente</li>
+                <li>Estado</li>
+            </ul>
+
+            <h3>Acciones Disponibles</h3>
+
+            <h4>Registrar Pago Parcial:</h4>
+            <ol>
+                <li>Tocar <strong>"Pago Parcial"</strong> (botón naranja)</li>
+                <li>Ingresar el monto del pago</li>
+                <li>Confirmar</li>
+            </ol>
+
+            <h4>Registrar Pago Total:</h4>
+            <ol>
+                <li>Tocar <strong>"Pago Total"</strong> (botón verde)</li>
+                <li>Confirmar el pago completo</li>
+            </ol>
+
+            <h4>Editar Fecha de Vencimiento:</h4>
+            <ol>
+                <li>Tocar el ícono de calendario</li>
+                <li>Seleccionar nueva fecha</li>
+                <li>Confirmar</li>
+            </ol>
+
+            <h4>Editar Monto:</h4>
+            <ol>
+                <li>Tocar el ícono de lápiz</li>
+                <li>Ingresar nuevo monto</li>
+                <li>Confirmar</li>
+            </ol>
+        </section>
+
+        <section id="galeria">
+            <h2>7. Galería de Fotos</h2>
+
+            <h3>Subir Nueva Foto</h3>
+            <div class="step">
+                <span class="step-number">1</span> Tocar el botón <strong>"+"</strong> (esquina inferior derecha)
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Ingresar el <strong>título</strong> del evento (ej: "Acto de fin de año")
+            </div>
+            <div class="step">
+                <span class="step-number">3</span> Seleccionar la <strong>imagen</strong> desde el dispositivo
+            </div>
+            <div class="step">
+                <span class="step-number">4</span> Tocar <strong>"Subir"</strong>
+            </div>
+
+            <div class="highlight">
+                <strong>Nota:</strong> Los títulos con caracteres especiales (ñ, tildes) se convierten automáticamente para compatibilidad.
+            </div>
+
+            <h3>Ver Galería</h3>
+            <ul>
+                <li>Las fotos se muestran en orden cronológico (más recientes primero)</li>
+                <li>Tocar una foto para verla en tamaño completo</li>
+            </ul>
+        </section>
+
+        <section id="documentacion">
+            <h2>8. Documentación del Alumno</h2>
+
+            <h3>Ver Documentos de un Alumno</h3>
+            <div class="step">
+                <span class="step-number">1</span> Ir a <strong>Inscripciones</strong>
+            </div>
+            <div class="step">
+                <span class="step-number">2</span> Tocar la tarjeta del alumno
+            </div>
+            <div class="step">
+                <span class="step-number">3</span> En la sección <strong>"Documentación"</strong> se muestra el estado de cada documento
+            </div>
+
+            <h3>Documentos Disponibles</h3>
+            <ul>
+                <li>DNI Frente: Adjuntado / Pendiente</li>
+                <li>DNI Dorso: Adjuntado / Pendiente</li>
+                <li>Partida de Nacimiento (si corresponde)</li>
+                <li>Estado del Título Secundario</li>
+                <li>Documentos adicionales según el caso</li>
+            </ul>
+
+            <h3>Visualizar un Documento</h3>
+            <ol>
+                <li>Si el documento está <strong>"Adjuntado"</strong>, aparece el botón <strong>"Ver"</strong></li>
+                <li>Tocar <strong>"Ver"</strong> para abrir el documento</li>
+                <li>Se puede hacer zoom con los dedos</li>
+                <li>Tocar la <strong>X</strong> para cerrar</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Resumen de Estados</h2>
+
+            <h3>Estados de Inscripción</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>Color</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-naranja">Pendiente</span></td>
+                        <td>Naranja</td>
+                        <td>Esperando revisión del administrador</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-verde">Aprobado</span></td>
+                        <td>Verde</td>
+                        <td>Inscripción aprobada, alumno habilitado</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-rojo">Rechazado</span></td>
+                        <td>Rojo</td>
+                        <td>Inscripción rechazada</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Estados de Cuota</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>Color</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-naranja">Pendiente</span></td>
+                        <td>Naranja</td>
+                        <td>Sin pagos registrados</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-azul">Parcial</span></td>
+                        <td>Azul</td>
+                        <td>Pago parcial realizado</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-verde">Pagada</span></td>
+                        <td>Verde</td>
+                        <td>Cuota completamente pagada</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-rojo">Vencida</span></td>
+                        <td>Rojo</td>
+                        <td>Fecha de vencimiento superada</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <footer>
+        <h3>Soporte Técnico</h3>
+        <p>Para consultas técnicas o soporte, contactar a:</p>
+        <div class="firma">
+            <h2 style="font-size: 1.5em; margin-bottom: 5px;">Programación JJ</h2>
+            <p>Manual de Usuario v1.0</p>
+            <p>Instituto Laplace - Sistema de Gestión</p>
+        </div>
+    </footer>
+</body>
+</html>
