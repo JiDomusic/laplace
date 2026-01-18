@@ -148,6 +148,8 @@ class SupabaseService {
       sexo: map['sexo'],
       fechaNacimiento: DateTime.parse(map['fecha_nacimiento']),
       nacionalidad: map['nacionalidad'],
+      localidadNacimiento: map['localidad_nacimiento'],
+      provinciaNacimiento: map['provincia_nacimiento'],
       calle: map['calle'],
       numero: map['numero'],
       piso: map['piso'],
@@ -164,6 +166,9 @@ class SupabaseService {
       contactoUrgenciaNombre: map['contacto_urgencia_nombre'],
       contactoUrgenciaTelefono: map['contacto_urgencia_telefono'],
       contactoUrgenciaVinculo: map['contacto_urgencia_vinculo'],
+      contactoUrgenciaOtro: map['contacto_urgencia_otro'],
+      observacionesTitulo: map['observaciones_titulo'],
+      cicloLectivo: map['ciclo_lectivo'],
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
       division: map['division'],
@@ -365,6 +370,8 @@ class SupabaseService {
       estado: map['estado'] ?? 'pendiente',
       metodoPago: map['metodo_pago'],
       observaciones: map['observaciones'],
+      numRecibo: map['num_recibo'],
+      detallePago: map['detalle_pago'],
     );
   }
 

@@ -184,7 +184,7 @@ class HomeScreen extends StatelessWidget {
                               Text(
                                 'Autorizado a la enseñanza oficial N°9250',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 19,
                                   color: Colors.black54,
                                 ),
                               ),
@@ -197,7 +197,7 @@ class HomeScreen extends StatelessWidget {
                     const Text(
                       'Carrera: Tecnico Superior en Seguridad e Higiene en el Trabajo',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
@@ -216,7 +216,7 @@ class HomeScreen extends StatelessWidget {
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'SOLO USO INTERNO. Los alumnos se inscriben de manera presencial.',
+                              'Inscripción presencial.',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
@@ -263,64 +263,49 @@ class HomeScreen extends StatelessWidget {
                                 topRight: Radius.circular(16),
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.location_on, color: AppTheme.primaryColor),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: const [
-                                      Text(
-                                        'Cómo llegar',
-                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Lavalle 575, Rosario, Santa Fe',
-                                        style: TextStyle(color: Colors.black87),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: _abrirMaps,
-                                  icon: const Icon(Icons.map),
-                                  label: const Text('Abrir mapa'),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(16),
-                                bottomRight: Radius.circular(16),
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(16),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Ver mapa en Google Maps',
-                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.location_on, color: AppTheme.primaryColor),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Como llegar',
+                                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Lavalle 575, Rosario, Santa Fe',
+                                            style: TextStyle(color: Colors.black87),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 8),
-                                ElevatedButton.icon(
-                                  onPressed: _abrirMaps,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryColor,
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _abrirMaps,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                    ),
+                                    icon: const Icon(Icons.map),
+                                    label: const Text('Abrir mapa'),
                                   ),
-                                  icon: const Icon(Icons.map),
-                                  label: const Text('Abrir mapa'),
                                 ),
                               ],
                             ),

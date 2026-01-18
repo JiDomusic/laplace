@@ -97,13 +97,17 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                 final resumen = _resumenCuotas();
                 final pdfData = await PdfService.generarComprobante(
                   _alumno!,
+                  legajo: _legajo,
                   totalMonto: resumen['totalMonto'],
                   totalPagado: resumen['totalPagado'],
                   saldoPendiente: resumen['saldoPendiente'],
                 );
-                await Printing.layoutPdf(onLayout: (_) => pdfData);
+                await Printing.layoutPdf(
+                  onLayout: (_) => pdfData,
+                  name: 'Inscripcion_${_alumno!.apellido}_${_alumno!.nombre}.pdf',
+                );
               },
-              tooltip: 'Ver PDF',
+              tooltip: 'Descargar Ficha de Inscripcion',
             ),
         ],
       ),
@@ -119,16 +123,23 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                       _buildHeader(),
                       const SizedBox(height: 16),
                       _buildSeccion('Nivel de Inscripcion', [
+                        _buildInfo('Carrera', 'Tec. Sup. en Seguridad e Higiene'),
+                        _buildInfo('Ciclo Lectivo', _alumno!.cicloLectivo ?? DateTime.now().year.toString()),
                         _buildInfo('Nivel', _alumno!.nivelInscripcion),
                         _buildInfo('Division', _alumno!.division ?? 'Sin asignar'),
                         _buildInfo('Estado', _alumno!.estado.toUpperCase()),
                       ]),
                       _buildAsignarDivision(),
+                      _buildResumenCuotas(),
                       _buildSeccion('Datos Personales', [
                         _buildInfo('DNI', _alumno!.dni),
                         _buildInfo('Sexo', _alumno!.sexo),
-
+                        _buildInfo('Fecha Nacimiento', _formatDate(_alumno!.fechaNacimiento)),
                         _buildInfo('Nacionalidad', _alumno!.nacionalidad),
+                        if (_alumno!.localidadNacimiento != null)
+                          _buildInfo('Localidad Nac.', _alumno!.localidadNacimiento!),
+                        if (_alumno!.provinciaNacimiento != null)
+                          _buildInfo('Provincia Nac.', _alumno!.provinciaNacimiento!),
                       ]),
                       _buildSeccion('Domicilio', [
                         _buildInfo('Direccion', _alumno!.direccionCompleta),
@@ -147,6 +158,8 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                             _buildInfo('Telefono', _alumno!.contactoUrgenciaTelefono!),
                           if (_alumno!.contactoUrgenciaVinculo != null)
                             _buildInfo('Vinculo', _alumno!.contactoUrgenciaVinculo!),
+                          if (_alumno!.contactoUrgenciaOtro != null && _alumno!.contactoUrgenciaOtro!.isNotEmpty)
+                            _buildInfo('Detalle', _alumno!.contactoUrgenciaOtro!),
                         ]),
                       if (_legajo != null)
                         _buildSeccion('Documentacion', [
@@ -164,6 +177,8 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                               _buildInfo('Materias Adeudadas', _legajo!.materiasAdeudadas!),
                             _buildDocumento('Constancia Materias', _materiasConstanciaUrl),
                           ],
+                          if (_alumno!.observacionesTitulo != null && _alumno!.observacionesTitulo!.isNotEmpty)
+                            _buildInfo('Observaciones Titulo', _alumno!.observacionesTitulo!),
                         ]),
                       const SizedBox(height: 24),
                       _buildCambiarEstado(),
@@ -186,6 +201,105 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
       'totalPagado': totalPagado,
       'saldoPendiente': saldoPendiente < 0 ? 0 : saldoPendiente,
     };
+  }
+
+  String _formatMoney(double amount) {
+    return '\$${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  Widget _buildResumenCuotas() {
+    if (_cuotas.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final resumen = _resumenCuotas();
+    final totalMonto = resumen['totalMonto'] ?? 0.0;
+    final totalPagado = resumen['totalPagado'] ?? 0.0;
+    final saldoPendiente = resumen['saldoPendiente'] ?? 0.0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_balance_wallet, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Resumen de Cuotas',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
+            ),
+            const Divider(),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMontoItem(
+                    'Total Facturado',
+                    _formatMoney(totalMonto),
+                    AppTheme.primaryColor,
+                    Icons.receipt_long,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMontoItem(
+                    'Pagado',
+                    _formatMoney(totalPagado),
+                    AppTheme.successColor,
+                    Icons.check_circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMontoItem(
+                    'Debe',
+                    _formatMoney(saldoPendiente),
+                    saldoPendiente > 0 ? AppTheme.dangerColor : Colors.grey,
+                    Icons.pending,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMontoItem(String label, String monto, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(monto, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildHeader() {
@@ -506,7 +620,14 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
   }
 
   Widget _buildAsignarDivision() {
-    final divisiones = ['A', 'B', 'C'];
+    // Solo mostrar para Primer Año
+    final esPrimerAnio = _alumno?.nivelInscripcion.toLowerCase().contains('primer') ?? false;
+    if (!esPrimerAnio) {
+      return const SizedBox.shrink();
+    }
+
+    // Solo A y B para primer año
+    final divisiones = ['A', 'B'];
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(

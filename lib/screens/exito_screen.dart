@@ -40,7 +40,7 @@ class ExitoScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             const Text(
-              'Inscripcion Enviada Exitosamente',
+              'Inscripcion Registrada',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -50,7 +50,7 @@ class ExitoScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tu solicitud de inscripcion ha sido recibida correctamente.',
+              'La inscripcion del alumno ha sido registrada correctamente.',
               style: TextStyle(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -95,7 +95,7 @@ class ExitoScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Resumen de tu Inscripcion',
+                        'Resumen de la Inscripcion',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const Divider(),
@@ -111,24 +111,45 @@ class ExitoScreen extends StatelessWidget {
             ],
             const SizedBox(height: 24),
 
-            // Próximos pasos
+            // Recordatorios para admin
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Proximos Pasos',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const Divider(),
-                    _buildPasoItem(1, 'Descarga tu comprobante de inscripcion'),
-                    _buildPasoItem(2, 'Presentate en el instituto con el comprobante'),
-                    _buildPasoItem(3, 'Envianos tu comprobante de pago por WhatsApp'),
-                    _buildPasoItem(4, 'El equipo revisara tu documentacion'),
-                    _buildPasoItem(5, 'Recibiras confirmacion por WhatsApp'),
-                  ],
+                child: Builder(
+                  builder: (context) {
+                    final esPrimerAnio = alumno?.nivelInscripcion.toLowerCase().contains('primer') ?? false;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Recordatorios',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const Divider(),
+                        if (esPrimerAnio)
+                          _buildRecordatorioItem(
+                            Icons.group,
+                            'Asignar al alumno a seccion A o B',
+                          ),
+                        _buildRecordatorioItem(
+                          Icons.checklist,
+                          'Verificar documentacion y marcar estado: Aprobado o Pendiente',
+                        ),
+                        _buildRecordatorioItem(
+                          Icons.download,
+                          'Descargar comprobante para firma del alumno/tutor',
+                        ),
+                        _buildRecordatorioItem(
+                          Icons.badge,
+                          'Solicitar copia de DNI del alumno',
+                        ),
+                        _buildRecordatorioItem(
+                          Icons.send,
+                          'Enviar comprobante firmado por WhatsApp si corresponde',
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -150,7 +171,7 @@ class ExitoScreen extends StatelessWidget {
                   }
                 },
                 icon: const Icon(Icons.download),
-                label: const Text('Descargar Comprobante PDF'),
+                label: const Text('Descargar Comprobante para Firma'),
               ),
             ),
             const SizedBox(height: 12),
@@ -160,15 +181,19 @@ class ExitoScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   final codigo = alumno?.codigoInscripcion ?? '';
+                  final nombre = alumno?.nombreCompleto ?? '';
+                  final celular = alumno?.celular ?? '';
+                  // Usar el celular del alumno/tutor si está disponible
+                  final telefono = celular.isNotEmpty ? celular : '5493413513973';
                   final uri = Uri.parse(
-                    'https://wa.me/5493413513973?text=Hola,%20acabo%20de%20completar%20mi%20inscripcion.%20Mi%20codigo%20es:%20$codigo.%20Adjunto%20mi%20comprobante%20de%20pago.',
+                    'https://wa.me/$telefono?text=Hola,%20le%20informamos%20que%20la%20inscripcion%20de%20$nombre%20(Codigo:%20$codigo)%20ha%20sido%20registrada.%20Adjuntamos%20el%20comprobante%20para%20su%20firma.',
                   );
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
                 },
                 icon: const Icon(Icons.chat),
-                label: const Text('Contactar por WhatsApp'),
+                label: const Text('Enviar Comprobante por WhatsApp'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.whatsappColor,
                 ),
@@ -202,24 +227,19 @@ class ExitoScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPasoItem(int numero, String texto) {
+  Widget _buildRecordatorioItem(IconData icon, String texto) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              shape: BoxShape.circle,
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Center(
-              child: Text(
-                '$numero',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
+            child: Icon(icon, size: 18, color: Colors.orange.shade700),
           ),
           const SizedBox(width: 12),
           Expanded(child: Text(texto)),

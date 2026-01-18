@@ -152,96 +152,142 @@ class _AdminDashboardState extends State<AdminDashboard> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          'Admin ${_auth.userRole}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 400;
+
+            final infoColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const Spacer(),
-                      Icon(Icons.shield_moon, color: Colors.white.withOpacity(0.8)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '$saludo,',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  Text(
-                    _auth.userName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      child: Text(
+                        'Admin ${_auth.userRole}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
                     ),
+                    const Spacer(),
+                    Icon(Icons.shield_moon, color: Colors.white.withOpacity(0.8)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '$saludo,',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                Text(
+                  _auth.userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Panel de administracion · Ciclo lectivo 2026',
-                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildChip(text: 'Seguimiento academico'),
-                      _buildChip(text: 'Pagos y cuotas'),
-                      _buildChip(text: 'Comunidad Laplace'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Panel de administracion · Ciclo 2026',
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                ),
+              ],
+            );
+
+            final statsBox = Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                children: [
-                  const Icon(Icons.school, color: Colors.white, size: 28),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_stats['total'] ?? 0} alumnos',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
-                  Text(
-                    'Activos',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.primaryColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              child: isWide
+                  ? Column(
+                      children: [
+                        const Icon(Icons.school, color: Colors.white, size: 28),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_stats['total'] ?? 0} alumnos',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                        Text(
+                          'Activos',
+                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primaryColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
+                          child: const Text('Ver inscripciones', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.school, color: Colors.white, size: 24),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_stats['total'] ?? 0} alumnos',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                                ),
+                                Text(
+                                  'Activos',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primaryColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
+                          child: const Text('Ver', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
                     ),
-                    onPressed: () => Navigator.pushNamed(context, '/admin/inscripciones'),
-                    child: const Text('Revisar inscripciones'),
-                  ),
+            );
+
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: infoColumn),
+                  const SizedBox(width: 12),
+                  statsBox,
                 ],
-              ),
-            ),
-          ],
+              );
+            } else {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  infoColumn,
+                  const SizedBox(height: 16),
+                  statsBox,
+                ],
+              );
+            }
+          },
         ),
       ),
     );

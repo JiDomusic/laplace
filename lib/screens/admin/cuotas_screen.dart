@@ -110,48 +110,64 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
   // Estadísticas
   Map<String, dynamic> get _estadisticas {
-    double totalPendiente = 0;
-    double totalPagado = 0;
-    double totalDeuda = 0;
-    double totalFacturacion = 0;
+    double totalCobrado = 0;        // Todo lo que ya entró
+    double totalPorCobrar = 0;      // Todo lo que falta cobrar
+    double totalFacturacion = 0;    // Total que debería entrar
+
+    // Por categoría
+    double montoPagadas = 0;        // Monto de cuotas completamente pagadas
+    double montoParciales = 0;      // Lo que se cobró de cuotas parciales
+    double deudaParciales = 0;      // Lo que falta de cuotas parciales
+    double deudaPendientes = 0;     // Deuda de cuotas pendientes (no vencidas)
+    double deudaVencidas = 0;       // Deuda de cuotas vencidas
+
     int cantPagadas = 0;
     int cantParciales = 0;
     int cantPendientes = 0;
     int cantVencidas = 0;
 
     for (final cuota in _cuotas) {
-      totalPagado += cuota.montoPagado;
-      totalDeuda += cuota.deuda;
+      totalCobrado += cuota.montoPagado;
+      totalPorCobrar += cuota.deuda;
       totalFacturacion += cuota.monto;
 
       final estado = _estadoCuota(cuota);
       switch (estado) {
         case 'pagada':
           cantPagadas++;
+          montoPagadas += cuota.monto;
           break;
         case 'parcial':
           cantParciales++;
-          totalPendiente += cuota.deuda;
+          montoParciales += cuota.montoPagado;
+          deudaParciales += cuota.deuda;
           break;
         case 'vencida':
           cantVencidas++;
-          totalPendiente += cuota.deuda;
+          deudaVencidas += cuota.deuda;
           break;
         default:
           cantPendientes++;
-          totalPendiente += cuota.deuda;
+          deudaPendientes += cuota.deuda;
       }
     }
 
     return {
-      'totalPendiente': totalPendiente,
-      'totalPagado': totalPagado,
-      'totalDeuda': totalDeuda,
+      // Totales generales
+      'totalCobrado': totalCobrado,
+      'totalPorCobrar': totalPorCobrar,
+      'totalFacturacion': totalFacturacion,
+      // Por categoría
+      'montoPagadas': montoPagadas,
+      'montoParciales': montoParciales,
+      'deudaParciales': deudaParciales,
+      'deudaPendientes': deudaPendientes,
+      'deudaVencidas': deudaVencidas,
+      // Cantidades
       'cantPagadas': cantPagadas,
       'cantParciales': cantParciales,
       'cantPendientes': cantPendientes,
       'cantVencidas': cantVencidas,
-      'totalFacturacion': totalFacturacion,
     };
   }
 
@@ -209,30 +225,61 @@ class _CuotasScreenState extends State<CuotasScreen> {
       ),
       body: Column(
         children: [
-          // Estadísticas
+          // Estadísticas - Resumen general
           Container(
             padding: const EdgeInsets.all(16),
             color: AppTheme.primaryColor.withOpacity(0.05),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['totalPagado']), width: 160),
-                _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, null, width: 160),
-                _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['totalPendiente']), width: 160),
-                _buildStatCard(
-                  'Vencidas',
-                  stats['cantVencidas'],
-                  (stats['totalDeuda'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
-                  _formatMoney(stats['totalDeuda']),
-                  width: 160,
+                // Totales principales
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildStatCard(
+                      'Cobrado',
+                      null,
+                      AppTheme.successColor,
+                      _formatMoney(stats['totalCobrado']),
+                      width: 140,
+                      icon: Icons.check_circle,
+                    ),
+                    _buildStatCard(
+                      'Por Cobrar',
+                      null,
+                      (stats['totalPorCobrar'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
+                      _formatMoney(stats['totalPorCobrar']),
+                      width: 140,
+                      icon: Icons.pending,
+                    ),
+                    _buildStatCard(
+                      'Facturacion',
+                      stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
+                      AppTheme.primaryColor,
+                      _formatMoney(stats['totalFacturacion']),
+                      width: 140,
+                      icon: Icons.receipt_long,
+                    ),
+                  ],
                 ),
-                _buildStatCard(
-                  'Facturacion',
-                  stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
-                  AppTheme.primaryColor,
-                  _formatMoney(stats['totalFacturacion']),
-                  width: 160,
+                const SizedBox(height: 12),
+                // Detalle por estado
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['montoPagadas']), width: 130),
+                    _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, _formatMoney(stats['montoParciales']), width: 130),
+                    _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['deudaPendientes']), width: 130),
+                    _buildStatCard(
+                      'Vencidas',
+                      stats['cantVencidas'],
+                      (stats['deudaVencidas'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
+                      _formatMoney(stats['deudaVencidas']),
+                      width: 130,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -310,7 +357,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, int count, Color color, String? subtext, {double? width}) {
+  Widget _buildStatCard(String label, int? count, Color color, String? subtext, {double? width, IconData? icon}) {
     final card = Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -320,13 +367,16 @@ class _CuotasScreenState extends State<CuotasScreen> {
       ),
       child: Column(
         children: [
-          Text(
-            '$count',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
-          ),
+          if (icon != null)
+            Icon(icon, color: color, size: 20),
+          if (count != null)
+            Text(
+              '$count',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+            ),
           Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           if (subtext != null)
-            Text(subtext, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
+            Text(subtext, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
         ],
       ),
     );
