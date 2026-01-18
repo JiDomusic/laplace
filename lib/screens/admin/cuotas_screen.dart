@@ -223,110 +223,117 @@ class _CuotasScreenState extends State<CuotasScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Estadísticas - Resumen general
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppTheme.primaryColor.withOpacity(0.05),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Totales principales
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildStatCard(
-                      'Cobrado',
-                      null,
-                      AppTheme.successColor,
-                      _formatMoney(stats['totalCobrado']),
-                      width: 140,
-                      icon: Icons.check_circle,
-                    ),
-                    _buildStatCard(
-                      'Por Cobrar',
-                      null,
-                      (stats['totalPorCobrar'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
-                      _formatMoney(stats['totalPorCobrar']),
-                      width: 140,
-                      icon: Icons.pending,
-                    ),
-                    _buildStatCard(
-                      'Facturacion',
-                      stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
-                      AppTheme.primaryColor,
-                      _formatMoney(stats['totalFacturacion']),
-                      width: 140,
-                      icon: Icons.receipt_long,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Detalle por estado
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['montoPagadas']), width: 130),
-                    _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, _formatMoney(stats['montoParciales']), width: 130),
-                    _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['deudaPendientes']), width: 130),
-                    _buildStatCard(
-                      'Vencidas',
-                      stats['cantVencidas'],
-                      (stats['deudaVencidas'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
-                      _formatMoney(stats['deudaVencidas']),
-                      width: 130,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Búsqueda y filtros
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey.shade100,
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por alumno, DNI o codigo...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadCuotas,
+              child: CustomScrollView(
+                slivers: [
+                  // Estadísticas - Resumen general
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: AppTheme.primaryColor.withOpacity(0.05),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Totales principales
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildStatCard(
+                                'Cobrado',
+                                null,
+                                AppTheme.successColor,
+                                _formatMoney(stats['totalCobrado']),
+                                width: 140,
+                                icon: Icons.check_circle,
+                              ),
+                              _buildStatCard(
+                                'Por Cobrar',
+                                null,
+                                (stats['totalPorCobrar'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
+                                _formatMoney(stats['totalPorCobrar']),
+                                width: 140,
+                                icon: Icons.pending,
+                              ),
+                              _buildStatCard(
+                                'Facturacion',
+                                stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
+                                AppTheme.primaryColor,
+                                _formatMoney(stats['totalFacturacion']),
+                                width: 140,
+                                icon: Icons.receipt_long,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Detalle por estado
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['montoPagadas']), width: 130),
+                              _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, _formatMoney(stats['montoParciales']), width: 130),
+                              _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['deudaPendientes']), width: 130),
+                              _buildStatCard(
+                                'Vencidas',
+                                stats['cantVencidas'],
+                                (stats['deudaVencidas'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
+                                _formatMoney(stats['deudaVencidas']),
+                                width: 130,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  onChanged: (v) => setState(() => _busqueda = v),
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFiltroChip('Todas', 'todas'),
-                      _buildFiltroChip('Pagadas', 'pagada'),
-                      _buildFiltroChip('Parciales', 'parcial'),
-                      _buildFiltroChip('Pendientes', 'pendiente'),
-                      _buildFiltroChip('Vencidas', 'vencida'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          // Lista de cuotas
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _cuotasFiltradas.isEmpty
-                    ? Center(
+                  // Búsqueda y filtros
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.grey.shade100,
+                      child: Column(
+                        children: [
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Buscar por alumno, DNI o codigo...',
+                              prefixIcon: const Icon(Icons.search),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (v) => setState(() => _busqueda = v),
+                          ),
+                          const SizedBox(height: 12),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildFiltroChip('Todas', 'todas'),
+                                _buildFiltroChip('Pagadas', 'pagada'),
+                                _buildFiltroChip('Parciales', 'parcial'),
+                                _buildFiltroChip('Pendientes', 'pendiente'),
+                                _buildFiltroChip('Vencidas', 'vencida'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Lista de cuotas
+                  if (_cuotasFiltradas.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -338,22 +345,25 @@ class _CuotasScreenState extends State<CuotasScreen> {
                             ),
                           ],
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadCuotas,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _cuotasFiltradas.length,
-                          itemBuilder: (context, index) {
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
                             final cuota = _cuotasFiltradas[index];
                             final alumno = _alumnos[cuota.alumnoId];
                             return _buildCuotaCard(cuota, alumno);
                           },
+                          childCount: _cuotasFiltradas.length,
                         ),
                       ),
-          ),
-        ],
-      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 

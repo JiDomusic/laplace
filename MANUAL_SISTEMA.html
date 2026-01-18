@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual del Sistema - Instituto Laplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a237e 0%, #303f9f 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a237e 0%, #303f9f 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #1a237e;
+            font-size: 1.6em;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #ff6f00;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        .section-number {
+            background: #1a237e;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+
+        h3 {
+            color: #303f9f;
+            font-size: 1.2em;
+            margin: 20px 0 12px 0;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        ul li {
+            padding: 8px 0 8px 30px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        ul li::before {
+            content: ">";
+            position: absolute;
+            left: 8px;
+            color: #ff6f00;
+            font-weight: bold;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #1a237e;
+        }
+
+        .card.warning {
+            border-left-color: #ff6f00;
+            background: #fff8e1;
+        }
+
+        .card.danger {
+            border-left-color: #c62828;
+            background: #ffebee;
+        }
+
+        .card.success {
+            border-left-color: #2e7d32;
+            background: #e8f5e9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #1a237e;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge.low {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .badge.medium {
+            background: #fff8e1;
+            color: #f57c00;
+        }
+
+        .badge.high {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, #1a237e, #ff6f00, #1a237e);
+            margin: 40px 0;
+            border-radius: 2px;
+        }
+
+        .footer {
+            background: #f5f5f5;
+            padding: 30px 40px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .role-list {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .role-item {
+            background: white;
+            border: 2px solid #1a237e;
+            border-radius: 10px;
+            padding: 15px 20px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .role-item h4 {
+            color: #1a237e;
+            margin-bottom: 8px;
+        }
+
+        .role-item p {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        code {
+            background: #e8eaf6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            color: #1a237e;
+        }
+
+        .recommendation {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .recommendation-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
+        .recommendation-icon.ok {
+            background: #e8f5e9;
+        }
+
+        .recommendation-icon.warning {
+            background: #fff8e1;
+        }
+
+        .recommendation-icon.tip {
+            background: #e3f2fd;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 1.6em;
+            }
+
+            .content {
+                padding: 25px 20px;
+            }
+
+            h2 {
+                font-size: 1.3em;
+            }
+
+            .role-item {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Manual del Sistema</h1>
+            <p>Instituto Superior Laplace - Sistema de Gestion de Inscripciones</p>
+        </div>
+
+        <div class="content">
+            <h2><span class="section-number">1</span> Pantalla Principal (Home)</h2>
+            <ul>
+                <li>Logo e informacion del Instituto Laplace</li>
+                <li>Carrera: Tecnico Superior en Seguridad e Higiene en el Trabajo</li>
+                <li>Boton de WhatsApp para consultas directas</li>
+                <li>Acceso al Panel Administrativo</li>
+                <li>Ubicacion con link a Google Maps</li>
+                <li>Telefono de contacto</li>
+            </ul>
+
+            <h2><span class="section-number">2</span> Sistema de Login (Admin)</h2>
+            <ul>
+                <li>Autenticacion contra tabla <code>administradores</code> en Supabase</li>
+                <li>Opcion "Recordar mi email" para facilitar el acceso</li>
+                <li>Chip de acceso rapido para usuarios frecuentes</li>
+                <li>Validacion de credenciales en tiempo real</li>
+            </ul>
+
+            <div class="role-list">
+                <div class="role-item">
+                    <h4>SuperAdmin</h4>
+                    <p>Acceso total al sistema. Gestion de cuotas, inscripciones y configuracion.</p>
+                </div>
+                <div class="role-item">
+                    <h4>Admin</h4>
+                    <p>Gestion de inscripciones y cuotas. Mismo acceso que superadmin actualmente.</p>
+                </div>
+            </div>
+
+            <h2><span class="section-number">3</span> Panel Administrativo (Dashboard)</h2>
+            <ul>
+                <li>Bienvenida personalizada con nombre y rol del usuario</li>
+                <li>Saludo dinamico segun la hora del dia</li>
+            </ul>
+
+            <h3>Estadisticas en tiempo real:</h3>
+            <div class="card">
+                <ul>
+                    <li><strong>Total de alumnos activos</strong> - Cantidad general de estudiantes</li>
+                    <li><strong>Inscripciones pendientes</strong> - Alumnos esperando aprobacion</li>
+                    <li><strong>Alumnos aprobados</strong> - Inscripciones confirmadas</li>
+                    <li><strong>Cuotas pendientes</strong> - Solo visible para admin/superadmin</li>
+                </ul>
+            </div>
+
+            <ul>
+                <li>Accesos rapidos a todas las secciones del sistema</li>
+                <li>Menu lateral (Drawer) con navegacion completa</li>
+            </ul>
+
+            <h2><span class="section-number">4</span> Gestion de Inscripciones</h2>
+            <ul>
+                <li>Lista de alumnos con filtros por nivel (1ro, 2do, 3er ano)</li>
+                <li>Division A/B para Primer Ano</li>
+                <li>Busqueda por nombre, apellido, DNI o codigo de inscripcion</li>
+            </ul>
+
+            <h3>Acciones disponibles:</h3>
+            <div class="card">
+                <ul>
+                    <li>Ver detalles completos del alumno</li>
+                    <li>Asignar o cambiar division</li>
+                    <li>Cambiar estado (pendiente, aprobado, rechazado)</li>
+                    <li>Ver y descargar documentos</li>
+                    <li>Generar cuotas automaticamente</li>
+                </ul>
+            </div>
+
+            <h2><span class="section-number">5</span> Detalle de Alumno</h2>
+            <ul>
+                <li>Datos personales completos (nombre, DNI, fecha nacimiento, etc.)</li>
+                <li>Domicilio y datos de contacto</li>
+                <li>Situacion laboral</li>
+                <li>Contacto de urgencia</li>
+            </ul>
+
+            <h3>Documentos del legajo:</h3>
+            <div class="card">
+                <ul>
+                    <li>Foto del alumno</li>
+                    <li>DNI (frente y dorso)</li>
+                    <li>Partida de nacimiento</li>
+                    <li>Titulo secundario</li>
+                    <li>Certificados adicionales</li>
+                </ul>
+            </div>
+
+            <ul>
+                <li>Asignacion de division (solo Primer Ano)</li>
+                <li>Resumen de cuotas con saldo pendiente</li>
+                <li>Generacion de PDF con ficha de inscripcion</li>
+            </ul>
+
+            <h2><span class="section-number">6</span> Gestion de Cuotas</h2>
+            <div class="card warning">
+                <strong>Acceso restringido:</strong> Solo usuarios con rol <code>admin</code> o <code>superadmin</code> pueden gestionar cuotas.
+            </div>
+
+            <ul>
+                <li>10 cuotas automaticas (marzo a diciembre)</li>
+                <li>Monto configurable desde la base de datos</li>
+                <li>Vencimiento el dia 10 de cada mes</li>
+            </ul>
+
+            <h3>Estados de cuota:</h3>
+            <table>
+                <tr>
+                    <th>Estado</th>
+                    <th>Descripcion</th>
+                </tr>
+                <tr>
+                    <td><span class="badge low">Pagada</span></td>
+                    <td>Cuota abonada en su totalidad</td>
+                </tr>
+                <tr>
+                    <td><span class="badge medium">Parcial</span></td>
+                    <td>Pago parcial realizado, queda saldo</td>
+                </tr>
+                <tr>
+                    <td><span class="badge medium">Pendiente</span></td>
+                    <td>Aun no vencida, sin pago</td>
+                </tr>
+                <tr>
+                    <td><span class="badge high">Vencida</span></td>
+                    <td>Paso la fecha de vencimiento sin pago</td>
+                </tr>
+            </table>
+
+            <ul>
+                <li>Registro de pagos con metodo, recibo y observaciones</li>
+                <li>Estadisticas de cobro en tiempo real</li>
+            </ul>
+
+            <h2><span class="section-number">7</span> Galeria</h2>
+            <ul>
+                <li>Subir fotos de eventos con titulo y descripcion</li>
+                <li>Visualizacion ordenada por fecha</li>
+                <li>Eliminar fotos de eventos pasados</li>
+                <li>Almacenamiento en Supabase Storage</li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <h2 style="border-bottom-color: #c62828;"><span class="section-number" style="background: #c62828;">!</span> Analisis de Seguridad - Sesion Abierta</h2>
+
+            <p style="margin-bottom: 20px;">La sesion se guarda en <code>SharedPreferences</code> (almacenamiento local del dispositivo). Esto permite mantener la sesion activa sin necesidad de iniciar sesion cada vez.</p>
+
+            <h3>Nivel de riesgo segun dispositivo:</h3>
+            <table>
+                <tr>
+                    <th>Situacion</th>
+                    <th>Nivel de Riesgo</th>
+                </tr>
+                <tr>
+                    <td>Celular personal del admin</td>
+                    <td><span class="badge low">BAJO</span> - Si tiene bloqueo de pantalla</td>
+                </tr>
+                <tr>
+                    <td>Computadora compartida</td>
+                    <td><span class="badge high">ALTO</span> - Cualquiera puede acceder</td>
+                </tr>
+                <tr>
+                    <td>Tablet del instituto</td>
+                    <td><span class="badge medium">MEDIO-ALTO</span> - Otros podrian usarla</td>
+                </tr>
+            </table>
+
+            <h3>Riesgos concretos si alguien no autorizado accede:</h3>
+            <div class="card danger">
+                <ul>
+                    <li>Ver datos de todos los alumnos (DNI, telefonos, direcciones)</li>
+                    <li>Ver documentos personales (fotos, DNI, partidas)</li>
+                    <li>Modificar estados de inscripcion (aprobar/rechazar)</li>
+                    <li>Registrar pagos falsos (solo si es admin/superadmin)</li>
+                    <li>Eliminar fotos de galeria</li>
+                </ul>
+            </div>
+
+            <h3>Recomendaciones:</h3>
+
+            <div class="recommendation">
+                <div class="recommendation-icon ok">&#10003;</div>
+                <div>
+                    <strong>Dispositivo personal</strong><br>
+                    <span style="color: #666;">OK dejar sesion abierta si el dispositivo tiene bloqueo (huella, PIN, patron).</span>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <div class="recommendation-icon warning">&#9888;</div>
+                <div>
+                    <strong>Dispositivo compartido</strong><br>
+                    <span style="color: #666;">Cerrar sesion SIEMPRE al terminar de usar el sistema.</span>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <div class="recommendation-icon tip">&#128161;</div>
+                <div>
+                    <strong>Mejora futura</strong><br>
+                    <span style="color: #666;">Se puede implementar timeout de sesion (auto-logout despues de X minutos de inactividad).</span>
+                </div>
+            </div>
+
+            <div class="card success" style="margin-top: 30px;">
+                <strong>Nota importante:</strong> El sistema esta disenado para uso interno del instituto. La seguridad de los datos depende en gran medida del manejo responsable de las credenciales y dispositivos por parte del personal administrativo.
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Instituto Superior Laplace</strong></p>
+            <p>Lavalle 575, Rosario, Santa Fe</p>
+            <p style="margin-top: 10px; opacity: 0.7;">Documento generado para uso interno - 2026</p>
+        </div>
+    </div>
+</body>
+</html>
