@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           return 'Ingresa tu email';
                         }
                         if (!value.contains('@')) {
-                          return 'Email invalido';
+                          return 'Email inválido';
                         }
                         return null;
                       },

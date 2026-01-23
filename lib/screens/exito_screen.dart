@@ -65,7 +65,7 @@ class ExitoScreen extends StatelessWidget {
                   children: [
                     const Icon(Icons.confirmation_number, color: AppTheme.primaryColor),
                     const SizedBox(height: 8),
-                    const Text('Codigo de Inscripcion'),
+                    const Text('Código de inscripción'),
                     const SizedBox(height: 4),
                     Text(
                       alumno?.codigoInscripcion ?? 'LAP-2026-00001',
@@ -77,7 +77,7 @@ class ExitoScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Guarda este codigo para futuras consultas',
+                      'Guarda este código para futuras consultas',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ],
@@ -186,7 +186,7 @@ class ExitoScreen extends StatelessWidget {
                   // Usar el celular del alumno/tutor si está disponible
                   final telefono = celular.isNotEmpty ? celular : '5493413513973';
                   final uri = Uri.parse(
-                    'https://wa.me/$telefono?text=Hola,%20le%20informamos%20que%20la%20inscripcion%20de%20$nombre%20(Codigo:%20$codigo)%20ha%20sido%20registrada.%20Adjuntamos%20el%20comprobante%20para%20su%20firma.',
+                    'https://wa.me/$telefono?text=Hola,%20le%20informamos%20que%20la%20inscripción%20de%20$nombre%20(Código:%20$codigo)%20ha%20sido%20registrada.%20Adjuntamos%20el%20comprobante%20para%20su%20firma.',
                   );
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);

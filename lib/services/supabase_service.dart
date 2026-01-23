@@ -219,31 +219,86 @@ class SupabaseService {
 
   // ==================== CUOTAS ====================
 
-  Future<void> generarCuotasAnuales(String alumnoId, double monto, int anio) async {
-    final meses = {
-      3: 'Marzo',
-      4: 'Abril',
-      5: 'Mayo',
-      6: 'Junio',
-      7: 'Julio',
-      8: 'Agosto',
-      9: 'Septiembre',
-      10: 'Octubre',
-      11: 'Noviembre',
-      12: 'Diciembre',
-    };
+  Future<void> generarCuotasAnuales(
+    String alumnoId,
+    double monto,
+    int anio, {
+    double? montoInscripcion,
+    bool generarInscripcion = true,
+  }) async {
+    // 1.er año: marzo a diciembre; 2.º y 3.er año: enero a diciembre
+    final alumno = await getAlumnoById(alumnoId);
+    final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
 
-    final cuotas = meses.entries.map((entry) => {
-      'alumno_id': alumnoId,
-      'concepto': 'Cuota ${entry.value} $anio',
-      'monto': monto,
-      'mes': entry.key,
-      'anio': anio,
-      'fecha_vencimiento': DateTime(anio, entry.key, 10).toIso8601String().split('T')[0],
-      'estado': 'pendiente',
-    }).toList();
+    final meses = esPrimero
+        ? {
+            3: 'Marzo',
+            4: 'Abril',
+            5: 'Mayo',
+            6: 'Junio',
+            7: 'Julio',
+            8: 'Agosto',
+            9: 'Septiembre',
+            10: 'Octubre',
+            11: 'Noviembre',
+            12: 'Diciembre',
+          }
+        : {
+            1: 'Enero',
+            2: 'Febrero',
+            3: 'Marzo',
+            4: 'Abril',
+            5: 'Mayo',
+            6: 'Junio',
+            7: 'Julio',
+            8: 'Agosto',
+            9: 'Septiembre',
+            10: 'Octubre',
+            11: 'Noviembre',
+            12: 'Diciembre',
+          };
+
+    final cuotas = meses.entries
+        .map(
+          (entry) => {
+            'alumno_id': alumnoId,
+            'concepto': 'Cuota ${entry.value} $anio',
+            'monto': monto,
+            'mes': entry.key,
+            'anio': anio,
+            'fecha_vencimiento': DateTime(anio, entry.key, 10).toIso8601String().split('T')[0],
+            'estado': 'pendiente',
+          },
+        )
+        .toList();
+
+    // Cuota de inscripción única (solo 1.er año y si no existe una previa)
+    if (esPrimero && generarInscripcion) {
+      final tieneInscripcion = await _tieneCuotaInscripcion(alumnoId);
+      if (!tieneInscripcion) {
+        cuotas.insert(0, {
+          'alumno_id': alumnoId,
+          'concepto': 'Inscripción $anio',
+          'monto': montoInscripcion ?? monto,
+          'mes': 3,
+          'anio': anio,
+          'fecha_vencimiento': DateTime(anio, 3, 10).toIso8601String().split('T')[0],
+          'estado': 'pendiente',
+        });
+      }
+    }
 
     await client.from('cuotas').insert(cuotas);
+  }
+
+  Future<bool> _tieneCuotaInscripcion(String alumnoId) async {
+    final response = await client
+        .from('cuotas')
+        .select('id')
+        .ilike('concepto', '%Inscripción%')
+        .eq('alumno_id', alumnoId)
+        .limit(1);
+    return response.isNotEmpty;
   }
 
   Future<List<Cuota>> getAllCuotas() async {
@@ -283,28 +338,101 @@ class SupabaseService {
     }).eq('id', cuotaId);
   }
 
-  Future<void> registrarPagoTotal(String cuotaId, String metodoPago, {String? observaciones, String? numRecibo, String? detallePago}) async {
+  Future<void> registrarPagoTotal(
+    String cuotaId,
+    String metodoPago, {
+    String? observaciones,
+    String? numRecibo,
+    String? detallePago,
+  }) async {
     final cuota = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuota == null) return;
 
+    final alumnoId = cuota['alumno_id'];
+    final montoPagadoActual = (cuota['monto_pagado'] as num?)?.toDouble() ?? 0;
+    final montoTotal = (cuota['monto'] as num).toDouble();
+    final deudaActual = montoTotal - montoPagadoActual;
+
+    double excedente = 0;
+    double pagaActual = deudaActual;
+
+    // Paga la cuota actual
     await client.from('cuotas').update({
-      'monto_pagado': cuota['monto'],
+      'monto_pagado': montoTotal,
       'estado': 'pagada',
       'fecha_pago': DateTime.now().toIso8601String(),
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
       'num_recibo': numRecibo,
-      'detalle_pago': detallePago,
+      'detalle_pago': (detallePago?.isNotEmpty ?? false) ? detallePago : cuota['concepto'],
     }).eq('id', cuotaId);
+
+    // Si hubo pago previo y el admin ingresó más que la deuda actual, distribuir excedente
+    // Para pago total asumimos pagaActual = deudaActual; cualquier monto mayor debe venir del montoPagadoActual > montoTotal, raro.
+    // Si se quiere soportar sobrepago manual, sumarlo como excedente:
+    if (pagaActual < deudaActual) {
+      excedente = deudaActual - pagaActual;
+    }
+
+    // Distribuir excedente en próximas cuotas pendientes/vencidas
+    if (excedente > 0) {
+      final siguientes = await client
+          .from('cuotas')
+          .select()
+          .eq('alumno_id', alumnoId)
+          .neq('id', cuotaId)
+          .neq('estado', 'pagada')
+          .order('fecha_vencimiento', ascending: true);
+
+      double restante = excedente;
+      for (final c in siguientes) {
+        final deuda = (c['monto'] as num).toDouble() - ((c['monto_pagado'] as num?)?.toDouble() ?? 0);
+        if (deuda <= 0) continue;
+        final paga = restante >= deuda ? deuda : restante;
+
+        final nuevoPagado = ((c['monto_pagado'] as num?)?.toDouble() ?? 0) + paga;
+        final pagada = nuevoPagado >= (c['monto'] as num).toDouble();
+        await client.from('cuotas').update({
+          'monto_pagado': nuevoPagado,
+          'estado': pagada ? 'pagada' : 'parcial',
+          'fecha_pago': pagada ? DateTime.now().toIso8601String() : null,
+          'metodo_pago': metodoPago,
+          'detalle_pago': detallePago,
+          'num_recibo': numRecibo,
+          'observaciones': observaciones,
+        }).eq('id', c['id']);
+
+        restante -= paga;
+        if (restante <= 0) break;
+      }
+    }
   }
 
-  Future<void> registrarPagoParcial(String cuotaId, double monto, String metodoPago, {String? observaciones, String? numRecibo, String? detallePago}) async {
+  Future<void> registrarPagoParcial(
+    String cuotaId,
+    double monto,
+    String metodoPago, {
+    String? observaciones,
+    String? numRecibo,
+    String? detallePago,
+  }) async {
     final cuota = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuota == null) return;
 
+    final alumnoId = cuota['alumno_id'];
     final montoPagadoActual = (cuota['monto_pagado'] as num?)?.toDouble() ?? 0;
     final montoTotal = (cuota['monto'] as num).toDouble();
-    final nuevoMontoPagado = montoPagadoActual + monto;
+    double excedente = 0;
+    double pagaActual = monto;
+
+    // Si el pago supera la deuda de la cuota actual, distribuir excedente
+    final deudaActual = montoTotal - montoPagadoActual;
+    if (monto > deudaActual) {
+      pagaActual = deudaActual;
+      excedente = monto - deudaActual;
+    }
+
+    final nuevoMontoPagado = montoPagadoActual + pagaActual;
     final estaPagada = nuevoMontoPagado >= montoTotal;
 
     await client.from('cuotas').update({
@@ -316,6 +444,38 @@ class SupabaseService {
       'num_recibo': numRecibo,
       'detalle_pago': detallePago,
     }).eq('id', cuotaId);
+
+    // Distribuir excedente en próximas cuotas pendientes/vencidas en orden de vencimiento
+    if (excedente > 0) {
+      final siguientes = await client
+          .from('cuotas')
+          .select()
+          .eq('alumno_id', alumnoId)
+          .neq('id', cuotaId)
+          .neq('estado', 'pagada')
+          .order('fecha_vencimiento', ascending: true);
+
+      double restante = excedente;
+      for (final c in siguientes) {
+        final deuda = (c['monto'] as num).toDouble() - ((c['monto_pagado'] as num?)?.toDouble() ?? 0);
+        if (deuda <= 0) continue;
+        final paga = restante >= deuda ? deuda : restante;
+
+        final nuevoPagado = ((c['monto_pagado'] as num?)?.toDouble() ?? 0) + paga;
+        final pagada = nuevoPagado >= (c['monto'] as num).toDouble();
+        await client.from('cuotas').update({
+          'monto_pagado': nuevoPagado,
+          'estado': pagada ? 'pagada' : 'parcial',
+          'fecha_pago': pagada ? DateTime.now().toIso8601String() : null,
+          'metodo_pago': metodoPago,
+          'detalle_pago': detallePago,
+          'num_recibo': numRecibo,
+        }).eq('id', c['id']);
+
+        restante -= paga;
+        if (restante <= 0) break;
+      }
+    }
   }
 
   Future<void> updateMontoCuota(String cuotaId, double nuevoMonto) async {
@@ -329,28 +489,31 @@ class SupabaseService {
         .eq('id', cuotaId);
   }
 
-  Future<void> updateMontoCuotasTrimestre({
+  Future<void> updateMontoCuotasBimestre({
     required int anio,
-    required int trimestre,
+    required int bimestre,
     required double nuevoMonto,
     bool soloPendientes = true,
+    bool incluirVencidas = true,
   }) async {
-    final Map<int, List<int>> trimestres = {
-      1: [3, 4, 5],
-      2: [6, 7, 8],
-      3: [9, 10, 11],
+    final Map<int, List<int>> bimestres = {
+      1: [1, 2],
+      2: [3, 4],
+      3: [5, 6],
+      4: [7, 8],
+      5: [9, 10],
+      6: [11, 12],
     };
-    final meses = trimestres[trimestre] ?? [];
+    final meses = bimestres[bimestre] ?? [];
     if (meses.isEmpty) return;
 
-    final filter = client
-        .from('cuotas')
-        .update({'monto': nuevoMonto})
-        .eq('anio', anio)
-        .inFilter('mes', meses);
+    final filter = client.from('cuotas').update({'monto': nuevoMonto}).eq('anio', anio).inFilter('mes', meses);
 
     if (soloPendientes) {
       filter.neq('estado', 'pagada');
+    }
+    if (!incluirVencidas) {
+      filter.neq('estado', 'vencida');
     }
 
     await filter;

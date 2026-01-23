@@ -307,7 +307,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'valor': '${_stats['pendientes'] ?? 0}',
         'icon': Icons.schedule,
         'color': AppTheme.warningColor,
-        'detalle': 'Inscripciones en revision',
+        'detalle': 'Inscripciones en revisión',
       },
       {
         'label': 'Aprobados',
@@ -471,7 +471,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'onTap': () => Navigator.pushNamed(context, '/admin/galeria'),
       },
       {
-        'titulo': 'Nueva inscripcion',
+        'titulo': 'Nueva inscripción',
         'subtitulo': 'Registrar alumno',
         'icon': Icons.person_add,
         'color': Colors.green,

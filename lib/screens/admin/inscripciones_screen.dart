@@ -19,7 +19,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   String _busqueda = '';
   late TabController _tabController;
 
-  final List<String> _niveles = ['Todos', 'Primer Año', 'Segundo Año', 'Tercer Año'];
+  final List<String> _niveles = ['Primer Año', 'Segundo Año', 'Tercer Año'];
   // Primer Año: divisiones A y B
   // Segundo y Tercer Año: sin divisiones
   final List<String> _divisionesPrimerAnio = ['A', 'B'];
@@ -65,9 +65,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     var lista = _alumnos;
 
     // Filtrar por nivel
-    if (nivel != 'Todos') {
-      lista = lista.where((a) => a.nivelInscripcion == nivel).toList();
-    }
+    lista = lista.where((a) => a.nivelInscripcion == nivel).toList();
 
     // Filtrar por división
     if (division != null) {
@@ -98,7 +96,6 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   }
 
   int _contarPorNivel(String nivel) {
-    if (nivel == 'Todos') return _alumnos.length;
     return _alumnos.where((a) => a.nivelInscripcion == nivel).length;
   }
 
@@ -172,7 +169,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
                     children: [
                       TextField(
                         decoration: InputDecoration(
-                          hintText: 'Buscar por nombre, DNI o codigo...',
+                          hintText: 'Buscar por nombre, DNI o código...',
                           prefixIcon: const Icon(Icons.search),
                           filled: true,
                           fillColor: Colors.white,
@@ -188,7 +185,6 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            _buildFiltroChip('Todos', ''),
                             _buildFiltroChip('Pendientes', 'pendiente'),
                             _buildFiltroChip('Aprobados', 'aprobado'),
                             _buildFiltroChip('Rechazados', 'rechazado'),
@@ -204,32 +200,12 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
                   child: TabBarView(
                     controller: _tabController,
                     children: _niveles.map((nivel) {
-                      if (nivel == 'Todos') {
-                        return _buildListaSimple(nivel);
-                      } else {
-                        return _buildListaAgrupada(nivel);
-                      }
+                      return _buildListaAgrupada(nivel);
                     }).toList(),
                   ),
                 ),
               ],
             ),
-    );
-  }
-
-  // Lista simple para "Todos"
-  Widget _buildListaSimple(String nivel) {
-    final alumnos = _filtrarAlumnos(nivel, null);
-    if (alumnos.isEmpty) {
-      return _buildEmptyState('No hay alumnos');
-    }
-    return RefreshIndicator(
-      onRefresh: _loadAlumnos,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: alumnos.length,
-        itemBuilder: (context, index) => _buildAlumnoCard(alumnos[index]),
-      ),
     );
   }
 
@@ -570,8 +546,8 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Aprobar Inscripcion'),
-        content: Text('¿Aprobar la inscripcion de ${alumno.nombreCompleto}?'),
+        title: const Text('Aprobar inscripción'),
+        content: Text('¿Aprobar la inscripción de ${alumno.nombreCompleto}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -591,7 +567,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
       _loadAlumnos();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Inscripcion aprobada')),
+          const SnackBar(content: Text('Inscripción aprobada')),
         );
       }
     }

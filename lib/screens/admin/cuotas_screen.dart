@@ -21,7 +21,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
   List<Cuota> _cuotas = [];
   bool _isLoading = true;
   String _busqueda = '';
-  String _filtroEstado = 'todas';
+  String _filtroEstado = '';
+  String _filtroNivel = '';
   List<Alumno> _alumnosDisponibles = [];
 
   @override
@@ -72,8 +73,15 @@ class _CuotasScreenState extends State<CuotasScreen> {
   List<Cuota> get _cuotasFiltradas {
     Iterable<Cuota> resultado = _cuotas;
 
-    if (_filtroEstado != 'todas') {
+    if (_filtroEstado.isNotEmpty) {
       resultado = resultado.where((c) => _estadoCuota(c) == _filtroEstado);
+    }
+
+    if (_filtroNivel.isNotEmpty) {
+      resultado = resultado.where((c) {
+        final alumno = _alumnos[c.alumnoId];
+        return alumno?.nivelInscripcion == _filtroNivel;
+      });
     }
 
     if (_busqueda.isNotEmpty) {
@@ -90,7 +98,20 @@ class _CuotasScreenState extends State<CuotasScreen> {
       });
     }
 
-    return resultado.toList();
+    final lista = resultado.toList();
+
+    // Ordenar por apellido / nombre y vencimiento
+    lista.sort((a, b) {
+      final alumnoA = _alumnos[a.alumnoId];
+      final alumnoB = _alumnos[b.alumnoId];
+      final nombreA = alumnoA?.apellido.toLowerCase() ?? '';
+      final nombreB = alumnoB?.apellido.toLowerCase() ?? '';
+      final cmpNombre = nombreA.compareTo(nombreB);
+      if (cmpNombre != 0) return cmpNombre;
+      return a.fechaVencimiento.compareTo(b.fechaVencimiento);
+    });
+
+    return lista;
   }
 
   String _estadoCuota(Cuota cuota) {
@@ -177,7 +198,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestion de Cuotas'),
+        title: const Text('Gestión de cuotas'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -189,8 +210,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 case 'generar':
                   _abrirGenerarCuotas();
                   break;
-                case 'ajustar_trimestre':
-                  _abrirAjustarTrimestre();
+                case 'ajustar_bimestre':
+                  _abrirAjustarBimestre();
                   break;
                 case 'generar_pdf':
                   _abrirGenerarPDF();
@@ -206,10 +227,10 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 ),
               ),
               const PopupMenuItem(
-                value: 'ajustar_trimestre',
+                value: 'ajustar_bimestre',
                 child: ListTile(
                   leading: Icon(Icons.change_circle_outlined),
-                  title: Text('Ajustar monto trimestral'),
+                  title: Text('Ajustar monto bimestral'),
                 ),
               ),
               const PopupMenuItem(
@@ -237,6 +258,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildCalculadoraGlobal(stats),
+                          const SizedBox(height: 12),
                           // Totales principales
                           Wrap(
                             spacing: 8,
@@ -300,7 +323,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
                         children: [
                           TextField(
                             decoration: InputDecoration(
-                              hintText: 'Buscar por alumno, DNI o codigo...',
+                              hintText: 'Buscar por alumno, DNI o código...',
                               prefixIcon: const Icon(Icons.search),
                               filled: true,
                               fillColor: Colors.white,
@@ -312,21 +335,32 @@ class _CuotasScreenState extends State<CuotasScreen> {
                             onChanged: (v) => setState(() => _busqueda = v),
                           ),
                           const SizedBox(height: 12),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _buildFiltroChip('Todas', 'todas'),
-                                _buildFiltroChip('Pagadas', 'pagada'),
-                                _buildFiltroChip('Parciales', 'parcial'),
-                                _buildFiltroChip('Pendientes', 'pendiente'),
-                                _buildFiltroChip('Vencidas', 'vencida'),
-                              ],
-                            ),
-                          ),
-                        ],
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFiltroChip('Pagadas', 'pagada'),
+                            _buildFiltroChip('Parciales', 'parcial'),
+                            _buildFiltroChip('Pendientes', 'pendiente'),
+                            _buildFiltroChip('Vencidas', 'vencida'),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFiltroNivelChip('Todos', ''),
+                            _buildFiltroNivelChip('Primer Año', 'Primer Año'),
+                            _buildFiltroNivelChip('Segundo Año', 'Segundo Año'),
+                            _buildFiltroNivelChip('Tercer Año', 'Tercer Año'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                   ),
 
                   // Lista de cuotas
@@ -404,9 +438,23 @@ class _CuotasScreenState extends State<CuotasScreen> {
       child: FilterChip(
         label: Text(label),
         selected: isSelected,
-        onSelected: (selected) => setState(() => _filtroEstado = selected ? estado : 'todas'),
+        onSelected: (selected) => setState(() => _filtroEstado = selected ? estado : ''),
         selectedColor: AppTheme.primaryColor.withOpacity(0.2),
         checkmarkColor: AppTheme.primaryColor,
+      ),
+    );
+  }
+
+  Widget _buildFiltroNivelChip(String label, String nivel) {
+    final isSelected = _filtroNivel == nivel;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (selected) => setState(() => _filtroNivel = selected ? nivel : ''),
+        selectedColor: AppTheme.accentColor.withOpacity(0.2),
+        checkmarkColor: AppTheme.accentColor,
       ),
     );
   }
@@ -419,155 +467,144 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final int cuotasPendAlumno = _contarCuotasPendientes(alumno?.id ?? cuota.alumnoId);
     final bool alertaDeuda = cuotasPendAlumno >= 3;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.05) : null,
-      shape: RoundedRectangleBorder(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.05) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.4) : Colors.grey.shade200,
+        border: Border.all(
+          color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.4) : Colors.grey.shade300,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppTheme.primaryColor,
-                  backgroundImage: alumno?.fotoAlumno != null && alumno!.fotoAlumno!.isNotEmpty
-                      ? NetworkImage(alumno.fotoAlumno!)
-                      : null,
-                  child: (alumno?.fotoAlumno == null || alumno!.fotoAlumno!.isEmpty)
-                      ? Text(
-                          nombre[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('DNI: $dni', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                _buildEstadoBadge(estado),
-              ],
-            ),
-
-            const Divider(height: 24),
-
-            // Info de cuota
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 4),
-                      Text('Vence: $vencimiento', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppTheme.primaryColor,
+                backgroundImage: (alumno?.fotoAlumno != null && (alumno?.fotoAlumno?.isNotEmpty ?? false))
+                    ? NetworkImage(alumno!.fotoAlumno!)
+                    : null,
+                child: (alumno?.fotoAlumno == null || (alumno?.fotoAlumno?.isEmpty ?? true))
+                    ? Text(
+                        nombre[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Monto: ${_formatMoney(cuota.monto)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    if (cuota.montoPagado > 0)
-                      Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor, fontSize: 13)),
-                    if (cuota.deuda > 0 && !cuota.estaPagada)
-                      Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text('DNI: $dni', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
                   ],
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Botones de acción
-            Row(
-              children: [
-                if (!cuota.estaPagada) ...[
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _registrarPagoParcial(cuota),
-                      icon: const Icon(Icons.payments_outlined, size: 18),
-                      label: const Text('Pago Parcial'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber.shade700,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
+              ),
+              _buildEstadoBadge(estado),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text('Vence: $vencimiento', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Monto: ${_formatMoney(cuota.monto)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (cuota.montoPagado > 0)
+                    Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor, fontSize: 12)),
+                  if (cuota.deuda > 0 && !cuota.estaPagada)
+                    Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.dangerColor, fontSize: 12, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (!cuota.estaPagada) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _registrarPagoParcial(cuota),
+                    icon: const Icon(Icons.payments_outlined, size: 18),
+                    label: const Text('Pago Parcial'),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _registrarPagoTotal(cuota),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Pago Total'),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppTheme.successColor.withOpacity(0.1),
+                      foregroundColor: AppTheme.successColor,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      side: BorderSide(color: AppTheme.successColor.withOpacity(0.6)),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _registrarPagoTotal(cuota),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Pago Total'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.successColor,
-                      ),
+                ),
+              ],
+              if (cuota.estaPagada)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: AppTheme.successColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pagada ${cuota.fechaPago != null ? _formatDate(cuota.fechaPago!) : ''}',
+                          style: TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Column(
+                children: [
+                  IconButton(
+                    onPressed: () => _editarMonto(cuota),
+                    icon: const Icon(Icons.edit),
+                    tooltip: 'Editar monto',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.shade100,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _editarVencimiento(cuota),
+                    icon: const Icon(Icons.event),
+                    tooltip: 'Editar vencimiento',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.shade100,
                     ),
                   ),
                 ],
-                if (cuota.estaPagada)
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.successColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle, color: AppTheme.successColor, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Pagada ${cuota.fechaPago != null ? _formatDate(cuota.fechaPago!) : ''}',
-                            style: TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                Column(
-                  children: [
-                    IconButton(
-                      onPressed: () => _editarMonto(cuota),
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Editar monto',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => _editarVencimiento(cuota),
-                      icon: const Icon(Icons.event),
-                      tooltip: 'Editar vencimiento',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -580,6 +617,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
     final montoController = TextEditingController();
     final anioController = TextEditingController(text: DateTime.now().year.toString());
+    final inscripcionController = TextEditingController();
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -589,7 +627,20 @@ class _CuotasScreenState extends State<CuotasScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Selecciona alumno y define el monto mensual. Se generarán cuotas de marzo a noviembre.'),
+            ValueListenableBuilder<String?>(
+              valueListenable: alumnoSeleccionado,
+              builder: (_, value, __) {
+                Alumno? alumno;
+                try {
+                  alumno = _alumnosDisponibles.firstWhere((a) => a.id == value);
+                } catch (_) {}
+                final rango = alumno?.nivelInscripcion == 'Primer Año' ? 'marzo a diciembre' : 'enero a diciembre';
+                return Text(
+                  'Selecciona alumno y define el monto mensual. Se generarán cuotas de $rango.',
+                  style: const TextStyle(fontSize: 13),
+                );
+              },
+            ),
             const SizedBox(height: 12),
             ValueListenableBuilder<String?>(
               valueListenable: alumnoSeleccionado,
@@ -616,6 +667,28 @@ class _CuotasScreenState extends State<CuotasScreen> {
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
+            ValueListenableBuilder<String?>(
+              valueListenable: alumnoSeleccionado,
+              builder: (_, value, __) {
+                final esPrimerAnio = _esPrimerAnio(value);
+                if (!esPrimerAnio) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: inscripcionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Monto inscripción (solo 1° año)',
+                        prefixText: '\$ ',
+                        helperText: 'Se genera una sola vez',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+            ),
             TextField(
               controller: anioController,
               decoration: const InputDecoration(labelText: 'Año'),
@@ -638,11 +711,19 @@ class _CuotasScreenState extends State<CuotasScreen> {
       final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
       if (monto <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
         );
         return;
       }
-      await _db.generarCuotasAnuales(alumnoSeleccionado.value!, monto, anio);
+      final esPrimerAnio = _esPrimerAnio(alumnoSeleccionado.value);
+      final montoInsc = esPrimerAnio ? double.tryParse(inscripcionController.text) : null;
+      await _db.generarCuotasAnuales(
+        alumnoSeleccionado.value!,
+        monto,
+        anio,
+        montoInscripcion: montoInsc,
+        generarInscripcion: esPrimerAnio,
+      );
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -652,31 +733,40 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
-  Future<void> _abrirAjustarTrimestre() async {
+  Future<void> _abrirAjustarBimestre() async {
     final montoController = TextEditingController();
     final anioController = TextEditingController(text: DateTime.now().year.toString());
-    final trimestreController = ValueNotifier<int>(1);
+    final bimestreController = ValueNotifier<int>(1);
     final soloPendientes = ValueNotifier<bool>(true);
+    final incluirVencidas = ValueNotifier<bool>(true);
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Ajustar monto trimestral'),
+        title: const Text('Ajustar monto bimestral'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Actualiza el monto de las cuotas de un trimestre (mar-may, jun-ago, sep-nov).'),
+            const Text('Actualiza el monto de las cuotas de un bimestre (ene-feb, mar-abr, etc).'),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              value: trimestreController.value,
-              decoration: const InputDecoration(labelText: 'Trimestre'),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1° Trimestre (Mar-May)')),
-                DropdownMenuItem(value: 2, child: Text('2° Trimestre (Jun-Ago)')),
-                DropdownMenuItem(value: 3, child: Text('3° Trimestre (Sep-Nov)')),
-              ],
-              onChanged: (v) => trimestreController.value = v ?? 1,
+            ValueListenableBuilder<int>(
+              valueListenable: bimestreController,
+              builder: (_, value, __) {
+                return DropdownButtonFormField<int>(
+                  value: value,
+                  decoration: const InputDecoration(labelText: 'Bimestre'),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('1° Bimestre (Ene-Feb)')),
+                    DropdownMenuItem(value: 2, child: Text('2° Bimestre (Mar-Abr)')),
+                    DropdownMenuItem(value: 3, child: Text('3° Bimestre (May-Jun)')),
+                    DropdownMenuItem(value: 4, child: Text('4° Bimestre (Jul-Ago)')),
+                    DropdownMenuItem(value: 5, child: Text('5° Bimestre (Sep-Oct)')),
+                    DropdownMenuItem(value: 6, child: Text('6° Bimestre (Nov-Dic)')),
+                  ],
+                  onChanged: (v) => bimestreController.value = v ?? 1,
+                );
+              },
             ),
             const SizedBox(height: 12),
             TextField(
@@ -702,6 +792,17 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 );
               },
             ),
+            ValueListenableBuilder<bool>(
+              valueListenable: incluirVencidas,
+              builder: (_, value, __) {
+                return CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Actualizar también vencidas'),
+                  value: value,
+                  onChanged: (v) => incluirVencidas.value = v ?? true,
+                );
+              },
+            ),
           ],
         ),
         actions: [
@@ -716,15 +817,16 @@ class _CuotasScreenState extends State<CuotasScreen> {
       final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
       if (monto <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
         );
         return;
       }
-      await _db.updateMontoCuotasTrimestre(
+      await _db.updateMontoCuotasBimestre(
         anio: anio,
-        trimestre: trimestreController.value,
+        bimestre: bimestreController.value,
         nuevoMonto: monto,
         soloPendientes: soloPendientes.value,
+        incluirVencidas: incluirVencidas.value,
       );
       await _loadCuotas();
       if (mounted) {
@@ -803,6 +905,66 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
   int _contarCuotasPendientes(String alumnoId) {
     return _cuotas.where((c) => c.alumnoId == alumnoId && !c.estaPagada).length;
+  }
+
+  bool _esPrimerAnio(String? alumnoId) {
+    if (alumnoId == null) return false;
+    try {
+      final alumno = _alumnosDisponibles.firstWhere((a) => a.id == alumnoId);
+      return alumno.nivelInscripcion == 'Primer Año';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Widget _buildCalculadoraGlobal(Map<String, dynamic> stats) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Calculadora global',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStatChip('Total pagado', _formatMoney(stats['totalCobrado']), AppTheme.successColor),
+              _buildStatChip('Total adeudado', _formatMoney(stats['totalPorCobrar']), AppTheme.dangerColor),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 10, color: color),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+          const SizedBox(width: 10),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
   }
 
   Future<void> _registrarPagoTotal(Cuota cuota) async {
@@ -943,7 +1105,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 decoration: InputDecoration(
                   labelText: 'Importe a pagar ahora',
                   prefixText: '\$ ',
-                  helperText: 'Maximo: ${_formatMoney(cuota.deuda)}',
+                  helperText: 'Máximo: ${_formatMoney(cuota.deuda)}',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -1008,7 +1170,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+            const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
           );
         }
       }

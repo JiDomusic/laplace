@@ -15,12 +15,6 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _abrirMaps() async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=Lavalle+575,+Rosario,+Santa+Fe',
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 
   void _llamar() async {
@@ -142,7 +136,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const Divider(height: 24),
                         Text(
-                          'Tecnico Superior en Seguridad e Higiene en el Trabajo',
+                          'Técnico Superior en Seguridad e Higiene en el Trabajo',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -168,7 +162,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Inscripcion presencial',
+                                'Inscripción presencial',
                                 style: theme.textTheme.labelLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: colorScheme.onTertiaryContainer,
@@ -256,7 +250,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Panel Administrativo',
+                          'Panel administrativo',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -277,48 +271,6 @@ class HomeScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 16),
-
-                // Card de ubicación
-                Card(
-                  elevation: 0,
-                  color: colorScheme.surfaceContainerHighest,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.location_on_rounded,
-                          color: colorScheme.primary,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Como llegar',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Lavalle 575, Rosario, Santa Fe',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _abrirMaps,
-                          icon: const Icon(Icons.map_rounded, size: 20),
-                          label: const Text('Abrir en Google Maps'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
 
                 // Footer
                 Center(

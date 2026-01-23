@@ -7,8 +7,8 @@ import '../models/cuota.dart';
 import '../models/legajo.dart';
 
 class PdfService {
-  static const String _carrera = 'Tecnico Superior en Seguridad e Higiene en el Trabajo';
-  static const String _autorizacion = 'Autorizado a la ensenanza oficial N°9250';
+  static const String _carrera = 'Técnico Superior en Seguridad e Higiene en el Trabajo';
+  static const String _autorizacion = 'Autorizado a la enseñanza oficial N°9250';
 
   static Future<Uint8List> generarComprobante(
     Alumno alumno, {
@@ -23,44 +23,18 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(30),
-        header: (context) => pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(15),
-          decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#1A237E'),
-            borderRadius: pw.BorderRadius.circular(8),
-          ),
-          child: pw.Column(
-            children: [
-              pw.Text(
-                'INSTITUTO SUPERIOR LAPLACE',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
-                ),
-              ),
-              pw.SizedBox(height: 2),
-              pw.Text(
-                _autorizacion,
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.white),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                _carrera,
-                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-              ),
-              pw.Text(
-                'Rosario, Santa Fe',
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.white),
-              ),
-            ],
+        margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+        header: (_) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: pw.Center(
+            child: pw.Text(
+              'Instituto de Enseñanza Oficial Laplace',
+              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+            ),
           ),
         ),
-        footer: (context) => pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(8),
+        footer: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 8),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -69,7 +43,7 @@ class PdfService {
                 style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
               pw.Text(
-                'Pagina ${context.pageNumber} de ${context.pagesCount}',
+                'Página ${context.pageNumber} de ${context.pagesCount}',
                 style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
             ],
@@ -89,9 +63,9 @@ class PdfService {
             child: pw.Column(
               children: [
                 pw.Text(
-                  'FICHA DE INSCRIPCION',
+                  'FICHA DE INSCRIPCIÓN',
                   style: pw.TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColor.fromHex('#1A237E'),
                   ),
@@ -100,13 +74,13 @@ class PdfService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.center,
                   children: [
-                    pw.Text('Ciclo Lectivo: ', style: const pw.TextStyle(fontSize: 11)),
+                    pw.Text('Ciclo lectivo: ', style: const pw.TextStyle(fontSize: 10)),
                     pw.Text(
                       cicloLectivo,
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
                     ),
                     pw.SizedBox(width: 20),
-                    pw.Text('Codigo: ', style: const pw.TextStyle(fontSize: 11)),
+                    pw.Text('Código: ', style: const pw.TextStyle(fontSize: 10)),
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: pw.BoxDecoration(
@@ -116,7 +90,7 @@ class PdfService {
                       child: pw.Text(
                         alumno.codigoInscripcion ?? 'PENDIENTE',
                         style: pw.TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.white,
                         ),
@@ -421,58 +395,28 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        header: (context) => pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(15),
-          decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#1A237E'),
-            borderRadius: pw.BorderRadius.circular(8),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'INSTITUTO LAPLACE',
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                    ),
-                  ),
-                  pw.Text(
-                    'Rosario, Santa Fe',
-                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.white),
-                  ),
-                ],
-              ),
-              pw.Text(
-                'DETALLE DE CUOTAS',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
-                ),
-              ),
-            ],
+        margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+        header: (_) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: pw.Center(
+            child: pw.Text(
+              'Instituto de Enseñanza Oficial Laplace',
+              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+            ),
           ),
         ),
-        footer: (context) => pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(8),
+        footer: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 8),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
                 'Emitido: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
               pw.Text(
-                'Pagina ${context.pageNumber} de ${context.pagesCount}',
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                'Página ${context.pageNumber} de ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
             ],
           ),
@@ -497,21 +441,21 @@ class PdfService {
                     children: [
                       pw.Text(
                         alumno.nombreCompleto,
-                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
                       ),
                       pw.SizedBox(height: 4),
-                      pw.Text('DNI: ${alumno.dni}', style: const pw.TextStyle(fontSize: 11)),
-                      pw.Text('Nivel: ${alumno.nivelInscripcion}${alumno.division != null ? ' - ${alumno.division}' : ''}', style: const pw.TextStyle(fontSize: 11)),
+                      pw.Text('DNI: ${alumno.dni}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text('Nivel: ${alumno.nivelInscripcion}${alumno.division != null ? ' - ${alumno.division}' : ''}', style: const pw.TextStyle(fontSize: 10)),
                     ],
                   ),
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Codigo: ${alumno.codigoInscripcion ?? 'N/A'}', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Código: ${alumno.codigoInscripcion ?? 'N/A'}', style: const pw.TextStyle(fontSize: 9)),
                     pw.SizedBox(height: 4),
-                    pw.Text('Email: ${alumno.email}', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text('Tel: ${alumno.celular}', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Email: ${alumno.email}', style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text('Tel: ${alumno.celular}', style: const pw.TextStyle(fontSize: 9)),
                   ],
                 ),
               ],
@@ -557,13 +501,13 @@ class PdfService {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey300),
             columnWidths: {
-              0: const pw.FlexColumnWidth(2.5), // Concepto
-              1: const pw.FlexColumnWidth(1.2), // Vencimiento
-              2: const pw.FlexColumnWidth(1), // Monto
-              3: const pw.FlexColumnWidth(1), // Pagado
-              4: const pw.FlexColumnWidth(1), // Deuda
-              5: const pw.FlexColumnWidth(1), // Estado
-              6: const pw.FlexColumnWidth(1), // Recibo
+              0: const pw.FlexColumnWidth(2.2), // Concepto
+              1: const pw.FlexColumnWidth(1.1), // Vencimiento
+              2: const pw.FlexColumnWidth(0.9), // Monto
+              3: const pw.FlexColumnWidth(0.9), // Pagado
+              4: const pw.FlexColumnWidth(0.9), // Deuda
+              5: const pw.FlexColumnWidth(0.9), // Estado
+              6: const pw.FlexColumnWidth(0.9), // Recibo
             },
             children: [
               // Header
@@ -610,6 +554,9 @@ class PdfService {
           ),
           pw.SizedBox(height: 20),
 
+          // Calendario visual de pagos (una fila por alumno)
+          _buildCalendarioVisual(alumno, cuotas),
+
           // Detalle de pagos realizados
           if (cuotas.any((c) => c.fechaPago != null)) ...[
             pw.Text(
@@ -620,11 +567,11 @@ class PdfService {
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey300),
               columnWidths: {
-                0: const pw.FlexColumnWidth(1.5), // Fecha
-                1: const pw.FlexColumnWidth(2.5), // Concepto/Detalle
-                2: const pw.FlexColumnWidth(1), // Importe
-                3: const pw.FlexColumnWidth(1), // Metodo
-                4: const pw.FlexColumnWidth(1), // Recibo
+                0: const pw.FlexColumnWidth(1.4), // Fecha
+                1: const pw.FlexColumnWidth(2.2), // Concepto/Detalle
+                2: const pw.FlexColumnWidth(0.9), // Importe
+                3: const pw.FlexColumnWidth(0.9), // Metodo
+                4: const pw.FlexColumnWidth(0.9), // Recibo
               },
               children: [
                 pw.TableRow(
@@ -633,7 +580,7 @@ class PdfService {
                     _buildTableHeader('Fecha', dark: false),
                     _buildTableHeader('Detalle', dark: false),
                     _buildTableHeader('Importe', dark: false),
-                    _buildTableHeader('Metodo', dark: false),
+                    _buildTableHeader('Método', dark: false),
                     _buildTableHeader('N° Recibo', dark: false),
                   ],
                 ),
@@ -664,7 +611,7 @@ class PdfService {
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          fontSize: 9,
+          fontSize: 8,
           fontWeight: pw.FontWeight.bold,
           color: dark ? PdfColors.white : PdfColors.black,
         ),
@@ -677,8 +624,86 @@ class PdfService {
       padding: const pw.EdgeInsets.all(6),
       child: pw.Text(
         text,
-        style: pw.TextStyle(fontSize: 9, color: color),
+        style: pw.TextStyle(fontSize: 8, color: color),
       ),
+    );
+  }
+
+  // Calendario visual de cuotas (pagada/parcial/pendiente)
+  static pw.Widget _buildCalendarioVisual(Alumno alumno, List<Cuota> cuotas) {
+    final esPrimerAnio = alumno.nivelInscripcion == 'Primer Año';
+    final meses = esPrimerAnio
+        ? <int>[3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        : <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    // Estado por mes
+    Map<int, Cuota?> cuotasPorMes = {for (var m in meses) m: null};
+    for (final c in cuotas) {
+      if (cuotasPorMes.containsKey(c.mes)) {
+        cuotasPorMes[c.mes] = c;
+      }
+    }
+
+    // Inscripción (solo 1.er año)
+    Cuota? inscripcion;
+    for (final c in cuotas) {
+      if (c.concepto.toLowerCase().contains('inscripción')) {
+        inscripcion = c;
+        break;
+      }
+    }
+
+    pw.Widget _celdaEstado(Cuota? c) {
+      String simbolo = '';
+      PdfColor color = PdfColors.grey600;
+      if (c != null) {
+        if (c.estaPagada) {
+          simbolo = '✔';
+          color = PdfColors.green700;
+        } else if (c.esParcial) {
+          simbolo = '•';
+          color = PdfColors.orange700;
+        } else if (c.estaVencida) {
+          simbolo = 'X';
+          color = PdfColors.red700;
+        } else {
+          simbolo = '';
+          color = PdfColors.grey600;
+        }
+      }
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(4),
+        alignment: pw.Alignment.center,
+        child: pw.Text(simbolo, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: color)),
+      );
+    }
+
+    final headers = <pw.Widget>[
+      if (esPrimerAnio) pw.Text('Insc.', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+      ...meses.map((m) => pw.Text(Cuota.nombreMes(m).substring(0, 3), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
+    ];
+
+    final estados = <pw.Widget>[
+      if (esPrimerAnio) _celdaEstado(inscripcion),
+      ...meses.map((m) => _celdaEstado(cuotasPorMes[m])),
+    ];
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('Calendario de pagos', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 6),
+        pw.Container(
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+          child: pw.Row(children: headers.map((h) => pw.Expanded(child: h)).toList()),
+        ),
+        pw.Container(
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+          child: pw.Row(children: estados.map((h) => pw.Expanded(child: h)).toList()),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Text('✔ pagada   • parcial   X vencida   (vacío = pendiente)', style: const pw.TextStyle(fontSize: 7)),
+      ],
     );
   }
 }

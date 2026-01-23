@@ -339,7 +339,7 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
               textAlign: TextAlign.center,
             ),
             Text(
-              _alumno!.codigoInscripcion ?? 'Sin codigo',
+              _alumno!.codigoInscripcion ?? 'Sin código',
               style: const TextStyle(color: AppTheme.primaryColor),
             ),
             const SizedBox(height: 12),
