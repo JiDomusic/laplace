@@ -24,6 +24,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
   String _filtroEstado = '';
   String _filtroNivel = '';
   List<Alumno> _alumnosDisponibles = [];
+  bool _vistaCalendario = true; // Vista calendario por defecto
 
   @override
   void initState() {
@@ -116,6 +117,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
   String _estadoCuota(Cuota cuota) {
     if (cuota.estaPagada) return 'pagada';
+    // Parcial tiene prioridad sobre vencida para que el pago se refleje
     if (cuota.esParcial) return 'parcial';
     if (cuota.estaVencida || cuota.estado == 'vencida') return 'vencida';
     return 'pendiente';
@@ -135,12 +137,13 @@ class _CuotasScreenState extends State<CuotasScreen> {
     double totalPorCobrar = 0;      // Todo lo que falta cobrar
     double totalFacturacion = 0;    // Total que debería entrar
 
-    // Por categoría
+    // Por categoría - mostramos deuda pendiente por estado
     double montoPagadas = 0;        // Monto de cuotas completamente pagadas
     double montoParciales = 0;      // Lo que se cobró de cuotas parciales
     double deudaParciales = 0;      // Lo que falta de cuotas parciales
     double deudaPendientes = 0;     // Deuda de cuotas pendientes (no vencidas)
     double deudaVencidas = 0;       // Deuda de cuotas vencidas
+    double cobradoVencidas = 0;     // Pagos parciales en cuotas vencidas
 
     int cantPagadas = 0;
     int cantParciales = 0;
@@ -156,7 +159,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       switch (estado) {
         case 'pagada':
           cantPagadas++;
-          montoPagadas += cuota.monto;
+          montoPagadas += cuota.montoPagado; // Usar montoPagado para consistencia
           break;
         case 'parcial':
           cantParciales++;
@@ -166,6 +169,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
         case 'vencida':
           cantVencidas++;
           deudaVencidas += cuota.deuda;
+          cobradoVencidas += cuota.montoPagado; // Capturar pagos parciales en vencidas
           break;
         default:
           cantPendientes++;
@@ -184,6 +188,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       'deudaParciales': deudaParciales,
       'deudaPendientes': deudaPendientes,
       'deudaVencidas': deudaVencidas,
+      'cobradoVencidas': cobradoVencidas,
       // Cantidades
       'cantPagadas': cantPagadas,
       'cantParciales': cantParciales,
@@ -200,6 +205,12 @@ class _CuotasScreenState extends State<CuotasScreen> {
       appBar: AppBar(
         title: const Text('Gestión de cuotas'),
         actions: [
+          // Toggle vista
+          IconButton(
+            icon: Icon(_vistaCalendario ? Icons.list : Icons.calendar_view_month),
+            tooltip: _vistaCalendario ? 'Vista lista' : 'Vista calendario',
+            onPressed: () => setState(() => _vistaCalendario = !_vistaCalendario),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadCuotas,
@@ -219,27 +230,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'generar',
-                child: ListTile(
-                  leading: Icon(Icons.add_card),
-                  title: Text('Generar cuotas'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'ajustar_bimestre',
-                child: ListTile(
-                  leading: Icon(Icons.change_circle_outlined),
-                  title: Text('Ajustar monto bimestral'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'generar_pdf',
-                child: ListTile(
-                  leading: Icon(Icons.picture_as_pdf),
-                  title: Text('Generar PDF de alumno'),
-                ),
-              ),
+              const PopupMenuItem(value: 'generar', child: Row(children: [Icon(Icons.add_card, size: 20), SizedBox(width: 8), Text('Generar cuotas')])),
+              const PopupMenuItem(value: 'ajustar_bimestre', child: Row(children: [Icon(Icons.change_circle_outlined, size: 20), SizedBox(width: 8), Text('Ajustar bimestre')])),
+              const PopupMenuItem(value: 'generar_pdf', child: Row(children: [Icon(Icons.picture_as_pdf, size: 20), SizedBox(width: 8), Text('PDF alumno')])),
             ],
           ),
         ],
@@ -250,360 +243,530 @@ class _CuotasScreenState extends State<CuotasScreen> {
               onRefresh: _loadCuotas,
               child: CustomScrollView(
                 slivers: [
-                  // Estadísticas - Resumen general
+                  // Resumen compacto
                   SliverToBoxAdapter(
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       color: AppTheme.primaryColor.withOpacity(0.05),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          _buildCalculadoraGlobal(stats),
-                          const SizedBox(height: 12),
-                          // Totales principales
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildStatCard(
-                                'Cobrado',
-                                null,
-                                AppTheme.successColor,
-                                _formatMoney(stats['totalCobrado']),
-                                width: 140,
-                                icon: Icons.check_circle,
+                          _buildMiniStat('Cobrado', stats['totalCobrado'], AppTheme.successColor),
+                          _buildMiniStat('Por cobrar', stats['totalPorCobrar'], AppTheme.dangerColor),
+                          _buildMiniStat('Total', stats['totalFacturacion'], AppTheme.primaryColor),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Filtros compactos
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        children: [
+                          // Búsqueda
+                          SizedBox(
+                            height: 40,
+                            child: TextField(
+                              style: const TextStyle(fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Buscar alumno...',
+                                prefixIcon: const Icon(Icons.search, size: 20),
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                               ),
-                              _buildStatCard(
-                                'Por Cobrar',
-                                null,
-                                (stats['totalPorCobrar'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
-                                _formatMoney(stats['totalPorCobrar']),
-                                width: 140,
-                                icon: Icons.pending,
-                              ),
-                              _buildStatCard(
-                                'Facturacion',
-                                stats['cantPagadas'] + stats['cantParciales'] + stats['cantPendientes'] + stats['cantVencidas'],
-                                AppTheme.primaryColor,
-                                _formatMoney(stats['totalFacturacion']),
-                                width: 140,
-                                icon: Icons.receipt_long,
-                              ),
-                            ],
+                              onChanged: (v) => setState(() => _busqueda = v),
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          // Detalle por estado
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildStatCard('Pagadas', stats['cantPagadas'], AppTheme.successColor, _formatMoney(stats['montoPagadas']), width: 130),
-                              _buildStatCard('Parciales', stats['cantParciales'], Colors.orange, _formatMoney(stats['montoParciales']), width: 130),
-                              _buildStatCard('Pendientes', stats['cantPendientes'], AppTheme.warningColor, _formatMoney(stats['deudaPendientes']), width: 130),
-                              _buildStatCard(
-                                'Vencidas',
-                                stats['cantVencidas'],
-                                (stats['deudaVencidas'] ?? 0) > 0 ? AppTheme.dangerColor : Colors.grey,
-                                _formatMoney(stats['deudaVencidas']),
-                                width: 130,
-                              ),
-                            ],
+                          const SizedBox(height: 8),
+                          // Filtros en una fila
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildMiniChip('1°A', 'Primer Año', division: 'A'),
+                                _buildMiniChip('1°B', 'Primer Año', division: 'B'),
+                                _buildMiniChip('2°', 'Segundo Año'),
+                                _buildMiniChip('3°', 'Tercer Año'),
+                                const SizedBox(width: 8),
+                                _buildEstadoChip('✓', 'pagada', AppTheme.successColor),
+                                _buildEstadoChip('◐', 'parcial', Colors.orange),
+                                _buildEstadoChip('○', 'pendiente', AppTheme.warningColor),
+                                _buildEstadoChip('!', 'vencida', AppTheme.dangerColor),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Búsqueda y filtros
-                  SliverToBoxAdapter(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      color: Colors.grey.shade100,
-                      child: Column(
-                        children: [
-                          TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Buscar por alumno, DNI o código...',
-                              prefixIcon: const Icon(Icons.search),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                            onChanged: (v) => setState(() => _busqueda = v),
-                          ),
-                          const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFiltroChip('Pagadas', 'pagada'),
-                            _buildFiltroChip('Parciales', 'parcial'),
-                            _buildFiltroChip('Pendientes', 'pendiente'),
-                            _buildFiltroChip('Vencidas', 'vencida'),
-                          ],
+                  // Leyenda de colores (solo en vista calendario)
+                  if (_vistaCalendario)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFiltroNivelChip('Todos', ''),
-                            _buildFiltroNivelChip('Primer Año', 'Primer Año'),
-                            _buildFiltroNivelChip('Segundo Año', 'Segundo Año'),
-                            _buildFiltroNivelChip('Tercer Año', 'Tercer Año'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                  ),
-
-                  // Lista de cuotas
-                  if (_cuotasFiltradas.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 12),
+                            const Text('Pagos bimestrales:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 4,
+                              children: [
+                                _buildLeyendaItem('✓', AppTheme.successColor, 'Pagada'),
+                                _buildLeyendaItem('◐', Colors.orange, 'Pago parcial'),
+                                _buildLeyendaItem('○', Colors.grey.shade500, 'Pendiente'),
+                                _buildLeyendaItem('!', AppTheme.dangerColor, 'Vencida'),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
                             Text(
-                              'No hay cuotas con este filtro',
-                              style: TextStyle(color: Colors.grey.shade600),
+                              'Toca una celda para registrar pago. Toca el nombre del alumno para ver/imprimir PDF.',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                             ),
                           ],
-                        ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.all(16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final cuota = _cuotasFiltradas[index];
-                            final alumno = _alumnos[cuota.alumnoId];
-                            return _buildCuotaCard(cuota, alumno);
-                          },
-                          childCount: _cuotasFiltradas.length,
                         ),
                       ),
                     ),
+
+                  // Contenido principal
+                  if (_vistaCalendario)
+                    _buildVistaCalendario()
+                  else
+                    _buildVistaLista(),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildStatCard(String label, int? count, Color color, String? subtext, {double? width, IconData? icon}) {
-    final card = Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          if (icon != null)
-            Icon(icon, color: color, size: 20),
-          if (count != null)
-            Text(
-              '$count',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
-            ),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-          if (subtext != null)
-            Text(subtext, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-
-    if (width != null) {
-      return SizedBox(width: width, child: card);
-    }
-    return card;
-  }
-
-  Widget _buildFiltroChip(String label, String estado) {
-    final isSelected = _filtroEstado == estado;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) => setState(() => _filtroEstado = selected ? estado : ''),
-        selectedColor: AppTheme.primaryColor.withOpacity(0.2),
-        checkmarkColor: AppTheme.primaryColor,
-      ),
+  Widget _buildLeyendaItem(String symbol, Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 20, height: 20,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Center(child: Text(symbol, style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold))),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11)),
+      ],
     );
   }
 
-  Widget _buildFiltroNivelChip(String label, String nivel) {
-    final isSelected = _filtroNivel == nivel;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) => setState(() => _filtroNivel = selected ? nivel : ''),
-        selectedColor: AppTheme.accentColor.withOpacity(0.2),
-        checkmarkColor: AppTheme.accentColor,
-      ),
-    );
-  }
-
-  Widget _buildCuotaCard(Cuota cuota, Alumno? alumno) {
-    final estado = _estadoCuota(cuota);
-    final vencimiento = _formatDate(cuota.fechaVencimiento);
-    final nombre = alumno?.nombreCompleto ?? 'Alumno ${cuota.alumnoId}';
-    final dni = alumno?.dni ?? '';
-    final int cuotasPendAlumno = _contarCuotasPendientes(alumno?.id ?? cuota.alumnoId);
-    final bool alertaDeuda = cuotasPendAlumno >= 3;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: alertaDeuda ? AppTheme.dangerColor.withOpacity(0.4) : Colors.grey.shade300,
+  Widget _buildMiniStat(String label, double value, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+            Text(_formatMoney(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+          ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    );
+  }
+
+  Widget _buildMiniChip(String label, String nivel, {String? division}) {
+    final isSelected = _filtroNivel == nivel && (division == null || _filtroDivision == division);
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: InkWell(
+        onTap: () => setState(() {
+          if (isSelected) {
+            _filtroNivel = '';
+            _filtroDivision = '';
+          } else {
+            _filtroNivel = nivel;
+            _filtroDivision = division ?? '';
+          }
+        }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.grey.shade700)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEstadoChip(String symbol, String estado, Color color) {
+    final isSelected = _filtroEstado == estado;
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: InkWell(
+        onTap: () => setState(() => _filtroEstado = isSelected ? '' : estado),
+        child: Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: isSelected ? color : color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(child: Text(symbol, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : color))),
+        ),
+      ),
+    );
+  }
+
+  // Vista calendario tipo tabla
+  Widget _buildVistaCalendario() {
+    // Agrupar alumnos por nivel y división
+    final grupos = <String, List<Alumno>>{};
+    for (final alumno in _alumnosDisponibles) {
+      if (_busqueda.isNotEmpty) {
+        final query = _busqueda.toLowerCase();
+        if (!alumno.nombreCompleto.toLowerCase().contains(query) && !alumno.dni.toLowerCase().contains(query)) continue;
+      }
+      if (_filtroNivel.isNotEmpty && alumno.nivelInscripcion != _filtroNivel) continue;
+      if (_filtroDivision.isNotEmpty && alumno.division != _filtroDivision) continue;
+
+      String grupo;
+      if (alumno.nivelInscripcion == 'Primer Año') {
+        grupo = '1° ${alumno.division ?? 'S/D'}';
+      } else if (alumno.nivelInscripcion == 'Segundo Año') {
+        grupo = '2° Año';
+      } else {
+        grupo = '3° Año';
+      }
+      grupos.putIfAbsent(grupo, () => []);
+      grupos[grupo]!.add(alumno);
+    }
+
+    // Ordenar grupos
+    final gruposOrdenados = ['1° A', '1° B', '1° S/D', '2° Año', '3° Año'].where((g) => grupos.containsKey(g)).toList();
+
+    if (gruposOrdenados.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: Text('No hay alumnos', style: TextStyle(color: Colors.grey.shade600))),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final grupo = gruposOrdenados[index];
+          final alumnos = grupos[grupo]!..sort((a, b) {
+            final cmp = a.apellido.toLowerCase().compareTo(b.apellido.toLowerCase());
+            if (cmp != 0) return cmp;
+            return a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
+          });
+          return _buildGrupoCalendario(grupo, alumnos);
+        },
+        childCount: gruposOrdenados.length,
+      ),
+    );
+  }
+
+  Widget _buildGrupoCalendario(String grupo, List<Alumno> alumnos) {
+    final esPrimerAnio = grupo.startsWith('1°');
+    // Bimestres con labels más claros
+    final bimestres = esPrimerAnio
+        ? [{'mes': 0, 'label': 'INSC'}, {'mes': 3, 'label': 'Mar'}, {'mes': 5, 'label': 'May'}, {'mes': 7, 'label': 'Jul'}, {'mes': 9, 'label': 'Sep'}, {'mes': 11, 'label': 'Nov'}]
+        : [{'mes': 1, 'label': 'Ene'}, {'mes': 3, 'label': 'Mar'}, {'mes': 5, 'label': 'May'}, {'mes': 7, 'label': 'Jul'}, {'mes': 9, 'label': 'Sep'}, {'mes': 11, 'label': 'Nov'}];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header del grupo con cantidad
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          color: AppTheme.primaryColor,
+          child: Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: AppTheme.primaryColor,
-                backgroundImage: (alumno?.fotoAlumno != null && (alumno?.fotoAlumno?.isNotEmpty ?? false))
-                    ? NetworkImage(alumno!.fotoAlumno!)
-                    : null,
-                child: (alumno?.fotoAlumno == null || (alumno?.fotoAlumno?.isEmpty ?? true))
-                    ? Text(
-                        nombre[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      )
-                    : null,
+              Text(grupo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                child: Text('${alumnos.length} alumnos', style: const TextStyle(color: Colors.white, fontSize: 11)),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('DNI: $dni', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                  ],
-                ),
-              ),
-              _buildEstadoBadge(estado),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
+        ),
+        // Header de bimestres
+        Container(
+          color: Colors.grey.shade100,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 4),
-                    Text('Vence: $vencimiento', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Monto: ${_formatMoney(cuota.monto)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  if (cuota.montoPagado > 0)
-                    Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor, fontSize: 12)),
-                  if (cuota.deuda > 0 && !cuota.estaPagada)
-                    Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.dangerColor, fontSize: 12, fontWeight: FontWeight.w500)),
-                ],
-              ),
+              const SizedBox(width: 130, child: Padding(padding: EdgeInsets.only(left: 8), child: Text('ALUMNO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)))),
+              ...bimestres.map((b) => SizedBox(
+                width: 38,
+                child: Center(child: Text(b['label'] as String, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+              )),
+              const SizedBox(width: 55, child: Center(child: Text('DEUDA', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red)))),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              if (!cuota.estaPagada) ...[
+        ),
+        // Filas de alumnos
+        ...alumnos.map((alumno) => _buildFilaAlumno(alumno, bimestres)),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildFilaAlumno(Alumno alumno, List<Map<String, dynamic>> bimestres) {
+    final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumno.id).toList();
+    double deudaTotal = cuotasAlumno.fold(0, (sum, c) => sum + c.deuda);
+
+    // Filtrar por estado si hay filtro
+    if (_filtroEstado.isNotEmpty) {
+      final tieneEstado = cuotasAlumno.any((c) => _estadoCuota(c) == _filtroEstado);
+      if (!tieneEstado) return const SizedBox.shrink();
+    }
+
+    return InkWell(
+      onTap: () => _mostrarDetallePago(alumno),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          color: deudaTotal > 0 ? AppTheme.dangerColor.withOpacity(0.03) : null,
+        ),
+        child: Row(
+          children: [
+            // Nombre
+            SizedBox(
+              width: 120,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '${alumno.apellido}, ${alumno.nombre.split(' ').first}',
+                  style: const TextStyle(fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            // Celdas de bimestres
+            ...bimestres.map((b) {
+              final mes = b['mes'] as int;
+              Cuota? cuota;
+              if (mes == 0) {
+                // Inscripción
+                cuota = cuotasAlumno.where((c) => c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
+              } else {
+                cuota = cuotasAlumno.where((c) => c.mes == mes && !c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
+              }
+              return _buildCeldaEstado(cuota, alumno);
+            }),
+            // Deuda
+            SizedBox(
+              width: 50,
+              child: Center(
+                child: Text(
+                  deudaTotal > 0 ? _formatMoney(deudaTotal) : '-',
+                  style: TextStyle(fontSize: 10, color: deudaTotal > 0 ? AppTheme.dangerColor : Colors.grey, fontWeight: deudaTotal > 0 ? FontWeight.bold : FontWeight.normal),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
+    Color color;
+    String symbol;
+    if (cuota == null) {
+      color = Colors.grey.shade300;
+      symbol = '';
+    } else if (cuota.estaPagada) {
+      color = AppTheme.successColor;
+      symbol = '✓';
+    } else if (cuota.esParcial) {
+      color = Colors.orange;
+      symbol = '◐';
+    } else if (cuota.estaVencida) {
+      color = AppTheme.dangerColor;
+      symbol = '!';
+    } else {
+      color = Colors.grey.shade400;
+      symbol = '○';
+    }
+
+    return GestureDetector(
+      onTap: cuota != null ? () => _mostrarOpcionesCuota(cuota, alumno) : null,
+      child: Container(
+        width: 36, height: 24,
+        margin: const EdgeInsets.symmetric(horizontal: 1),
+        decoration: BoxDecoration(
+          color: color.withOpacity(cuota == null ? 0.3 : 0.8),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Center(child: Text(symbol, style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))),
+      ),
+    );
+  }
+
+  String _filtroDivision = '';
+
+  void _mostrarOpcionesCuota(Cuota cuota, Alumno alumno) {
+    if (cuota.estaPagada) {
+      // Solo mostrar info
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${cuota.concepto} - Pagada'), duration: const Duration(seconds: 1)),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${alumno.nombreCompleto}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(cuota.concepto, style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('Monto: ${_formatMoney(cuota.monto)}'),
+                const SizedBox(width: 16),
+                if (cuota.montoPagado > 0) Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor)),
+                const SizedBox(width: 16),
+                Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _registrarPagoParcial(cuota),
-                    icon: const Icon(Icons.payments_outlined, size: 18),
-                    label: const Text('Pago Parcial'),
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _registrarPagoParcial(cuota);
+                    },
+                    child: const Text('Pago Parcial'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _registrarPagoTotal(cuota),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Pago Total'),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: AppTheme.successColor.withOpacity(0.1),
-                      foregroundColor: AppTheme.successColor,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      side: BorderSide(color: AppTheme.successColor.withOpacity(0.6)),
-                    ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _registrarPagoTotal(cuota);
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+                    child: const Text('Pago Total'),
                   ),
                 ),
               ],
-              if (cuota.estaPagada)
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.successColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check_circle, color: AppTheme.successColor, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Pagada ${cuota.fechaPago != null ? _formatDate(cuota.fechaPago!) : ''}',
-                          style: TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Column(
-                children: [
-                  IconButton(
-                    onPressed: () => _editarMonto(cuota),
-                    icon: const Icon(Icons.edit),
-                    tooltip: 'Editar monto',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _editarVencimiento(cuota),
-                    icon: const Icon(Icons.event),
-                    tooltip: 'Editar vencimiento',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
-                    ),
-                  ),
-                ],
-              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDetallePago(Alumno alumno) async {
+    final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumno.id).toList()
+      ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+
+    if (cuotasAlumno.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Este alumno no tiene cuotas generadas')),
+      );
+      return;
+    }
+
+    final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
+    if (mounted) {
+      await Printing.layoutPdf(onLayout: (_) => pdfData, name: 'Cuotas_${alumno.apellido}.pdf');
+    }
+  }
+
+  // Vista lista compacta
+  Widget _buildVistaLista() {
+    if (_cuotasFiltradas.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: Text('No hay cuotas', style: TextStyle(color: Colors.grey.shade600))),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.all(8),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final cuota = _cuotasFiltradas[index];
+            final alumno = _alumnos[cuota.alumnoId];
+            return _buildCuotaCardCompacta(cuota, alumno);
+          },
+          childCount: _cuotasFiltradas.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCuotaCardCompacta(Cuota cuota, Alumno? alumno) {
+    final estado = _estadoCuota(cuota);
+    final color = estado == 'pagada' ? AppTheme.successColor : estado == 'parcial' ? Colors.orange : estado == 'vencida' ? AppTheme.dangerColor : AppTheme.warningColor;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border(left: BorderSide(color: color, width: 4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(alumno?.nombreCompleto ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(cuota.concepto, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(_formatMoney(cuota.monto), style: const TextStyle(fontSize: 12)),
+              if (cuota.deuda > 0 && !cuota.estaPagada)
+                Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(fontSize: 10, color: AppTheme.dangerColor)),
             ],
           ),
+          const SizedBox(width: 8),
+          if (!cuota.estaPagada)
+            IconButton(
+              icon: Icon(Icons.payment, color: AppTheme.successColor, size: 20),
+              onPressed: () => _registrarPagoTotal(cuota),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            )
+          else
+            Icon(Icons.check_circle, color: AppTheme.successColor, size: 20),
         ],
       ),
     );
@@ -622,7 +785,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Generar cuotas anuales'),
+        title: const Text('Generar cuotas del año'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,9 +797,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 try {
                   alumno = _alumnosDisponibles.firstWhere((a) => a.id == value);
                 } catch (_) {}
-                final rango = alumno?.nivelInscripcion == 'Primer Año' ? 'marzo a diciembre' : 'enero a diciembre';
+                final cantBim = alumno?.nivelInscripcion == 'Primer Año' ? '5 bimestres (Mar-Dic)' : '6 bimestres (Ene-Dic)';
                 return Text(
-                  'Selecciona alumno y define el monto mensual. Se generarán cuotas de $rango.',
+                  'Selecciona alumno y define el monto bimestral. Se generarán $cantBim.',
                   style: const TextStyle(fontSize: 13),
                 );
               },
@@ -663,7 +826,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: montoController,
-              decoration: const InputDecoration(labelText: 'Monto mensual', prefixText: '\$ '),
+              decoration: const InputDecoration(labelText: 'Monto bimestral', prefixText: '\$ '),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
@@ -771,7 +934,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: montoController,
-              decoration: const InputDecoration(labelText: 'Nuevo monto mensual', prefixText: '\$ '),
+              decoration: const InputDecoration(labelText: 'Nuevo monto bimestral', prefixText: '\$ '),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
@@ -859,54 +1022,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
-  Widget _buildEstadoBadge(String estado) {
-    Color color;
-    String texto;
-    IconData icon;
-
-    switch (estado) {
-      case 'vencida':
-        color = AppTheme.dangerColor;
-        texto = 'Vencida';
-        icon = Icons.warning;
-        break;
-      case 'parcial':
-        color = Colors.orange;
-        texto = 'Parcial';
-        icon = Icons.timelapse;
-        break;
-      case 'pendiente':
-        color = AppTheme.warningColor;
-        texto = 'Pendiente';
-        icon = Icons.schedule;
-        break;
-      default:
-        color = AppTheme.successColor;
-        texto = 'Pagada';
-        icon = Icons.check_circle;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(texto, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  int _contarCuotasPendientes(String alumnoId) {
-    return _cuotas.where((c) => c.alumnoId == alumnoId && !c.estaPagada).length;
-  }
-
   bool _esPrimerAnio(String? alumnoId) {
     if (alumnoId == null) return false;
     try {
@@ -915,56 +1030,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
     } catch (_) {
       return false;
     }
-  }
-
-  Widget _buildCalculadoraGlobal(Map<String, dynamic> stats) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Calculadora global',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildStatChip('Total pagado', _formatMoney(stats['totalCobrado']), AppTheme.successColor),
-              _buildStatChip('Total adeudado', _formatMoney(stats['totalPorCobrar']), AppTheme.dangerColor),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.circle, size: 10, color: color),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
-          const SizedBox(width: 10),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
   }
 
   Future<void> _registrarPagoTotal(Cuota cuota) async {

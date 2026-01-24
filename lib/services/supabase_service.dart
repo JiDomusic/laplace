@@ -226,53 +226,45 @@ class SupabaseService {
     double? montoInscripcion,
     bool generarInscripcion = true,
   }) async {
-    // 1.er año: marzo a diciembre; 2.º y 3.er año: enero a diciembre
+    // Cuotas BIMESTRALES
+    // 1.er año: 5 bimestres (Mar-Abr, May-Jun, Jul-Ago, Sep-Oct, Nov-Dic)
+    // 2.º y 3.er año: 6 bimestres (Ene-Feb, Mar-Abr, May-Jun, Jul-Ago, Sep-Oct, Nov-Dic)
     final alumno = await getAlumnoById(alumnoId);
     final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
 
-    final meses = esPrimero
-        ? {
-            3: 'Marzo',
-            4: 'Abril',
-            5: 'Mayo',
-            6: 'Junio',
-            7: 'Julio',
-            8: 'Agosto',
-            9: 'Septiembre',
-            10: 'Octubre',
-            11: 'Noviembre',
-            12: 'Diciembre',
-          }
-        : {
-            1: 'Enero',
-            2: 'Febrero',
-            3: 'Marzo',
-            4: 'Abril',
-            5: 'Mayo',
-            6: 'Junio',
-            7: 'Julio',
-            8: 'Agosto',
-            9: 'Septiembre',
-            10: 'Octubre',
-            11: 'Noviembre',
-            12: 'Diciembre',
-          };
+    // Bimestres: mes de inicio y nombre
+    final bimestres = esPrimero
+        ? [
+            {'mes': 3, 'nombre': 'Marzo-Abril'},
+            {'mes': 5, 'nombre': 'Mayo-Junio'},
+            {'mes': 7, 'nombre': 'Julio-Agosto'},
+            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
+            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
+          ]
+        : [
+            {'mes': 1, 'nombre': 'Enero-Febrero'},
+            {'mes': 3, 'nombre': 'Marzo-Abril'},
+            {'mes': 5, 'nombre': 'Mayo-Junio'},
+            {'mes': 7, 'nombre': 'Julio-Agosto'},
+            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
+            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
+          ];
 
-    final cuotas = meses.entries
+    final cuotas = bimestres
         .map(
-          (entry) => {
+          (bim) => {
             'alumno_id': alumnoId,
-            'concepto': 'Cuota ${entry.value} $anio',
+            'concepto': 'Cuota ${bim['nombre']} $anio',
             'monto': monto,
-            'mes': entry.key,
+            'mes': bim['mes'],
             'anio': anio,
-            'fecha_vencimiento': DateTime(anio, entry.key, 10).toIso8601String().split('T')[0],
+            'fecha_vencimiento': DateTime(anio, bim['mes'] as int, 1).toIso8601String().split('T')[0],
             'estado': 'pendiente',
           },
         )
         .toList();
 
-    // Cuota de inscripción única (solo 1.er año y si no existe una previa)
+    // Inscripción única (solo 1.er año y si no existe una previa)
     if (esPrimero && generarInscripcion) {
       final tieneInscripcion = await _tieneCuotaInscripcion(alumnoId);
       if (!tieneInscripcion) {
@@ -282,7 +274,7 @@ class SupabaseService {
           'monto': montoInscripcion ?? monto,
           'mes': 3,
           'anio': anio,
-          'fecha_vencimiento': DateTime(anio, 3, 10).toIso8601String().split('T')[0],
+          'fecha_vencimiento': DateTime(anio, 3, 1).toIso8601String().split('T')[0],
           'estado': 'pendiente',
         });
       }
