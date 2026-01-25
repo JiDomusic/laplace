@@ -90,7 +90,7 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
       appBar: AppBar(
         title: Text(_alumno?.nombreCompleto ?? 'Detalle Alumno'),
         actions: [
-          if (_alumno != null)
+          if (_alumno != null) ...[
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
               onPressed: () async {
@@ -109,6 +109,12 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
               },
               tooltip: 'Descargar Ficha de Inscripcion',
             ),
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              onPressed: () => _confirmarEliminarAlumno(),
+              tooltip: 'Eliminar Alumno',
+            ),
+          ],
         ],
       ),
       body: _isLoading
@@ -773,5 +779,95 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Future<void> _confirmarEliminarAlumno() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 28),
+            const SizedBox(width: 8),
+            const Text('Eliminar Alumno'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estas seguro de eliminar a ${_alumno!.nombreCompleto}?',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Esta accion eliminara:',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('• Todos los datos del alumno'),
+                  const Text('• Todas sus cuotas registradas'),
+                  const Text('• Su legajo y documentos'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Esta accion no se puede deshacer.',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      try {
+        await _db.eliminarAlumno(_alumno!.id!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Alumno eliminado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true); // Volver a la lista con resultado true para refrescar
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 }

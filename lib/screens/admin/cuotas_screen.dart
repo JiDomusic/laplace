@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import '../../models/alumno.dart';
 import '../../models/cuota.dart';
+import '../../models/config_vencimientos.dart';
 import '../../services/supabase_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/pdf_service.dart';
@@ -197,6 +198,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
     };
   }
 
+  bool _mostrarAcciones = false;
+
   @override
   Widget build(BuildContext context) {
     final stats = _estadisticas;
@@ -205,7 +208,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
       appBar: AppBar(
         title: const Text('Gestión de cuotas'),
         actions: [
-          // Toggle vista
           IconButton(
             icon: Icon(_vistaCalendario ? Icons.list : Icons.calendar_view_month),
             tooltip: _vistaCalendario ? 'Vista lista' : 'Vista calendario',
@@ -215,26 +217,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: _loadCuotas,
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'generar':
-                  _abrirGenerarCuotas();
-                  break;
-                case 'ajustar_bimestre':
-                  _abrirAjustarBimestre();
-                  break;
-                case 'generar_pdf':
-                  _abrirGenerarPDF();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'generar', child: Row(children: [Icon(Icons.add_card, size: 20), SizedBox(width: 8), Text('Generar cuotas')])),
-              const PopupMenuItem(value: 'ajustar_bimestre', child: Row(children: [Icon(Icons.change_circle_outlined, size: 20), SizedBox(width: 8), Text('Ajustar bimestre')])),
-              const PopupMenuItem(value: 'generar_pdf', child: Row(children: [Icon(Icons.picture_as_pdf, size: 20), SizedBox(width: 8), Text('PDF alumno')])),
-            ],
-          ),
         ],
       ),
       body: _isLoading
@@ -243,11 +225,16 @@ class _CuotasScreenState extends State<CuotasScreen> {
               onRefresh: _loadCuotas,
               child: CustomScrollView(
                 slivers: [
+                  // Panel de acciones
+                  SliverToBoxAdapter(
+                    child: _buildPanelAcciones(),
+                  ),
+
                   // Resumen compacto
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      color: AppTheme.primaryColor.withOpacity(0.05),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.05),
                       child: Row(
                         children: [
                           _buildMiniStat('Cobrado', stats['totalCobrado'], AppTheme.successColor),
@@ -264,7 +251,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
                       padding: const EdgeInsets.all(8),
                       child: Column(
                         children: [
-                          // Búsqueda
                           SizedBox(
                             height: 40,
                             child: TextField(
@@ -281,7 +267,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          // Filtros en una fila
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
@@ -303,7 +288,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
                     ),
                   ),
 
-                  // Leyenda de colores (solo en vista calendario)
+                  // Leyenda
                   if (_vistaCalendario)
                     SliverToBoxAdapter(
                       child: Container(
@@ -317,22 +302,15 @@ class _CuotasScreenState extends State<CuotasScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Pagos bimestrales:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            const SizedBox(height: 6),
                             Wrap(
                               spacing: 12,
                               runSpacing: 4,
                               children: [
                                 _buildLeyendaItem('✓', AppTheme.successColor, 'Pagada'),
-                                _buildLeyendaItem('◐', Colors.orange, 'Pago parcial'),
+                                _buildLeyendaItem('◐', Colors.orange, 'Parcial'),
                                 _buildLeyendaItem('○', Colors.grey.shade500, 'Pendiente'),
                                 _buildLeyendaItem('!', AppTheme.dangerColor, 'Vencida'),
                               ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Toca una celda para registrar pago. Toca el nombre del alumno para ver/imprimir PDF.',
-                              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                             ),
                           ],
                         ),
@@ -347,6 +325,269 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildPanelAcciones() {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          // === GESTIÓN DE PAGOS ===
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.payments, color: Colors.white, size: 22),
+                      SizedBox(width: 12),
+                      Text('Gestión de Pagos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildBotonGestion(
+                          icon: Icons.add_circle,
+                          label: 'Ingresar\nPago',
+                          color: AppTheme.successColor,
+                          onTap: _abrirIngresarPago,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildBotonGestion(
+                          icon: Icons.receipt_long,
+                          label: 'Detalle\nAlumno',
+                          color: Colors.blue,
+                          onTap: _abrirGenerarPDF,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildBotonGestion(
+                          icon: Icons.bar_chart,
+                          label: 'Totales\npor Mes',
+                          color: Colors.orange,
+                          onTap: _abrirTotalesPorMes,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // === GENERAR CUOTAS ===
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _mostrarAcciones = !_mostrarAcciones),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: _mostrarAcciones
+                          ? const BorderRadius.vertical(top: Radius.circular(12))
+                          : BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.add_card, color: Colors.white, size: 22),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text('Generar Cuotas', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                        Icon(_mostrarAcciones ? Icons.expand_less : Icons.expand_more, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_mostrarAcciones)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        _buildAccionCard(
+                          icon: Icons.school,
+                          color: Colors.purple,
+                          titulo: 'Inscripción 1° Año',
+                          subtitulo: 'Cuota única de inscripción',
+                          onTap: _abrirGenerarCuotas,
+                        ),
+                        const SizedBox(height: 10),
+                        _buildAccionCard(
+                          icon: Icons.calendar_month,
+                          color: Colors.blue,
+                          titulo: 'Cuotas Bimestrales',
+                          subtitulo: '1° año: Mar-Dic  •  2°/3° año: Ene-Dic',
+                          onTap: _abrirGenerarBimestrales,
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildAccionMini(
+                                icon: Icons.tune,
+                                label: 'Ajustar montos',
+                                onTap: _abrirAjustarBimestre,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildAccionMini(
+                                icon: Icons.access_time,
+                                label: 'Vencimientos',
+                                onTap: _abrirConfigVencimientos,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _buildAccionMini(
+                          icon: Icons.cleaning_services,
+                          label: 'Limpiar cuotas duplicadas',
+                          onTap: _abrirLimpiarCuotas,
+                          color: Colors.red,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBotonGestion({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color, height: 1.2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccionCard({
+    required IconData icon,
+    required Color color,
+    required String titulo,
+    required String subtitulo,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+                    const SizedBox(height: 2),
+                    Text(subtitulo, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccionMini({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final c = color ?? Colors.grey.shade700;
+    return Material(
+      color: color != null ? color.withValues(alpha: 0.1) : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: c),
+              const SizedBox(width: 8),
+              Flexible(child: Text(label, style: TextStyle(fontSize: 13, color: c))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -777,84 +1018,58 @@ class _CuotasScreenState extends State<CuotasScreen> {
       await _loadCuotas();
     }
 
-    final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
-    final montoController = TextEditingController();
-    final anioController = TextEditingController(text: DateTime.now().year.toString());
+    // Filtrar solo alumnos de primer año
+    final alumnosPrimerAnio = _alumnosDisponibles.where((a) => a.nivelInscripcion == 'Primer Año').toList();
+
+    if (alumnosPrimerAnio.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay alumnos de primer año para generar inscripción'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    final alumnoSeleccionado = ValueNotifier<String?>(alumnosPrimerAnio.first.id);
     final inscripcionController = TextEditingController();
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Generar cuotas del año'),
+        title: const Text('Cuota de inscripción'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ValueListenableBuilder<String?>(
-              valueListenable: alumnoSeleccionado,
-              builder: (_, value, __) {
-                Alumno? alumno;
-                try {
-                  alumno = _alumnosDisponibles.firstWhere((a) => a.id == value);
-                } catch (_) {}
-                final cantBim = alumno?.nivelInscripcion == 'Primer Año' ? '5 bimestres (Mar-Dic)' : '6 bimestres (Ene-Dic)';
-                return Text(
-                  'Selecciona alumno y define el monto bimestral. Se generarán $cantBim.',
-                  style: const TextStyle(fontSize: 13),
-                );
-              },
+            const Text(
+              'Genera la cuota de inscripción para alumnos de primer año.',
+              style: TextStyle(fontSize: 13),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ValueListenableBuilder<String?>(
               valueListenable: alumnoSeleccionado,
               builder: (_, value, __) {
                 return DropdownButtonFormField<String>(
                   value: value,
-                  items: _alumnosDisponibles
+                  items: alumnosPrimerAnio
                       .map(
                         (a) => DropdownMenuItem(
                           value: a.id,
-                          child: Text(a.nombreCompleto),
+                          child: Text('${a.nombreCompleto} (${a.division ?? "S/D"})'),
                         ),
                       )
                       .toList(),
-                  decoration: const InputDecoration(labelText: 'Alumno'),
+                  decoration: const InputDecoration(labelText: 'Alumno de 1° año'),
                   onChanged: (v) => alumnoSeleccionado.value = v,
                 );
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
-              controller: montoController,
-              decoration: const InputDecoration(labelText: 'Monto bimestral', prefixText: '\$ '),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            ValueListenableBuilder<String?>(
-              valueListenable: alumnoSeleccionado,
-              builder: (_, value, __) {
-                final esPrimerAnio = _esPrimerAnio(value);
-                if (!esPrimerAnio) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: inscripcionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Monto inscripción (solo 1° año)',
-                        prefixText: '\$ ',
-                        helperText: 'Se genera una sola vez',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                );
-              },
-            ),
-            TextField(
-              controller: anioController,
-              decoration: const InputDecoration(labelText: 'Año'),
+              controller: inscripcionController,
+              decoration: const InputDecoration(
+                labelText: 'Monto de inscripción',
+                prefixText: '\$ ',
+                helperText: 'Se genera una sola vez por alumno',
+              ),
               keyboardType: TextInputType.number,
             ),
           ],
@@ -870,6 +1085,155 @@ class _CuotasScreenState extends State<CuotasScreen> {
     );
 
     if (confirmar == true && alumnoSeleccionado.value != null) {
+      final montoInsc = double.tryParse(inscripcionController.text) ?? 0;
+      if (montoInsc <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      try {
+        await _db.generarCuotaInscripcion(
+          alumnoSeleccionado.value!,
+          montoInsc,
+        );
+        await _loadCuotas();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuota de inscripción generada'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('El alumno ya tiene una cuota de inscripción'), backgroundColor: Colors.orange),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _abrirGenerarBimestrales() async {
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
+    final montoController = TextEditingController();
+    final anioController = TextEditingController(text: DateTime.now().year.toString());
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cuotas Bimestrales'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info clara sobre bimestres
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text('Bimestres por nivel:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('• 1° Año: Mar, May, Jul, Sep, Nov (5 cuotas)', style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
+                    Text('• 2°/3° Año: Ene, Mar, May, Jul, Sep, Nov (6 cuotas)', style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ValueListenableBuilder<String?>(
+                valueListenable: alumnoSeleccionado,
+                builder: (_, value, __) {
+                  Alumno? alumnoActual;
+                  try {
+                    alumnoActual = _alumnosDisponibles.firstWhere((a) => a.id == value);
+                  } catch (_) {}
+                  final nivel = alumnoActual?.nivelInscripcion ?? '';
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: value,
+                        isExpanded: true,
+                        items: _alumnosDisponibles
+                            .map((a) => DropdownMenuItem(
+                              value: a.id,
+                              child: Text('${a.nombreCompleto} (${a.nivelInscripcion == 'Primer Año' ? '1°' : a.nivelInscripcion == 'Segundo Año' ? '2°' : '3°'})'),
+                            ))
+                            .toList(),
+                        decoration: const InputDecoration(labelText: 'Alumno'),
+                        onChanged: (v) => alumnoSeleccionado.value = v,
+                      ),
+                      if (nivel.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: nivel == 'Primer Año' ? Colors.purple.shade100 : Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            nivel == 'Primer Año'
+                                ? 'Se generarán 5 cuotas (Mar-Nov)'
+                                : 'Se generarán 6 cuotas (Ene-Nov)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: nivel == 'Primer Año' ? Colors.purple.shade800 : Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: montoController,
+                decoration: const InputDecoration(
+                  labelText: 'Monto por bimestre',
+                  prefixText: '\$ ',
+                  hintText: 'Ej: 15000',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: anioController,
+                decoration: const InputDecoration(labelText: 'Año'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.check),
+            label: const Text('Generar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && alumnoSeleccionado.value != null) {
       final monto = double.tryParse(montoController.text) ?? 0;
       final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
       if (monto <= 0) {
@@ -878,20 +1242,24 @@ class _CuotasScreenState extends State<CuotasScreen> {
         );
         return;
       }
-      final esPrimerAnio = _esPrimerAnio(alumnoSeleccionado.value);
-      final montoInsc = esPrimerAnio ? double.tryParse(inscripcionController.text) : null;
-      await _db.generarCuotasAnuales(
-        alumnoSeleccionado.value!,
-        monto,
-        anio,
-        montoInscripcion: montoInsc,
-        generarInscripcion: esPrimerAnio,
-      );
-      await _loadCuotas();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuotas generadas'), backgroundColor: Colors.green),
+      try {
+        await _db.generarCuotasBimestrales(
+          alumnoSeleccionado.value!,
+          monto,
+          anio,
         );
+        await _loadCuotas();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuotas bimestrales generadas'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -1367,5 +1735,821 @@ class _CuotasScreenState extends State<CuotasScreen> {
         );
       }
     }
+  }
+
+  // ========== INGRESAR PAGO ==========
+  Future<void> _abrirIngresarPago() async {
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    // Ordenar alfabéticamente
+    final alumnosOrdenados = List<Alumno>.from(_alumnosDisponibles)
+      ..sort((a, b) => a.apellido.toLowerCase().compareTo(b.apellido.toLowerCase()));
+
+    final alumnoSeleccionado = ValueNotifier<String?>(alumnosOrdenados.isNotEmpty ? alumnosOrdenados.first.id : null);
+    final importeController = TextEditingController();
+    final reciboController = TextEditingController();
+    final detalleController = TextEditingController();
+    final metodo = ValueNotifier<String>('efectivo');
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.payments, color: Colors.green),
+                SizedBox(width: 10),
+                Text('Ingresar Pago'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Selector de alumno
+                  ValueListenableBuilder<String?>(
+                    valueListenable: alumnoSeleccionado,
+                    builder: (_, value, __) {
+                      final alumno = value != null
+                          ? alumnosOrdenados.where((a) => a.id == value).firstOrNull
+                          : null;
+                      final cuotasAlumno = alumno != null
+                          ? _cuotas.where((c) => c.alumnoId == alumno.id && !c.estaPagada).toList()
+                          : <Cuota>[];
+                      final deudaTotal = cuotasAlumno.fold<double>(0, (sum, c) => sum + c.deuda);
+                      final saldoFavor = alumno?.saldoFavor ?? 0;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            value: value,
+                            isExpanded: true,
+                            items: alumnosOrdenados.map((a) => DropdownMenuItem(
+                              value: a.id,
+                              child: Text(a.nombreCompleto, overflow: TextOverflow.ellipsis),
+                            )).toList(),
+                            decoration: const InputDecoration(labelText: 'Alumno'),
+                            onChanged: (v) => alumnoSeleccionado.value = v,
+                          ),
+                          if (alumno != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Deuda total:', style: TextStyle(fontSize: 13)),
+                                      Text(_formatMoney(deudaTotal), style: TextStyle(fontWeight: FontWeight.bold, color: deudaTotal > 0 ? AppTheme.dangerColor : AppTheme.successColor)),
+                                    ],
+                                  ),
+                                  if (saldoFavor > 0) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Saldo a favor:', style: TextStyle(fontSize: 13)),
+                                        Text(_formatMoney(saldoFavor), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                                      ],
+                                    ),
+                                  ],
+                                  if (cuotasAlumno.isNotEmpty) ...[
+                                    const Divider(height: 16),
+                                    Text('Cuotas pendientes:', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                    const SizedBox(height: 4),
+                                    ...cuotasAlumno.take(4).map((c) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(c.concepto, style: const TextStyle(fontSize: 12)),
+                                          Text(_formatMoney(c.deuda), style: const TextStyle(fontSize: 12)),
+                                        ],
+                                      ),
+                                    )),
+                                    if (cuotasAlumno.length > 4)
+                                      Text('... y ${cuotasAlumno.length - 4} más', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reciboController,
+                    decoration: const InputDecoration(
+                      labelText: 'N° Recibo *',
+                      hintText: 'Ej: 00001',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: importeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Importe a pagar',
+                      prefixText: '\$ ',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: detalleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Detalle (qué cuotas abona)',
+                      hintText: 'Ej: Cuota Marzo 2026',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<String>(
+                    valueListenable: metodo,
+                    builder: (_, value, __) => DropdownButtonFormField<String>(
+                      value: value,
+                      decoration: const InputDecoration(labelText: 'Método de pago'),
+                      items: const [
+                        DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                        DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                      ],
+                      onChanged: (v) => metodo.value = v ?? 'efectivo',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final importe = double.tryParse(importeController.text) ?? 0;
+                  if (importe <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ingrese un importe válido'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+                  if (alumnoSeleccionado.value == null) return;
+
+                  Navigator.pop(context);
+
+                  await _procesarPagoAlumno(
+                    alumnoId: alumnoSeleccionado.value!,
+                    importe: importe,
+                    metodoPago: metodo.value,
+                    numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
+                    detallePago: detalleController.text.isEmpty ? null : detalleController.text,
+                  );
+                },
+                icon: const Icon(Icons.check),
+                label: const Text('Registrar'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _procesarPagoAlumno({
+    required String alumnoId,
+    required double importe,
+    required String metodoPago,
+    String? numRecibo,
+    String? detallePago,
+  }) async {
+    // Obtener saldo a favor actual del alumno
+    final alumno = _alumnosDisponibles.where((a) => a.id == alumnoId).firstOrNull;
+    final saldoFavorActual = alumno?.saldoFavor ?? 0;
+
+    // Sumar saldo a favor al importe pagado
+    double importeTotal = importe + saldoFavorActual;
+    double saldoUsado = 0;
+
+    // Obtener cuotas pendientes ordenadas por vencimiento
+    final cuotasPendientes = _cuotas
+        .where((c) => c.alumnoId == alumnoId && !c.estaPagada)
+        .toList()
+      ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+
+    double importeRestante = importeTotal;
+
+    // Aplicar pago a cada cuota hasta agotar el importe
+    for (final cuota in cuotasPendientes) {
+      if (importeRestante <= 0) break;
+
+      final deudaCuota = cuota.deuda;
+      if (importeRestante >= deudaCuota) {
+        // Pagar cuota completa
+        await _db.registrarPagoTotal(
+          cuota.id!,
+          metodoPago,
+          observaciones: saldoFavorActual > 0 ? 'Incluye saldo a favor' : null,
+          numRecibo: numRecibo,
+          detallePago: detallePago,
+        );
+        importeRestante -= deudaCuota;
+      } else {
+        // Pago parcial
+        await _db.registrarPagoParcial(
+          cuota.id!,
+          importeRestante,
+          metodoPago,
+          observaciones: 'Pago parcial',
+          numRecibo: numRecibo,
+          detallePago: detallePago,
+        );
+        importeRestante = 0;
+      }
+    }
+
+    // Calcular cuánto saldo a favor se usó
+    if (saldoFavorActual > 0) {
+      saldoUsado = saldoFavorActual - importeRestante.clamp(0, saldoFavorActual);
+      if (saldoUsado > 0) {
+        // Descontar el saldo usado
+        await _db.actualizarSaldoFavor(alumnoId, -saldoUsado);
+      }
+    }
+
+    // Si sobra dinero, guardarlo como nuevo saldo a favor
+    if (importeRestante > 0) {
+      await _db.actualizarSaldoFavor(alumnoId, importeRestante);
+      if (mounted) {
+        String mensaje = 'Pago registrado.';
+        if (saldoUsado > 0) mensaje += ' Se usó ${_formatMoney(saldoUsado)} de saldo anterior.';
+        mensaje += ' Nuevo saldo a favor: ${_formatMoney(importeRestante)}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensaje), backgroundColor: Colors.blue, duration: const Duration(seconds: 4)),
+        );
+      }
+    } else {
+      if (mounted) {
+        String mensaje = 'Pago registrado correctamente';
+        if (saldoUsado > 0) mensaje += '. Se usó ${_formatMoney(saldoUsado)} de saldo a favor';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
+        );
+      }
+    }
+
+    await _loadCuotas();
+  }
+
+  // ========== TOTALES POR MES ==========
+  Future<void> _abrirTotalesPorMes() async {
+    final anio = DateTime.now().year;
+
+    // Agrupar pagos por mes
+    final totalesPorMes = <int, double>{};
+    final cuotasPorMes = <int, int>{};
+
+    for (final cuota in _cuotas) {
+      if (cuota.anio == anio && cuota.montoPagado > 0) {
+        final mes = cuota.mes;
+        totalesPorMes[mes] = (totalesPorMes[mes] ?? 0) + cuota.montoPagado;
+        cuotasPorMes[mes] = (cuotasPorMes[mes] ?? 0) + 1;
+      }
+    }
+
+    final totalAnual = totalesPorMes.values.fold<double>(0, (sum, v) => sum + v);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.bar_chart, color: Colors.orange),
+            const SizedBox(width: 10),
+            Text('Totales $anio'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.successColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total cobrado:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(_formatMoney(totalAnual), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.successColor)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (int mes = 1; mes <= 12; mes++)
+                      if (totalesPorMes.containsKey(mes))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 80,
+                                child: Text(
+                                  Cuota.nombreMes(mes),
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.successColor.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: totalAnual > 0 ? (totalesPorMes[mes]! / totalAnual).clamp(0.05, 1.0) : 0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.successColor,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 80,
+                                child: Text(
+                                  _formatMoney(totalesPorMes[mes]!),
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    if (totalesPorMes.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text('No hay pagos registrados este año', textAlign: TextAlign.center),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+  }
+
+  // ========== CONFIGURAR VENCIMIENTOS ==========
+  Future<void> _abrirConfigVencimientos() async {
+    final config = await _db.getConfigVencimientos();
+
+    final diaFinA = ValueNotifier<int>(config.diaFinRangoA);
+    final diaFinB = ValueNotifier<int>(config.diaFinRangoB);
+    final recargoB = TextEditingController(text: config.recargoRangoB.toStringAsFixed(0));
+    final recargoC = TextEditingController(text: config.recargoRangoC.toStringAsFixed(0));
+    final esPorcentaje = ValueNotifier<bool>(config.esRecargoPorcentaje);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.access_time, color: Colors.orange),
+            SizedBox(width: 10),
+            Text('Vencimientos'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Rangos de vencimiento:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(height: 4),
+                    Text('A: Cuota en término (sin recargo)', style: TextStyle(fontSize: 12)),
+                    Text('B: Cuota con recargo intermedio', style: TextStyle(fontSize: 12)),
+                    Text('C: Cuota vencida (máximo recargo)', style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Rango A
+              ValueListenableBuilder<int>(
+                valueListenable: diaFinA,
+                builder: (_, value, __) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Rango A: día 1 al $value', style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Slider(
+                      value: value.toDouble(),
+                      min: 5,
+                      max: 15,
+                      divisions: 10,
+                      label: '$value',
+                      onChanged: (v) => diaFinA.value = v.round(),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Rango B
+              ValueListenableBuilder<int>(
+                valueListenable: diaFinA,
+                builder: (_, finA, __) => ValueListenableBuilder<int>(
+                  valueListenable: diaFinB,
+                  builder: (_, value, __) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Rango B: día ${finA + 1} al $value', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Slider(
+                        value: value.toDouble(),
+                        min: finA + 5,
+                        max: 28,
+                        divisions: 28 - finA - 5,
+                        label: '$value',
+                        onChanged: (v) => diaFinB.value = v.round(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              ValueListenableBuilder<int>(
+                valueListenable: diaFinB,
+                builder: (_, finB, __) => Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Rango C (vencida): día ${finB + 1} al 31', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.red.shade700)),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+
+              // Tipo de recargo
+              ValueListenableBuilder<bool>(
+                valueListenable: esPorcentaje,
+                builder: (_, value, __) => Row(
+                  children: [
+                    const Text('Recargo en: '),
+                    ChoiceChip(
+                      label: const Text('%'),
+                      selected: value,
+                      onSelected: (_) => esPorcentaje.value = true,
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('\$'),
+                      selected: !value,
+                      onSelected: (_) => esPorcentaje.value = false,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Recargos
+              ValueListenableBuilder<bool>(
+                valueListenable: esPorcentaje,
+                builder: (_, esPorc, __) => Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: recargoB,
+                        decoration: InputDecoration(
+                          labelText: 'Recargo B',
+                          suffixText: esPorc ? '%' : '\$',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: recargoC,
+                        decoration: InputDecoration(
+                          labelText: 'Recargo C',
+                          suffixText: esPorc ? '%' : '\$',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Preview
+              ValueListenableBuilder<bool>(
+                valueListenable: esPorcentaje,
+                builder: (_, esPorc, __) {
+                  final recB = double.tryParse(recargoB.text) ?? 0;
+                  final recC = double.tryParse(recargoC.text) ?? 0;
+                  const montoEjemplo = 15000.0;
+                  final montoB = esPorc ? montoEjemplo * (1 + recB / 100) : montoEjemplo + recB;
+                  final montoC = esPorc ? montoEjemplo * (1 + recC / 100) : montoEjemplo + recC;
+
+                  return Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Ejemplo con cuota de \$15,000:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Rango A:', style: TextStyle(fontSize: 12)),
+                            Text(_formatMoney(montoEjemplo), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Rango B:', style: TextStyle(fontSize: 12)),
+                            Text(_formatMoney(montoB), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange.shade700)),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Rango C:', style: TextStyle(fontSize: 12)),
+                            Text(_formatMoney(montoC), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final nuevaConfig = ConfigVencimientos(
+        diaFinRangoA: diaFinA.value,
+        diaFinRangoB: diaFinB.value,
+        recargoRangoB: double.tryParse(recargoB.text) ?? 0,
+        recargoRangoC: double.tryParse(recargoC.text) ?? 0,
+        esRecargoPorcentaje: esPorcentaje.value,
+      );
+
+      await _db.guardarConfigVencimientos(nuevaConfig);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Configuración guardada'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  // ========== LIMPIAR CUOTAS ==========
+  Future<void> _abrirLimpiarCuotas() async {
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    // Ordenar alfabéticamente
+    final alumnosOrdenados = List<Alumno>.from(_alumnosDisponibles)
+      ..sort((a, b) => a.apellido.toLowerCase().compareTo(b.apellido.toLowerCase()));
+
+    final alumnoSeleccionado = ValueNotifier<String?>(null);
+    final anioController = TextEditingController(text: DateTime.now().year.toString());
+    final soloNoPagadas = ValueNotifier<bool>(true);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cleaning_services, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Limpiar Cuotas'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ATENCIÓN', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                    SizedBox(height: 4),
+                    Text(
+                      'Esta acción elimina cuotas de la base de datos. Úsala para limpiar cuotas duplicadas.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ValueListenableBuilder<String?>(
+                valueListenable: alumnoSeleccionado,
+                builder: (_, value, __) {
+                  final alumno = value != null
+                      ? alumnosOrdenados.where((a) => a.id == value).firstOrNull
+                      : null;
+                  final cuotasAlumno = alumno != null
+                      ? _cuotas.where((c) => c.alumnoId == alumno.id).toList()
+                      : <Cuota>[];
+                  final cuotasPagadas = cuotasAlumno.where((c) => c.estaPagada).length;
+                  final cuotasNoPagadas = cuotasAlumno.where((c) => !c.estaPagada).length;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: value,
+                        isExpanded: true,
+                        hint: const Text('Selecciona un alumno'),
+                        items: alumnosOrdenados.map((a) {
+                          final cant = _cuotas.where((c) => c.alumnoId == a.id).length;
+                          return DropdownMenuItem(
+                            value: a.id,
+                            child: Text('${a.nombreCompleto} ($cant cuotas)'),
+                          );
+                        }).toList(),
+                        decoration: const InputDecoration(labelText: 'Alumno'),
+                        onChanged: (v) => alumnoSeleccionado.value = v,
+                      ),
+                      if (alumno != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Total cuotas: ${cuotasAlumno.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text('Pagadas: $cuotasPagadas', style: TextStyle(color: Colors.green.shade700)),
+                              Text('No pagadas: $cuotasNoPagadas', style: TextStyle(color: Colors.orange.shade700)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: anioController,
+                decoration: const InputDecoration(labelText: 'Año'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<bool>(
+                valueListenable: soloNoPagadas,
+                builder: (_, value, __) => CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Solo borrar cuotas NO PAGADAS'),
+                  subtitle: Text(
+                    value ? 'Las pagadas se conservan' : 'SE BORRAN TODAS incluidas las pagadas',
+                    style: TextStyle(color: value ? Colors.green : Colors.red, fontSize: 12),
+                  ),
+                  value: value,
+                  onChanged: (v) => soloNoPagadas.value = v ?? true,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              if (alumnoSeleccionado.value == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Selecciona un alumno'), backgroundColor: Colors.orange),
+                );
+                return;
+              }
+
+              final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
+
+              // Confirmar
+              final confirmar = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Confirmar'),
+                  content: Text(
+                    soloNoPagadas.value
+                        ? '¿Borrar las cuotas NO PAGADAS de $anio?'
+                        : '¿Borrar TODAS las cuotas de $anio? (incluidas las pagadas)',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Sí, borrar'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmar == true) {
+                Navigator.pop(context);
+
+                try {
+                  if (soloNoPagadas.value) {
+                    await _db.eliminarCuotasNoPagadas(alumnoSeleccionado.value!, anio);
+                  } else {
+                    await _db.eliminarCuotasAlumno(alumnoSeleccionado.value!, anio);
+                  }
+                  await _loadCuotas();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cuotas eliminadas'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+            icon: const Icon(Icons.delete),
+            label: const Text('Borrar'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          ),
+        ],
+      ),
+    );
   }
 }

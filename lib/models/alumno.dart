@@ -49,6 +49,9 @@ class Alumno {
   final String? codigoInscripcion;
   final DateTime? fechaInscripcion;
 
+  // Saldo a favor (pagos adelantados)
+  final double saldoFavor;
+
   Alumno({
     this.id,
     required this.nombre,
@@ -83,6 +86,7 @@ class Alumno {
     this.observaciones,
     this.codigoInscripcion,
     this.fechaInscripcion,
+    this.saldoFavor = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -120,6 +124,7 @@ class Alumno {
       'observaciones': observaciones,
       'codigo_inscripcion': codigoInscripcion,
       'fecha_inscripcion': fechaInscripcion?.toIso8601String(),
+      'saldo_favor': saldoFavor,
     };
   }
 
@@ -161,6 +166,7 @@ class Alumno {
       fechaInscripcion: map['fecha_inscripcion'] != null
           ? DateTime.parse(map['fecha_inscripcion'])
           : null,
+      saldoFavor: (map['saldo_favor'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -198,6 +204,7 @@ class Alumno {
     String? observaciones,
     String? codigoInscripcion,
     DateTime? fechaInscripcion,
+    double? saldoFavor,
   }) {
     return Alumno(
       id: id ?? this.id,
@@ -233,6 +240,7 @@ class Alumno {
       observaciones: observaciones ?? this.observaciones,
       codigoInscripcion: codigoInscripcion ?? this.codigoInscripcion,
       fechaInscripcion: fechaInscripcion ?? this.fechaInscripcion,
+      saldoFavor: saldoFavor ?? this.saldoFavor,
     );
   }
 

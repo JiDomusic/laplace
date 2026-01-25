@@ -227,7 +227,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    'Ciclo Lectivo 2026',
+                    'Ciclo Lectivo ${provider.cicloLectivo}',
                     style: TextStyle(color: Colors.grey.shade600),
                   ),
                 ],

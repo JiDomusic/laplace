@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/alumno.dart';
 import '../models/legajo.dart';
 import '../models/cuota.dart';
+import '../models/config_vencimientos.dart';
 import '../models/picked_file.dart';
 import '../config/supabase_config.dart';
 
@@ -293,6 +294,114 @@ class SupabaseService {
     return response.isNotEmpty;
   }
 
+  Future<void> generarCuotaInscripcion(String alumnoId, double monto) async {
+    final tieneInscripcion = await _tieneCuotaInscripcion(alumnoId);
+    if (tieneInscripcion) {
+      throw Exception('El alumno ya tiene una cuota de inscripción');
+    }
+    final anio = DateTime.now().year;
+    await client.from('cuotas').insert({
+      'alumno_id': alumnoId,
+      'concepto': 'Inscripción $anio',
+      'monto': monto,
+      'mes': 3,
+      'anio': anio,
+      'fecha_vencimiento': DateTime(anio, 3, 1).toIso8601String().split('T')[0],
+      'estado': 'pendiente',
+    });
+  }
+
+  Future<void> generarCuotasBimestrales(String alumnoId, double monto, int anio) async {
+    // Verificar si ya existen cuotas bimestrales para este alumno y año
+    final existentes = await client
+        .from('cuotas')
+        .select('id')
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio)
+        .not('concepto', 'ilike', '%Inscripción%')
+        .limit(1);
+
+    if ((existentes as List).isNotEmpty) {
+      throw Exception('Ya existen cuotas bimestrales para este alumno en $anio');
+    }
+
+    final alumno = await getAlumnoById(alumnoId);
+    final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
+
+    // 1° año: Mar, May, Jul, Sep, Nov (5 bimestres)
+    // 2°/3° año: Ene, Mar, May, Jul, Sep, Nov (6 bimestres)
+    final bimestres = esPrimero
+        ? [
+            {'mes': 3, 'nombre': 'Marzo-Abril'},
+            {'mes': 5, 'nombre': 'Mayo-Junio'},
+            {'mes': 7, 'nombre': 'Julio-Agosto'},
+            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
+            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
+          ]
+        : [
+            {'mes': 1, 'nombre': 'Enero-Febrero'},
+            {'mes': 3, 'nombre': 'Marzo-Abril'},
+            {'mes': 5, 'nombre': 'Mayo-Junio'},
+            {'mes': 7, 'nombre': 'Julio-Agosto'},
+            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
+            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
+          ];
+
+    final cuotas = bimestres
+        .map(
+          (bim) => {
+            'alumno_id': alumnoId,
+            'concepto': 'Cuota ${bim['nombre']} $anio',
+            'monto': monto,
+            'mes': bim['mes'],
+            'anio': anio,
+            'fecha_vencimiento': DateTime(anio, bim['mes'] as int, 1).toIso8601String().split('T')[0],
+            'estado': 'pendiente',
+          },
+        )
+        .toList();
+
+    await client.from('cuotas').insert(cuotas);
+  }
+
+  Future<void> actualizarSaldoFavor(String alumnoId, double monto) async {
+    // Obtener saldo actual
+    final alumno = await client.from('alumnos').select('saldo_favor').eq('id', alumnoId).maybeSingle();
+    final saldoActual = (alumno?['saldo_favor'] as num?)?.toDouble() ?? 0;
+    final nuevoSaldo = saldoActual + monto;
+
+    await client.from('alumnos').update({
+      'saldo_favor': nuevoSaldo,
+    }).eq('id', alumnoId);
+  }
+
+  /// Elimina TODAS las cuotas de un alumno en un año (para limpiar duplicados)
+  Future<void> eliminarCuotasAlumno(String alumnoId, int anio) async {
+    await client
+        .from('cuotas')
+        .delete()
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio);
+  }
+
+  /// Elimina solo las cuotas NO PAGADAS de un alumno en un año
+  Future<void> eliminarCuotasNoPagadas(String alumnoId, int anio) async {
+    await client
+        .from('cuotas')
+        .delete()
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio)
+        .neq('estado', 'pagada');
+  }
+
+  /// Elimina un alumno y todas sus cuotas
+  Future<void> eliminarAlumno(String alumnoId) async {
+    // Primero eliminar sus cuotas
+    await client.from('cuotas').delete().eq('alumno_id', alumnoId);
+    // Luego eliminar el alumno
+    await client.from('alumnos').delete().eq('id', alumnoId);
+  }
+
   Future<List<Cuota>> getAllCuotas() async {
     final response = await client
         .from('cuotas')
@@ -499,16 +608,26 @@ class SupabaseService {
     final meses = bimestres[bimestre] ?? [];
     if (meses.isEmpty) return;
 
-    final filter = client.from('cuotas').update({'monto': nuevoMonto}).eq('anio', anio).inFilter('mes', meses);
-
-    if (soloPendientes) {
-      filter.neq('estado', 'pagada');
+    // Construir lista de estados a actualizar
+    List<String> estadosActualizar = [];
+    if (!soloPendientes) {
+      // Actualizar todas incluyendo pagadas
+      estadosActualizar = ['pendiente', 'vencida', 'pagada', 'parcial'];
+    } else if (incluirVencidas) {
+      // Actualizar pendientes Y vencidas (comportamiento por defecto)
+      // Las vencidas también suben cuando hay aumento
+      estadosActualizar = ['pendiente', 'vencida', 'parcial'];
+    } else {
+      // Solo pendientes
+      estadosActualizar = ['pendiente', 'parcial'];
     }
-    if (!incluirVencidas) {
-      filter.neq('estado', 'vencida');
-    }
 
-    await filter;
+    await client
+        .from('cuotas')
+        .update({'monto': nuevoMonto})
+        .eq('anio', anio)
+        .inFilter('mes', meses)
+        .inFilter('estado', estadosActualizar);
   }
 
   Cuota _cuotaFromSupabase(Map<String, dynamic> map) {
@@ -528,6 +647,69 @@ class SupabaseService {
       numRecibo: map['num_recibo'],
       detallePago: map['detalle_pago'],
     );
+  }
+
+  // ==================== CONFIGURACIÓN VENCIMIENTOS ====================
+
+  // Cache local de configuración
+  ConfigVencimientos? _configVencimientos;
+
+  Future<ConfigVencimientos> getConfigVencimientos() async {
+    if (_configVencimientos != null) return _configVencimientos!;
+
+    try {
+      final response = await client
+          .from('configuracion')
+          .select()
+          .eq('clave', 'vencimientos')
+          .maybeSingle();
+
+      if (response != null && response['valor'] != null) {
+        _configVencimientos = ConfigVencimientos.fromMap(response['valor'] as Map<String, dynamic>);
+      } else {
+        _configVencimientos = ConfigVencimientos(); // Valores por defecto
+      }
+    } catch (e) {
+      // Si la tabla no existe, usar valores por defecto
+      _configVencimientos = ConfigVencimientos();
+    }
+
+    return _configVencimientos!;
+  }
+
+  Future<void> guardarConfigVencimientos(ConfigVencimientos config) async {
+    _configVencimientos = config;
+
+    try {
+      await client.from('configuracion').upsert({
+        'clave': 'vencimientos',
+        'valor': config.toMap(),
+      }, onConflict: 'clave');
+    } catch (e) {
+      // Si falla, al menos queda en cache local
+    }
+  }
+
+  /// Calcula el monto real de una cuota según la fecha actual
+  Future<double> calcularMontoConRecargo(Cuota cuota) async {
+    if (cuota.estaPagada) return cuota.monto;
+
+    final config = await getConfigVencimientos();
+    final hoy = DateTime.now();
+
+    // Si la cuota está vencida (pasó el mes)
+    if (cuota.fechaVencimiento.isBefore(DateTime(hoy.year, hoy.month, 1))) {
+      // Aplicar recargo máximo (rango C)
+      return config.calcularMonto(cuota.monto, 31);
+    }
+
+    // Si estamos en el mes de vencimiento
+    if (cuota.fechaVencimiento.year == hoy.year && cuota.fechaVencimiento.month == hoy.month) {
+      return config.calcularMonto(cuota.monto, hoy.day);
+    }
+
+    // Cuota futura, sin recargo
+    return cuota.monto;
   }
 
   // ==================== STORAGE ====================
