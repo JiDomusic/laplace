@@ -2,8 +2,10 @@ class Cuota {
   final String? id;
   final String alumnoId;
   final String concepto;
-  final double monto;
-  final double montoPagado; // Para pagos parciales
+  final int montoAlDia; // Monto si paga en término
+  final int monto1erVto; // Monto 1er vencimiento
+  final int monto2doVto; // Monto 2do vencimiento (máximo)
+  final int montoPagado; // Total pagado (para pagos parciales)
   final int mes;
   final int anio;
   final DateTime fechaVencimiento;
@@ -11,14 +13,16 @@ class Cuota {
   final String estado; // pendiente, pagada, vencida, parcial
   final String? metodoPago;
   final String? observaciones;
-  final String? numRecibo; // N° de recibo
-  final String? detallePago; // Detalle de qué cuotas abona
+  final String? numRecibo;
+  final String? detallePago;
 
   Cuota({
     this.id,
     required this.alumnoId,
     required this.concepto,
-    required this.monto,
+    required this.montoAlDia,
+    required this.monto1erVto,
+    required this.monto2doVto,
     this.montoPagado = 0,
     required this.mes,
     required this.anio,
@@ -31,21 +35,70 @@ class Cuota {
     this.detallePago,
   });
 
-  // Calcula la deuda restante
-  double get deuda => monto - montoPagado;
+  /// Obtiene el monto que corresponde según el día actual
+  int get montoActual {
+    final hoy = DateTime.now();
 
-  // Verifica si tiene pago parcial
-  bool get esParcial => montoPagado > 0 && montoPagado < monto;
+    // Si ya está pagada, devolver el monto al día (base)
+    if (estaPagada) return montoAlDia;
 
-  // Verifica si esta pagada completamente
-  bool get estaPagada => montoPagado >= monto || estado == 'pagada';
+    // Si la cuota está vencida (pasó el mes), máximo recargo
+    if (fechaVencimiento.isBefore(DateTime(hoy.year, hoy.month, 1))) {
+      return monto2doVto;
+    }
+
+    // Si estamos en el mes de vencimiento, calcular según día
+    if (fechaVencimiento.year == hoy.year && fechaVencimiento.month == hoy.month) {
+      if (hoy.day <= 10) {
+        return montoAlDia;
+      } else if (hoy.day <= 20) {
+        return monto1erVto;
+      } else {
+        return monto2doVto;
+      }
+    }
+
+    // Cuota futura, sin recargo
+    return montoAlDia;
+  }
+
+  /// Calcula la deuda restante basada en el monto actual
+  int get deuda => montoActual - montoPagado;
+
+  /// Monto base (al día) - para compatibilidad
+  int get monto => montoAlDia;
+
+  /// Verifica si tiene pago parcial
+  bool get esParcial => montoPagado > 0 && montoPagado < montoActual;
+
+  /// Verifica si está pagada completamente
+  bool get estaPagada => montoPagado >= montoAlDia || estado == 'pagada';
+
+  /// Verifica si está vencida
+  bool get estaVencida => estado != 'pagada' && fechaVencimiento.isBefore(DateTime.now());
+
+  /// Obtiene el rango actual de vencimiento
+  String get rangoActual {
+    final hoy = DateTime.now();
+    if (fechaVencimiento.isBefore(DateTime(hoy.year, hoy.month, 1))) {
+      return 'C';
+    }
+    if (fechaVencimiento.year == hoy.year && fechaVencimiento.month == hoy.month) {
+      if (hoy.day <= 10) return 'A';
+      if (hoy.day <= 20) return 'B';
+      return 'C';
+    }
+    return 'A';
+  }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'alumno_id': alumnoId,
       'concepto': concepto,
-      'monto': monto,
+      'monto_al_dia': montoAlDia,
+      'monto_1er_vto': monto1erVto,
+      'monto_2do_vto': monto2doVto,
       'monto_pagado': montoPagado,
       'mes': mes,
       'anio': anio,
@@ -60,15 +113,25 @@ class Cuota {
   }
 
   factory Cuota.fromMap(Map<String, dynamic> map) {
+    // Compatibilidad con estructura anterior (monto único)
+    final montoAnterior = (map['monto'] as num?)?.toInt();
+    final montoAlDia = (map['monto_al_dia'] as num?)?.toInt() ?? montoAnterior ?? 0;
+    final monto1erVto = (map['monto_1er_vto'] as num?)?.toInt() ?? montoAlDia;
+    final monto2doVto = (map['monto_2do_vto'] as num?)?.toInt() ?? monto1erVto;
+
     return Cuota(
       id: map['id']?.toString(),
       alumnoId: map['alumno_id']?.toString() ?? '',
-      concepto: map['concepto'],
-      monto: (map['monto'] as num).toDouble(),
-      montoPagado: (map['monto_pagado'] as num?)?.toDouble() ?? 0,
-      mes: map['mes'],
-      anio: map['anio'],
-      fechaVencimiento: DateTime.parse(map['fecha_vencimiento']),
+      concepto: map['concepto'] ?? '',
+      montoAlDia: montoAlDia,
+      monto1erVto: monto1erVto,
+      monto2doVto: monto2doVto,
+      montoPagado: (map['monto_pagado'] as num?)?.toInt() ?? 0,
+      mes: map['mes'] ?? 1,
+      anio: map['anio'] ?? DateTime.now().year,
+      fechaVencimiento: map['fecha_vencimiento'] != null
+          ? DateTime.parse(map['fecha_vencimiento'])
+          : DateTime.now(),
       fechaPago: map['fecha_pago'] != null ? DateTime.parse(map['fecha_pago']) : null,
       estado: map['estado'] ?? 'pendiente',
       metodoPago: map['metodo_pago'],
@@ -82,8 +145,10 @@ class Cuota {
     String? id,
     String? alumnoId,
     String? concepto,
-    double? monto,
-    double? montoPagado,
+    int? montoAlDia,
+    int? monto1erVto,
+    int? monto2doVto,
+    int? montoPagado,
     int? mes,
     int? anio,
     DateTime? fechaVencimiento,
@@ -98,7 +163,9 @@ class Cuota {
       id: id ?? this.id,
       alumnoId: alumnoId ?? this.alumnoId,
       concepto: concepto ?? this.concepto,
-      monto: monto ?? this.monto,
+      montoAlDia: montoAlDia ?? this.montoAlDia,
+      monto1erVto: monto1erVto ?? this.monto1erVto,
+      monto2doVto: monto2doVto ?? this.monto2doVto,
       montoPagado: montoPagado ?? this.montoPagado,
       mes: mes ?? this.mes,
       anio: anio ?? this.anio,
@@ -111,8 +178,6 @@ class Cuota {
       detallePago: detallePago ?? this.detallePago,
     );
   }
-
-  bool get estaVencida => estado != 'pagada' && fechaVencimiento.isBefore(DateTime.now());
 
   static String nombreMes(int mes) {
     const meses = [

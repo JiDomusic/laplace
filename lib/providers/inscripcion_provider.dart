@@ -30,7 +30,12 @@ class InscripcionProvider with ChangeNotifier {
   String? telefono;
   String celular = '';
   bool trabaja = false;
-  String cicloLectivo = DateTime.now().year.toString();
+  String _cicloLectivo = DateTime.now().year.toString();
+  String get cicloLectivo => _cicloLectivo;
+  set cicloLectivo(String value) {
+    _cicloLectivo = value;
+    notifyListeners();
+  }
 
   // Contacto de urgencia
   String contactoUrgenciaNombre = '';
@@ -313,7 +318,7 @@ class InscripcionProvider with ChangeNotifier {
     telefono = null;
     celular = '';
     trabaja = false;
-    cicloLectivo = DateTime.now().year.toString();
+    _cicloLectivo = DateTime.now().year.toString();
     contactoUrgenciaNombre = '';
     contactoUrgenciaTelefono = '';
     contactoUrgenciaVinculo = '';

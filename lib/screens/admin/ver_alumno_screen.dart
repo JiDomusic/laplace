@@ -136,7 +136,9 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                         _buildInfo('Estado', _alumno!.estado.toUpperCase()),
                       ]),
                       _buildAsignarDivision(),
+                      _buildEstadoInscripcion(),
                       _buildResumenCuotas(),
+                      _buildDetalleCuotas(),
                       _buildSeccion('Datos Personales', [
                         _buildInfo('DNI', _alumno!.dni),
                         _buildInfo('Sexo', _alumno!.sexo),
@@ -194,11 +196,11 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
     );
   }
 
-  Map<String, double> _resumenCuotas() {
-    double totalMonto = 0;
-    double totalPagado = 0;
+  Map<String, num> _resumenCuotas() {
+    int totalMonto = 0;
+    int totalPagado = 0;
     for (final cuota in _cuotas) {
-      totalMonto += cuota.monto;
+      totalMonto += cuota.montoActual;
       totalPagado += cuota.montoPagado;
     }
     final saldoPendiente = totalMonto - totalPagado;
@@ -209,8 +211,8 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
     };
   }
 
-  String _formatMoney(double amount) {
-    return '\$${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  String _formatMoney(num amount) {
+    return '\$${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
   Widget _buildResumenCuotas() {
@@ -219,9 +221,9 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
     }
 
     final resumen = _resumenCuotas();
-    final totalMonto = resumen['totalMonto'] ?? 0.0;
-    final totalPagado = resumen['totalPagado'] ?? 0.0;
-    final saldoPendiente = resumen['saldoPendiente'] ?? 0.0;
+    final totalMonto = resumen['totalMonto'] ?? 0;
+    final totalPagado = resumen['totalPagado'] ?? 0;
+    final saldoPendiente = resumen['saldoPendiente'] ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -280,6 +282,380 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildEstadoInscripcion() {
+    final esPrimerAnio = _alumno?.nivelInscripcion.toLowerCase().contains('primer') ?? false;
+    if (!esPrimerAnio || _cuotas.isEmpty) return const SizedBox.shrink();
+
+    final cuotaInscripcion = _cuotas.where((c) => c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
+    if (cuotaInscripcion == null) return const SizedBox.shrink();
+
+    final pagada = cuotaInscripcion.estaPagada;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: pagada ? Colors.green.shade50 : Colors.red.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              pagada ? Icons.check_circle : Icons.cancel,
+              color: pagada ? AppTheme.successColor : AppTheme.dangerColor,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Inscripcion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    pagada ? 'Pagada - ${_formatMoney(cuotaInscripcion.montoActual)}' : 'Pendiente de pago - ${_formatMoney(cuotaInscripcion.montoActual)}',
+                    style: TextStyle(
+                      color: pagada ? AppTheme.successColor : AppTheme.dangerColor,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!pagada)
+              ElevatedButton.icon(
+                onPressed: () => _pagarInscripcion(cuotaInscripcion),
+                icon: const Icon(Icons.payment, size: 18),
+                label: const Text('Pagar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.successColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pagarInscripcion(Cuota cuota) async {
+    final reciboController = TextEditingController();
+    final metodo = ValueNotifier<String>('efectivo');
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pagar Inscripcion'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Monto: ${_formatMoney(cuota.montoActual)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reciboController,
+              decoration: const InputDecoration(
+                labelText: 'N° Recibo',
+                hintText: 'Ej: 00001',
+              ),
+            ),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<String>(
+              valueListenable: metodo,
+              builder: (context, value, _) => DropdownButtonFormField<String>(
+                value: value,
+                decoration: const InputDecoration(labelText: 'Metodo de pago'),
+                items: const [
+                  DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                  DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                ],
+                onChanged: (v) => metodo.value = v ?? 'efectivo',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor, foregroundColor: Colors.white),
+            child: const Text('Confirmar Pago'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      try {
+        await _db.registrarPagoTotal(
+          cuota.id!,
+          metodo.value,
+          numRecibo: reciboController.text.isNotEmpty ? reciboController.text : null,
+          detallePago: 'Pago inscripcion',
+        );
+        await _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Inscripcion pagada'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildDetalleCuotas() {
+    if (_cuotas.isEmpty) return const SizedBox.shrink();
+
+    final cuotasOrdenadas = List<Cuota>.from(_cuotas)
+      ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: const Text('Detalle de Cuotas', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          ...cuotasOrdenadas.map((cuota) {
+            final pagada = cuota.estaPagada;
+            final parcial = cuota.esParcial;
+            final vencida = cuota.estaVencida;
+            final color = pagada
+                ? AppTheme.successColor
+                : parcial
+                    ? Colors.orange
+                    : vencida
+                        ? AppTheme.dangerColor
+                        : Colors.grey;
+            final estado = pagada
+                ? 'Pagada'
+                : parcial
+                    ? 'Parcial'
+                    : vencida
+                        ? 'Vencida'
+                        : 'Pendiente';
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                children: [
+                  // Indicador de estado
+                  Container(
+                    width: 4,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Info de la cuota
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(
+                          'Vence: ${_formatDate(cuota.fechaVencimiento)} - $estado',
+                          style: TextStyle(fontSize: 11, color: color),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Montos
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(_formatMoney(cuota.montoActual), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      if (cuota.montoPagado > 0 && !pagada)
+                        Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(fontSize: 10, color: AppTheme.successColor)),
+                      if (cuota.deuda > 0 && !pagada)
+                        Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(fontSize: 10, color: AppTheme.dangerColor)),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  // Botón de pago
+                  if (!pagada)
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.payment, color: AppTheme.successColor, size: 22),
+                      onSelected: (value) {
+                        if (value == 'total') _pagarCuota(cuota, parcial: false);
+                        if (value == 'parcial') _pagarCuota(cuota, parcial: true);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'total', child: Text('Pago Total')),
+                        const PopupMenuItem(value: 'parcial', child: Text('Pago Parcial')),
+                      ],
+                    )
+                  else
+                    const Icon(Icons.check_circle, color: Colors.green, size: 22),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pagarCuota(Cuota cuota, {required bool parcial}) async {
+    final reciboController = TextEditingController();
+    final montoController = TextEditingController();
+    final metodo = ValueNotifier<String>('efectivo');
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(parcial ? 'Pago Parcial' : 'Pago Total'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Monto:', style: TextStyle(color: Colors.grey.shade600)),
+                  Text(_formatMoney(cuota.montoActual)),
+                ],
+              ),
+              if (cuota.montoPagado > 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Ya pagado:', style: TextStyle(color: Colors.grey.shade600)),
+                    Text(_formatMoney(cuota.montoPagado), style: TextStyle(color: AppTheme.successColor)),
+                  ],
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Deuda:', style: TextStyle(color: Colors.grey.shade600)),
+                  Text(_formatMoney(cuota.deuda), style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Divider(height: 24),
+              TextField(
+                controller: reciboController,
+                decoration: const InputDecoration(labelText: 'N° Recibo', hintText: 'Ej: 00001'),
+              ),
+              if (parcial) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: montoController,
+                  decoration: InputDecoration(
+                    labelText: 'Importe a pagar',
+                    prefixText: '\$ ',
+                    hintText: 'Max: ${cuota.deuda}',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+              const SizedBox(height: 12),
+              ValueListenableBuilder<String>(
+                valueListenable: metodo,
+                builder: (context, value, _) => DropdownButtonFormField<String>(
+                  value: value,
+                  decoration: const InputDecoration(labelText: 'Metodo de pago'),
+                  items: const [
+                    DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                    DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                  ],
+                  onChanged: (v) => metodo.value = v ?? 'efectivo',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor, foregroundColor: Colors.white),
+            child: const Text('Confirmar Pago'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      try {
+        if (parcial) {
+          final monto = int.tryParse(montoController.text) ?? 0;
+          if (monto <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Monto invalido'), backgroundColor: Colors.red),
+            );
+            return;
+          }
+          final excedente = monto > cuota.deuda ? monto - cuota.deuda : 0;
+          await _db.registrarPagoParcial(
+            cuota.id!, monto, metodo.value,
+            numRecibo: reciboController.text.isNotEmpty ? reciboController.text : null,
+            detallePago: 'Pago parcial - ${cuota.concepto}',
+          );
+          if (excedente > 0 && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Excedente de ${_formatMoney(excedente)} aplicado a siguiente cuota'),
+                backgroundColor: Colors.blue,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else {
+          final siguienteCuota = await _db.registrarPagoTotal(
+            cuota.id!, metodo.value,
+            numRecibo: reciboController.text.isNotEmpty ? reciboController.text : null,
+            detallePago: 'Pago total - ${cuota.concepto}',
+          );
+          if (siguienteCuota != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Pago adelantado - Siguiente cuota: $siguienteCuota'),
+                backgroundColor: Colors.blue,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+        await _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pago registrado'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildMontoItem(String label, String monto, Color color, IconData icon) {

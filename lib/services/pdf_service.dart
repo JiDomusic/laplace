@@ -13,9 +13,9 @@ class PdfService {
   static Future<Uint8List> generarComprobante(
     Alumno alumno, {
     Legajo? legajo,
-    double? totalMonto,
-    double? totalPagado,
-    double? saldoPendiente,
+    num? totalMonto,
+    num? totalPagado,
+    num? saldoPendiente,
   }) async {
     final pdf = pw.Document();
     final cicloLectivo = alumno.cicloLectivo ?? DateTime.now().year.toString();
@@ -266,8 +266,8 @@ class PdfService {
     );
   }
 
-  static String _formatMoney(double value) {
-    final formatted = value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+  static String _formatMoney(num value) {
+    final formatted = value.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
     return '\$$formatted';
   }
 
@@ -278,11 +278,11 @@ class PdfService {
   ) async {
     final pdf = pw.Document();
 
-    // Calcular totales
-    double totalMonto = 0;
-    double totalPagado = 0;
+    // Calcular totales (enteros)
+    int totalMonto = 0;
+    int totalPagado = 0;
     for (final cuota in cuotas) {
-      totalMonto += cuota.monto;
+      totalMonto += cuota.montoActual;
       totalPagado += cuota.montoPagado;
     }
     final totalDeuda = totalMonto - totalPagado;
@@ -411,7 +411,7 @@ class PdfService {
                     children: [
                       _buildTableCellCompact(cuota.concepto),
                       _buildTableCellCompact(DateFormat('dd/MM').format(cuota.fechaVencimiento)),
-                      _buildTableCellCompact(_formatMoney(cuota.monto)),
+                      _buildTableCellCompact(_formatMoney(cuota.montoActual)),
                       _buildTableCellCompact(cuota.montoPagado > 0 ? _formatMoney(cuota.montoPagado) : '', color: PdfColors.green700),
                       _buildTableCellCompact(cuota.deuda > 0 ? _formatMoney(cuota.deuda) : '', color: PdfColors.red700),
                       _buildTableCellCompact(estado, color: estadoColor),
@@ -432,10 +432,10 @@ class PdfService {
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
                 columnWidths: {
                   0: const pw.FlexColumnWidth(1), // Fecha
-                  1: const pw.FlexColumnWidth(2.5), // Detalle
+                  1: const pw.FlexColumnWidth(3), // Detalle
                   2: const pw.FlexColumnWidth(1), // Importe
-                  3: const pw.FlexColumnWidth(1), // Método
-                  4: const pw.FlexColumnWidth(1), // Recibo
+                  3: const pw.FlexColumnWidth(0.8), // Método
+                  4: const pw.FlexColumnWidth(0.8), // Recibo
                 },
                 children: [
                   pw.TableRow(
@@ -449,10 +449,21 @@ class PdfService {
                     ],
                   ),
                   ...cuotasOrdenadas.where((c) => c.fechaPago != null).map((cuota) {
+                    // Generar detalle descriptivo si no hay detalle_pago guardado
+                    String detalle;
+                    if (cuota.detallePago != null && cuota.detallePago!.isNotEmpty) {
+                      detalle = cuota.detallePago!;
+                    } else if (cuota.estaPagada) {
+                      detalle = 'Pago total - ${cuota.concepto}';
+                    } else if (cuota.esParcial) {
+                      detalle = 'Pago parcial - ${cuota.concepto} (${_formatMoney(cuota.montoPagado)} de ${_formatMoney(cuota.montoActual)})';
+                    } else {
+                      detalle = cuota.concepto;
+                    }
                     return pw.TableRow(
                       children: [
                         _buildTableCellCompact(DateFormat('dd/MM/yy').format(cuota.fechaPago!)),
-                        _buildTableCellCompact(cuota.detallePago ?? cuota.concepto),
+                        _buildTableCellCompact(detalle),
                         _buildTableCellCompact(_formatMoney(cuota.montoPagado)),
                         _buildTableCellCompact(_metodoPagoCorto(cuota.metodoPago)),
                         _buildTableCellCompact(cuota.numRecibo ?? ''),
