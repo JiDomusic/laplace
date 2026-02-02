@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instituto Laplace - Roadmap de Implementacion - Sistema de Cuotas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 0 0 30px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #e94560;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #e94560;
+        }
+
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .icon-done { background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); }
+        .icon-pending { background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%); }
+        .icon-feature { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); }
+
+        .section h2 {
+            color: #16213e;
+            font-size: 1.5em;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-done {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-priority {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-item {
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: #f8f9fa;
+            border-left: 4px solid #6c5ce7;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .feature-item.done {
+            border-left-color: #00b894;
+            background: #e8f8f5;
+        }
+
+        .feature-item.pending {
+            border-left-color: #e94560;
+            background: #fef5f5;
+        }
+
+        .feature-item h4 {
+            color: #16213e;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-item p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .check-icon {
+            color: #00b894;
+            font-weight: bold;
+        }
+
+        .pending-icon {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        .priority-box {
+            background: linear-gradient(135deg, #fff5f5 0%, #ffe8ec 100%);
+            border: 2px solid #e94560;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .priority-box h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #00b894, #e94560);
+            border-radius: 3px;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 25px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .timeline-item.done::before {
+            background: #00b894;
+        }
+
+        .timeline-item.pending::before {
+            background: #e94560;
+        }
+
+        .timeline-date {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .summary-card.green { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); }
+        .summary-card.red { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); }
+        .summary-card.blue { background: linear-gradient(135deg, #cce5ff 0%, #b8daff 100%); }
+
+        .summary-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #16213e;
+        }
+
+        .summary-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .tech-badge {
+            background: #16213e;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        .divider {
+            height: 3px;
+            background: linear-gradient(to right, #e94560, #6c5ce7, #00b894);
+            border-radius: 3px;
+            margin: 30px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        @media print {
+            @page {
+                margin: 0;
+                size: A4;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .container {
+                padding: 15px;
+                max-width: 100%;
+            }
+            .section {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+                margin-bottom: 15px;
+                padding: 20px;
+            }
+            header {
+                background: #16213e !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                border-radius: 0;
+                margin-bottom: 15px;
+                padding: 25px 15px;
+            }
+            footer {
+                padding: 15px;
+                margin: 0;
+                background: transparent !important;
+                color: #333 !important;
+            }
+            .divider {
+                margin: 15px 0;
+            }
+        }
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 1.6em;
+            }
+            .section {
+                padding: 20px;
+            }
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Roadmap de Implementacion</h1>
+        <p>Sistema de Gestion de Cuotas - Instituto Laplace</p>
+        <span class="badge">Documento de Planificacion</span>
+    </header>
+
+    <div class="container">
+
+        <!-- RESUMEN EJECUTIVO -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-feature">📊</div>
+                <div>
+                    <h2>Resumen del Proyecto</h2>
+                    <span class="status-badge status-done">En Desarrollo</span>
+                </div>
+            </div>
+
+            <p>El modulo de <strong>Gestion de Cuotas</strong> del Instituto Laplace permite administrar de forma integral todos los pagos de los alumnos, con sistema de vencimientos escalonados, pagos parciales, saldo a favor y reportes detallados.</p>
+
+            <div class="summary-grid">
+                <div class="summary-card green">
+                    <div class="summary-number">6</div>
+                    <div class="summary-label">Funciones Base (Deploy 1)</div>
+                </div>
+                <div class="summary-card red">
+                    <div class="summary-number">12</div>
+                    <div class="summary-label">Funciones a Implementar</div>
+                </div>
+                <div class="summary-card blue">
+                    <div class="summary-number">3</div>
+                    <div class="summary-label">Niveles Educativos</div>
+                </div>
+            </div>
+
+            <div class="tech-stack">
+                <span class="tech-badge">Flutter</span>
+                <span class="tech-badge">Dart</span>
+                <span class="tech-badge">Supabase</span>
+                <span class="tech-badge">PDF Generation</span>
+                <span class="tech-badge">Firebase Hosting</span>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- FASE 1: IMPLEMENTADO (PRIMER DEPLOY) -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-done">✅</div>
+                <div>
+                    <h2>Fase 1: Sistema Base</h2>
+                    <span class="status-badge status-done">IMPLEMENTADO - Deploy 13/Enero/2026</span>
+                </div>
+            </div>
+
+            <p style="margin-bottom: 20px; color: #666;">Funcionalidades desplegadas en la primera version del sistema:</p>
+
+            <ul class="feature-list">
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Dashboard de Administracion</h4>
+                    <p>Panel central con acceso a todas las funciones del sistema: alumnos, inscripciones, galeria y configuraciones.</p>
+                </li>
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Gestion de Alumnos</h4>
+                    <p>CRUD completo de alumnos con datos personales, foto, DNI, nivel de inscripcion (1°, 2°, 3° ano) y division (A, B).</p>
+                </li>
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Sistema de Inscripciones</h4>
+                    <p>Formulario de inscripcion con validacion de datos, carga de documentacion y asignacion de codigo unico.</p>
+                </li>
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Integracion con Supabase</h4>
+                    <p>Base de datos en la nube con almacenamiento de archivos para fotos y documentos.</p>
+                </li>
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Autenticacion y Roles</h4>
+                    <p>Sistema de login con roles diferenciados: superadmin, admin, usuario.</p>
+                </li>
+                <li class="feature-item done">
+                    <h4><span class="check-icon">✓</span> Galeria de Eventos</h4>
+                    <p>Modulo para subir y visualizar fotos de eventos institucionales.</p>
+                </li>
+            </ul>
+        </div>
+
+        <!-- FASE 2: A IMPLEMENTAR -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-pending">🚀</div>
+                <div>
+                    <h2>Fase 2: Modulo de Cuotas</h2>
+                    <span class="status-badge status-priority">PROXIMA IMPLEMENTACION</span>
+                </div>
+            </div>
+
+            <div class="priority-box">
+                <h3>⚡ Prioridad Critica - Core del Sistema Financiero</h3>
+                <p>Este modulo es esencial para la gestion economica del instituto. Permite controlar todos los pagos de cuotas de los alumnos con diferentes esquemas segun el nivel educativo.</p>
+            </div>
+
+            <div class="timeline">
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 1 - Estructura de Datos</div>
+                    <h4>📋 Modelo de Datos de Cuota</h4>
+                    <p>Se implementara el modelo <code>Cuota</code> con los siguientes campos:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li><strong>alumnoId:</strong> Referencia al alumno</li>
+                        <li><strong>concepto:</strong> Descripcion (ej: "Bimestre Marzo-Abril 2026")</li>
+                        <li><strong>monto:</strong> Valor total de la cuota</li>
+                        <li><strong>montoPagado:</strong> Para pagos parciales</li>
+                        <li><strong>mes / anio:</strong> Periodo correspondiente</li>
+                        <li><strong>fechaVencimiento:</strong> Fecha limite de pago</li>
+                        <li><strong>estado:</strong> pendiente, pagada, vencida, parcial</li>
+                        <li><strong>metodoPago:</strong> efectivo o transferencia</li>
+                        <li><strong>numRecibo:</strong> Numero de comprobante</li>
+                        <li><strong>detallePago:</strong> Descripcion del pago</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 1 - Interfaz Principal</div>
+                    <h4>🖥️ Vista Calendario de Cuotas</h4>
+                    <p>Se desarrollara una vista tipo grilla (calendario) donde:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li>Filas: Alumnos agrupados por nivel y division (1°A, 1°B, 2°, 3°)</li>
+                        <li>Columnas: Bimestres del ano (INSC, Mar, May, Jul, Sep, Nov)</li>
+                        <li>Celdas con iconos de estado: ✓ Pagada, ◐ Parcial, ○ Pendiente, ! Vencida</li>
+                        <li>Columna final con deuda total por alumno</li>
+                        <li>Filtros por nivel, division y estado de cuota</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 2 - Generacion Automatica</div>
+                    <h4>📅 Sistema Bimestral Diferenciado por Nivel</h4>
+                    <p>Logica de generacion automatica de cuotas segun el nivel:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li><strong>1° Ano:</strong> 5 cuotas bimestrales (Marzo, Mayo, Julio, Septiembre, Noviembre) + Cuota de Inscripcion</li>
+                        <li><strong>2° y 3° Ano:</strong> 6 cuotas bimestrales (Enero, Marzo, Mayo, Julio, Septiembre, Noviembre)</li>
+                        <li>Generacion individual por alumno con monto configurable</li>
+                        <li>Cuota de inscripcion unica para alumnos nuevos de 1° ano</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 2 - Cobros</div>
+                    <h4>💰 Gestion de Pagos Totales y Parciales</h4>
+                    <p>Funcionalidades completas de cobro:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li><strong>Pago Total:</strong> Registra el pago completo de una cuota</li>
+                        <li><strong>Pago Parcial:</strong> Permite abonar parte del monto adeudado</li>
+                        <li>Campos requeridos: N° Recibo, Metodo de pago, Detalle</li>
+                        <li>Historial de pagos por cuota</li>
+                        <li>Calculo automatico de deuda restante</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 3 - Pagos Inteligentes</div>
+                    <h4>🎯 Ingreso de Pago con Distribucion Automatica</h4>
+                    <p>Sistema inteligente de distribucion de pagos:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li>Seleccionar alumno y ver resumen de deuda total</li>
+                        <li>Ingresar cualquier importe a pagar</li>
+                        <li>El sistema distribuye automaticamente a las cuotas mas antiguas primero</li>
+                        <li>Si sobra dinero, se guarda como <strong>saldo a favor</strong></li>
+                        <li>El saldo a favor se aplica automaticamente en futuros pagos</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 3 - Configuracion de Mora</div>
+                    <h4>⚙️ Sistema de Vencimientos Escalonados</h4>
+                    <p>Configuracion flexible de recargos por mora:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li><strong>Rango A (dias 1-10):</strong> Precio normal, sin recargo</li>
+                        <li><strong>Rango B (dias 11-20):</strong> Recargo intermedio configurable</li>
+                        <li><strong>Rango C (dias 21-31):</strong> Cuota vencida, maximo recargo</li>
+                        <li>Recargos configurables en porcentaje (%) o monto fijo ($)</li>
+                        <li>Preview en tiempo real del calculo de recargos</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 4 - Herramientas Admin</div>
+                    <h4>📊 Reportes y Herramientas Administrativas</h4>
+                    <p>Funciones avanzadas de gestion:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li><strong>Ajustar Montos por Bimestre:</strong> Actualizar precios masivamente</li>
+                        <li><strong>Totales por Mes:</strong> Grafico de barras con cobros mensuales</li>
+                        <li><strong>Estadisticas en Tiempo Real:</strong> Total cobrado, por cobrar, facturacion total</li>
+                        <li><strong>Limpiar Cuotas Duplicadas:</strong> Herramienta de mantenimiento de datos</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item pending">
+                    <div class="timeline-date">📅 Semana 4 - Documentacion</div>
+                    <h4>📄 Generacion de PDFs y Reportes</h4>
+                    <p>Reportes imprimibles para familias y administracion:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #666;">
+                        <li>Detalle completo de cuotas por alumno</li>
+                        <li>Estado de cuenta con pagos realizados y deudas pendientes</li>
+                        <li>Impresion directa o descarga en formato PDF</li>
+                        <li>Incluye datos del alumno, nivel educativo y listado de cuotas</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DETALLE DE FUNCIONALIDADES -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-feature">🔧</div>
+                <div>
+                    <h2>Detalle Tecnico de Funcionalidades</h2>
+                </div>
+            </div>
+
+            <h3 style="color: #16213e; margin: 20px 0 15px;">Panel de Gestion de Pagos</h3>
+            <ul class="feature-list">
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Boton "Ingresar Pago"</h4>
+                    <p>Funcion principal para registrar pagos. Muestra la deuda del alumno seleccionado, lista de cuotas pendientes y permite ingresar cualquier importe. El sistema distribuye automaticamente a las cuotas mas antiguas.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Boton "Detalle Alumno" (PDF)</h4>
+                    <p>Genera un reporte PDF completo con todas las cuotas del alumno seleccionado, mostrando estado de cada pago, fechas de vencimiento y montos. Ideal para entregar a las familias.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Boton "Totales por Mes"</h4>
+                    <p>Dashboard visual con grafico de barras mostrando la recaudacion mensual del ano en curso. Permite ver tendencias de pago y comparar meses.</p>
+                </li>
+            </ul>
+
+            <h3 style="color: #16213e; margin: 20px 0 15px;">Panel de Generacion de Cuotas</h3>
+            <ul class="feature-list">
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Inscripcion 1° Ano</h4>
+                    <p>Genera la cuota unica de inscripcion para alumnos nuevos. Solo disponible para alumnos de primer ano. Se genera una sola vez por alumno en su ciclo educativo.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Cuotas Bimestrales</h4>
+                    <p>Genera el conjunto completo de cuotas bimestrales segun el nivel del alumno. El sistema detecta automaticamente si es 1°, 2° o 3° ano y genera los bimestres correspondientes.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Ajustar Montos</h4>
+                    <p>Permite actualizar el monto de todas las cuotas de un bimestre especifico (util para ajustes por inflacion). Incluye opciones para incluir o excluir cuotas ya pagadas y vencidas.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Configurar Vencimientos</h4>
+                    <p>Define los rangos de dias (A, B, C) y los porcentajes de recargo para cuotas vencidas. Incluye vista previa del calculo con un ejemplo practico.</p>
+                </li>
+            </ul>
+
+            <h3 style="color: #16213e; margin: 20px 0 15px;">Vistas de Cuotas</h3>
+            <ul class="feature-list">
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Vista Calendario (Grilla)</h4>
+                    <p>Vista principal tipo planilla de calculo. Alumnos en filas agrupados por nivel, bimestres en columnas. Colores segun estado de pago. Click en celda para ver opciones de pago rapido.</p>
+                </li>
+                <li class="feature-item pending">
+                    <h4><span class="pending-icon">→</span> Vista Lista</h4>
+                    <p>Vista alternativa con tarjetas individuales por cuota. Muestra nombre del alumno, concepto, monto y estado. Incluye boton de pago rapido en cada tarjeta.</p>
+                </li>
+            </ul>
+        </div>
+
+        <!-- PRIORIDADES -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-pending">📋</div>
+                <div>
+                    <h2>Orden de Prioridades de Implementacion</h2>
+                </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <h3 style="color: #e94560; margin-bottom: 15px;">🔴 Prioridad 1 - Critico (Sin esto no funciona)</h3>
+                <ol style="margin-left: 20px; color: #333;">
+                    <li style="margin-bottom: 8px;"><strong>Modelo de Cuota:</strong> Estructura de base de datos</li>
+                    <li style="margin-bottom: 8px;"><strong>Generacion de Cuotas Bimestrales:</strong> Sin cuotas no hay nada que cobrar</li>
+                    <li style="margin-bottom: 8px;"><strong>Registro de Pagos:</strong> Funcion principal del modulo</li>
+                    <li style="margin-bottom: 8px;"><strong>Vista de Cuotas:</strong> Ver el estado de todos los alumnos</li>
+                </ol>
+            </div>
+
+            <div style="background: #fff8e6; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <h3 style="color: #d68910; margin-bottom: 15px;">🟡 Prioridad 2 - Importante (Mejora la experiencia)</h3>
+                <ol style="margin-left: 20px; color: #333;">
+                    <li style="margin-bottom: 8px;"><strong>Pagos Parciales:</strong> Flexibilidad para familias con dificultades</li>
+                    <li style="margin-bottom: 8px;"><strong>Cuota de Inscripcion:</strong> Cobro inicial obligatorio de 1° ano</li>
+                    <li style="margin-bottom: 8px;"><strong>Estadisticas Basicas:</strong> Totales cobrado/por cobrar en pantalla</li>
+                    <li style="margin-bottom: 8px;"><strong>Filtros por Nivel:</strong> Facilita la gestion por cursos</li>
+                </ol>
+            </div>
+
+            <div style="background: #e8f5e9; padding: 20px; border-radius: 12px;">
+                <h3 style="color: #27ae60; margin-bottom: 15px;">🟢 Prioridad 3 - Mejoras (Funcionalidades avanzadas)</h3>
+                <ol style="margin-left: 20px; color: #333;">
+                    <li style="margin-bottom: 8px;"><strong>Saldo a Favor:</strong> Gestion de creditos de alumnos</li>
+                    <li style="margin-bottom: 8px;"><strong>Vencimientos Escalonados:</strong> Sistema de recargos por mora</li>
+                    <li style="margin-bottom: 8px;"><strong>Ajuste Masivo de Montos:</strong> Actualizaciones de precios por inflacion</li>
+                    <li style="margin-bottom: 8px;"><strong>Generacion de PDFs:</strong> Reportes impresos para familias</li>
+                    <li style="margin-bottom: 8px;"><strong>Totales por Mes:</strong> Reportes graficos de recaudacion</li>
+                    <li style="margin-bottom: 8px;"><strong>Limpieza de Duplicados:</strong> Mantenimiento de base de datos</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- MODELO DE DATOS -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-feature">💾</div>
+                <div>
+                    <h2>Estructura de Base de Datos Propuesta</h2>
+                </div>
+            </div>
+
+            <div style="background: #1a1a2e; color: #fff; padding: 20px; border-radius: 12px; font-family: monospace; font-size: 0.9em; overflow-x: auto;">
+<pre style="margin: 0;">
+<span style="color: #6c5ce7;">-- Tabla principal: cuotas</span>
+CREATE TABLE cuotas (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    alumno_id       UUID REFERENCES alumnos(id),
+    concepto        VARCHAR(100) NOT NULL,
+    monto           DECIMAL(10,2) NOT NULL,
+    monto_pagado    DECIMAL(10,2) DEFAULT 0,
+    mes             INTEGER NOT NULL,
+    anio            INTEGER NOT NULL,
+    fecha_vencimiento DATE NOT NULL,
+    fecha_pago      TIMESTAMP,
+    estado          VARCHAR(20) DEFAULT 'pendiente',
+    metodo_pago     VARCHAR(20),
+    observaciones   TEXT,
+    num_recibo      VARCHAR(20),
+    detalle_pago    TEXT,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+<span style="color: #6c5ce7;">-- Nuevo campo en tabla alumnos</span>
+ALTER TABLE alumnos
+ADD COLUMN saldo_favor DECIMAL(10,2) DEFAULT 0;
+
+<span style="color: #6c5ce7;">-- Tabla de configuracion de vencimientos</span>
+CREATE TABLE config_vencimientos (
+    id                      INTEGER PRIMARY KEY DEFAULT 1,
+    dia_fin_rango_a         INTEGER DEFAULT 10,
+    dia_fin_rango_b         INTEGER DEFAULT 20,
+    recargo_rango_b         DECIMAL(5,2) DEFAULT 0,
+    recargo_rango_c         DECIMAL(5,2) DEFAULT 0,
+    es_recargo_porcentaje   BOOLEAN DEFAULT true
+);
+</pre>
+            </div>
+        </div>
+
+        <!-- FLUJO DE TRABAJO -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-feature">🔄</div>
+                <div>
+                    <h2>Flujo de Trabajo del Sistema</h2>
+                </div>
+            </div>
+
+            <div style="text-align: center; padding: 20px;">
+                <div style="display: inline-block; text-align: left; background: #f8f9fa; padding: 25px; border-radius: 12px;">
+                    <div style="margin-bottom: 15px; padding: 12px; background: #d4edda; border-radius: 8px;">
+                        <strong>1.</strong> Inscribir alumno en el sistema
+                    </div>
+                    <div style="text-align: center; color: #6c5ce7; font-size: 1.5em;">↓</div>
+                    <div style="margin-bottom: 15px; padding: 12px; background: #cce5ff; border-radius: 8px;">
+                        <strong>2.</strong> Generar cuota de inscripcion (solo si es 1° ano)
+                    </div>
+                    <div style="text-align: center; color: #6c5ce7; font-size: 1.5em;">↓</div>
+                    <div style="margin-bottom: 15px; padding: 12px; background: #cce5ff; border-radius: 8px;">
+                        <strong>3.</strong> Generar cuotas bimestrales del ano lectivo
+                    </div>
+                    <div style="text-align: center; color: #6c5ce7; font-size: 1.5em;">↓</div>
+                    <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 8px;">
+                        <strong>4.</strong> Familia realiza pago (efectivo o transferencia)
+                    </div>
+                    <div style="text-align: center; color: #6c5ce7; font-size: 1.5em;">↓</div>
+                    <div style="margin-bottom: 15px; padding: 12px; background: #d4edda; border-radius: 8px;">
+                        <strong>5.</strong> Admin registra pago en sistema con N° de recibo
+                    </div>
+                    <div style="text-align: center; color: #6c5ce7; font-size: 1.5em;">↓</div>
+                    <div style="padding: 12px; background: #e8daef; border-radius: 8px;">
+                        <strong>6.</strong> Sistema actualiza estado y permite generar PDF
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOGICA DE BIMESTRES -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-feature">📆</div>
+                <div>
+                    <h2>Logica de Bimestres por Nivel</h2>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="background: #f3e5f5; padding: 20px; border-radius: 12px; border-left: 4px solid #9c27b0;">
+                    <h4 style="color: #9c27b0; margin-bottom: 10px;">🎓 Primer Ano (1° A y 1° B)</h4>
+                    <ul style="margin-left: 20px; color: #666;">
+                        <li><strong>INSCRIPCION</strong> - Cuota unica</li>
+                        <li><strong>Marzo</strong> - 1° Bimestre</li>
+                        <li><strong>Mayo</strong> - 2° Bimestre</li>
+                        <li><strong>Julio</strong> - 3° Bimestre</li>
+                        <li><strong>Septiembre</strong> - 4° Bimestre</li>
+                        <li><strong>Noviembre</strong> - 5° Bimestre</li>
+                    </ul>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #9c27b0;"><strong>Total: 6 cuotas</strong></p>
+                </div>
+
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 12px; border-left: 4px solid #2196f3;">
+                    <h4 style="color: #2196f3; margin-bottom: 10px;">📚 Segundo y Tercer Ano</h4>
+                    <ul style="margin-left: 20px; color: #666;">
+                        <li><strong>Enero</strong> - 1° Bimestre</li>
+                        <li><strong>Marzo</strong> - 2° Bimestre</li>
+                        <li><strong>Mayo</strong> - 3° Bimestre</li>
+                        <li><strong>Julio</strong> - 4° Bimestre</li>
+                        <li><strong>Septiembre</strong> - 5° Bimestre</li>
+                        <li><strong>Noviembre</strong> - 6° Bimestre</li>
+                    </ul>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #2196f3;"><strong>Total: 6 cuotas</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTAS -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon icon-done">📝</div>
+                <div>
+                    <h2>Notas Importantes de Implementacion</h2>
+                </div>
+            </div>
+
+            <ul style="margin-left: 20px; color: #666;">
+                <li style="margin-bottom: 12px;">
+                    <strong>Bimestres diferenciados:</strong> Es critico que 1° ano empiece en Marzo (no tienen Enero-Febrero porque recien ingresan) mientras que 2° y 3° ano ya tienen cuota desde Enero.
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Saldo a favor:</strong> Cuando un pago excede la deuda total del alumno, el excedente se guarda automaticamente como saldo a favor y se aplica en el proximo pago.
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Vencimientos escalonados:</strong> Los rangos A, B, C permiten aplicar recargos progresivos segun el dia del mes en que se paga. Esto incentiva el pago puntual.
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>N° de Recibo:</strong> Campo obligatorio para trazabilidad contable. Cada pago debe tener su numero de comprobante fisico.
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Vista Calendario vs Lista:</strong> La vista calendario es ideal para ver el estado general de todos los alumnos rapidamente. La vista lista es mejor para buscar cuotas especificas o filtrar por estado.
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Distribucion automatica:</strong> Cuando se ingresa un pago, el sistema siempre paga primero las cuotas mas antiguas (por fecha de vencimiento), evitando que se acumulen cuotas viejas.
+                </li>
+            </ul>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>Instituto Laplace - Sistema de Gestion Educativa</p>
+        <p style="font-size: 0.85em; margin-top: 10px;">Documento de Planificacion - Enero 2026</p>
+    </footer>
+
+</body>
+</html>

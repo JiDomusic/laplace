@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Cuotas - Instituto Superior Laplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .portada {
+            background: linear-gradient(135deg, #6B3FA0, #4A148C);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .portada h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .portada p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        h2 {
+            color: #6B3FA0;
+            border-bottom: 3px solid #6B3FA0;
+            padding-bottom: 10px;
+            margin: 30px 0 20px 0;
+        }
+        h3 {
+            color: #4A148C;
+            margin: 20px 0 10px 0;
+        }
+        .seccion {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .paso {
+            background: #f8f4ff;
+            border-left: 4px solid #6B3FA0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .paso-numero {
+            background: #6B3FA0;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .ejemplo {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .ejemplo-titulo {
+            color: #2e7d32;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .alerta {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .alerta-titulo {
+            color: #e65100;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .importante {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .importante-titulo {
+            color: #c62828;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .tabla {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .tabla th, .tabla td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .tabla th {
+            background: #6B3FA0;
+            color: white;
+        }
+        .tabla tr:nth-child(even) {
+            background: #f8f4ff;
+        }
+        .boton {
+            display: inline-block;
+            background: #6B3FA0;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin: 5px;
+        }
+        .boton-verde {
+            background: #4caf50;
+        }
+        .boton-naranja {
+            background: #ff9800;
+        }
+        .boton-azul {
+            background: #2196f3;
+        }
+        .calendario {
+            border: 2px solid #6B3FA0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .calendario-header {
+            background: #6B3FA0;
+            color: white;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .calendario-header span {
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .calendario-fila {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            padding: 8px 10px;
+        }
+        .calendario-fila span {
+            flex: 1;
+            text-align: center;
+        }
+        .estado-pagada {
+            background: #4caf50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .estado-pendiente {
+            background: #9e9e9e;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .estado-vencida {
+            background: #f44336;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .estado-parcial {
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .diagrama {
+            background: #fafafa;
+            border: 2px dashed #6B3FA0;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .flecha {
+            font-size: 1.5em;
+            color: #6B3FA0;
+            margin: 10px 0;
+        }
+        ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .indice {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .indice ul {
+            list-style: none;
+            margin: 0;
+        }
+        .indice li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .indice a {
+            color: #6B3FA0;
+            text-decoration: none;
+        }
+        .indice a:hover {
+            text-decoration: underline;
+        }
+        @media print {
+            body {
+                background: white;
+            }
+            .seccion {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="portada">
+        <h1>Manual de Gestión de Cuotas</h1>
+        <p>Instituto Superior Laplace</p>
+        <p style="margin-top: 20px; font-size: 0.9em;">Guía paso a paso para administradores</p>
+    </div>
+
+    <div class="indice">
+        <h2 style="border: none; margin-top: 0;">Índice</h2>
+        <ul>
+            <li><a href="#estructura">1. Estructura de las Cuotas</a></li>
+            <li><a href="#generar">2. Cómo Generar Cuotas</a></li>
+            <li><a href="#pagos">3. Cómo Registrar Pagos</a></li>
+            <li><a href="#saldo">4. Saldo a Favor (Pagos Adelantados)</a></li>
+            <li><a href="#vencimientos">5. Vencimientos y Recargos</a></li>
+            <li><a href="#ajustar">6. Cómo Ajustar Montos</a></li>
+            <li><a href="#calendario">7. El Calendario Visual</a></li>
+            <li><a href="#reportes">8. Reportes y PDF</a></li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 1: ESTRUCTURA -->
+    <div class="seccion" id="estructura">
+        <h2>1. Estructura de las Cuotas</h2>
+
+        <h3>Tipos de Cuotas</h3>
+        <p>El sistema maneja dos tipos de cuotas:</p>
+
+        <table class="tabla">
+            <tr>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>¿Quién la paga?</th>
+            </tr>
+            <tr>
+                <td><strong>Inscripción</strong></td>
+                <td>Se paga una sola vez al ingresar</td>
+                <td>Solo alumnos de 1° Año</td>
+            </tr>
+            <tr>
+                <td><strong>Cuota Bimestral</strong></td>
+                <td>Se paga cada 2 meses</td>
+                <td>Todos los alumnos</td>
+            </tr>
+        </table>
+
+        <h3>Cuotas por Año</h3>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">PRIMER AÑO (5 cuotas + inscripción)</div>
+            <table class="tabla">
+                <tr>
+                    <th>Cuota</th>
+                    <th>Meses</th>
+                    <th>Vence</th>
+                </tr>
+                <tr><td>Inscripción</td><td>-</td><td>Marzo</td></tr>
+                <tr><td>Cuota 1</td><td>Marzo-Abril</td><td>1 de Marzo</td></tr>
+                <tr><td>Cuota 2</td><td>Mayo-Junio</td><td>1 de Mayo</td></tr>
+                <tr><td>Cuota 3</td><td>Julio-Agosto</td><td>1 de Julio</td></tr>
+                <tr><td>Cuota 4</td><td>Sept-Octubre</td><td>1 de Septiembre</td></tr>
+                <tr><td>Cuota 5</td><td>Nov-Diciembre</td><td>1 de Noviembre</td></tr>
+            </table>
+        </div>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">SEGUNDO Y TERCER AÑO (6 cuotas)</div>
+            <table class="tabla">
+                <tr>
+                    <th>Cuota</th>
+                    <th>Meses</th>
+                    <th>Vence</th>
+                </tr>
+                <tr><td>Cuota 1</td><td>Enero-Febrero</td><td>1 de Enero</td></tr>
+                <tr><td>Cuota 2</td><td>Marzo-Abril</td><td>1 de Marzo</td></tr>
+                <tr><td>Cuota 3</td><td>Mayo-Junio</td><td>1 de Mayo</td></tr>
+                <tr><td>Cuota 4</td><td>Julio-Agosto</td><td>1 de Julio</td></tr>
+                <tr><td>Cuota 5</td><td>Sept-Octubre</td><td>1 de Septiembre</td></tr>
+                <tr><td>Cuota 6</td><td>Nov-Diciembre</td><td>1 de Noviembre</td></tr>
+            </table>
+        </div>
+
+        <div class="alerta">
+            <div class="alerta-titulo">¿Por qué 1° Año empieza en Marzo?</div>
+            <p>Porque los alumnos de primer año se inscriben en Marzo. Los de 2° y 3° año ya están cursando desde Enero.</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: GENERAR CUOTAS -->
+    <div class="seccion" id="generar">
+        <h2>2. Cómo Generar Cuotas</h2>
+
+        <h3>Paso a Paso: Generar Inscripción (solo 1° Año)</h3>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Ir a Gestión de Cuotas</strong>
+            <p>Desde el menú principal, toca "Gestión de Cuotas"</p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Abrir panel "Generar Cuotas"</strong>
+            <p>Toca el panel morado que dice "Generar Cuotas" para expandirlo</p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Seleccionar "Inscripción 1° Año"</strong>
+            <p>Toca el botón morado <span class="boton">Inscripción 1° Año</span></p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">4</span>
+            <strong>Completar los datos</strong>
+            <ul>
+                <li>Selecciona el alumno de la lista</li>
+                <li>Ingresa el monto de inscripción (ej: $20,000)</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">5</span>
+            <strong>Tocar "Generar"</strong>
+            <p>Se creará la cuota de inscripción para ese alumno</p>
+        </div>
+
+        <div class="alerta">
+            <div class="alerta-titulo">Importante</div>
+            <p>La inscripción solo se puede generar UNA VEZ por alumno. Si intentas generarla de nuevo, el sistema te avisará que ya existe.</p>
+        </div>
+
+        <h3>Paso a Paso: Generar Cuotas Bimestrales</h3>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Ir a "Generar Cuotas"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Seleccionar "Cuotas Bimestrales"</strong>
+            <p>Toca el botón azul <span class="boton boton-azul">Cuotas Bimestrales</span></p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Completar los datos</strong>
+            <ul>
+                <li><strong>Alumno:</strong> Selecciona de la lista</li>
+                <li><strong>Monto por bimestre:</strong> Ej: $15,000</li>
+                <li><strong>Año:</strong> 2026</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">4</span>
+            <strong>Tocar "Generar"</strong>
+            <p>Se crearán todas las cuotas del año automáticamente</p>
+        </div>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">Ejemplo: Alumno de 1° Año</div>
+            <p>Si generas cuotas bimestrales de $15,000 para un alumno de 1° Año:</p>
+            <ul>
+                <li>Se crean 5 cuotas (Marzo a Noviembre)</li>
+                <li>Total: $15,000 x 5 = <strong>$75,000</strong></li>
+            </ul>
+        </div>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">Ejemplo: Alumno de 2° o 3° Año</div>
+            <p>Si generas cuotas bimestrales de $15,000 para un alumno de 2° o 3° Año:</p>
+            <ul>
+                <li>Se crean 6 cuotas (Enero a Noviembre)</li>
+                <li>Total: $15,000 x 6 = <strong>$90,000</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: PAGOS -->
+    <div class="seccion" id="pagos">
+        <h2>3. Cómo Registrar Pagos</h2>
+
+        <h3>Desde el Panel de Gestión de Pagos</h3>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Tocar "Ingresar Pago"</strong>
+            <p>En el panel verde de "Gestión de Pagos", toca <span class="boton boton-verde">Ingresar Pago</span></p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Seleccionar el alumno</strong>
+            <p>Busca y selecciona el alumno. Verás:</p>
+            <ul>
+                <li>Su deuda total</li>
+                <li>Su saldo a favor (si tiene)</li>
+                <li>Las cuotas pendientes</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Completar los datos del pago</strong>
+            <ul>
+                <li><strong>N° Recibo:</strong> El número del recibo que le das</li>
+                <li><strong>Importe:</strong> Cuánto paga</li>
+                <li><strong>Detalle:</strong> Qué cuotas abona (ej: "Cuota Marzo 2026")</li>
+                <li><strong>Método:</strong> Efectivo o Transferencia</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">4</span>
+            <strong>Tocar "Registrar"</strong>
+            <p>El sistema aplicará el pago automáticamente a las cuotas pendientes, empezando por las más antiguas.</p>
+        </div>
+
+        <h3>Desde el Calendario Visual</h3>
+        <p>También puedes registrar pagos tocando directamente una celda del calendario:</p>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Busca la celda de la cuota</strong>
+            <p>En el calendario, cada celda representa una cuota</p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Toca la celda</strong>
+            <p>Se abrirá un menú con opciones:</p>
+            <ul>
+                <li><span class="boton boton-verde">Pago Total</span> - Paga la cuota completa</li>
+                <li><span class="boton boton-naranja">Pago Parcial</span> - Paga una parte</li>
+            </ul>
+        </div>
+
+        <div class="importante">
+            <div class="importante-titulo">Los pagos se aplican en orden</div>
+            <p>Si un alumno tiene varias cuotas pendientes y paga, el dinero se aplica primero a la cuota más antigua (la que venció antes).</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 4: SALDO A FAVOR -->
+    <div class="seccion" id="saldo">
+        <h2>4. Saldo a Favor (Pagos Adelantados)</h2>
+
+        <h3>¿Qué es el saldo a favor?</h3>
+        <p>Es cuando un alumno paga MÁS de lo que debe. El dinero extra queda guardado para la próxima cuota.</p>
+
+        <div class="diagrama">
+            <strong>El alumno paga $180</strong>
+            <div class="flecha">↓</div>
+            <strong>Cuota de Febrero = $100</strong>
+            <div class="flecha">↓</div>
+            <strong>Se paga Febrero completo</strong>
+            <div class="flecha">↓</div>
+            <strong>Sobran $80 → SALDO A FAVOR</strong>
+        </div>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">Ejemplo Completo: García Bruno</div>
+
+            <p><strong>Situación inicial:</strong></p>
+            <ul>
+                <li>Cuota Febrero: $100</li>
+                <li>Cuota Marzo: $100</li>
+            </ul>
+
+            <p><strong>12 de Noviembre - Primer pago:</strong></p>
+            <ul>
+                <li>García Bruno paga: $180</li>
+                <li>Se aplica a Febrero: $100 ✓</li>
+                <li>Sobran: $80 → Saldo a favor</li>
+            </ul>
+
+            <p><strong>30 de Enero - Segundo pago:</strong></p>
+            <ul>
+                <li>García Bruno paga: $20</li>
+                <li>Tenía saldo a favor: $80</li>
+                <li>Total disponible: $20 + $80 = $100</li>
+                <li>Se aplica a Marzo: $100 ✓</li>
+                <li>Saldo a favor final: $0</li>
+            </ul>
+        </div>
+
+        <div class="alerta">
+            <div class="alerta-titulo">El saldo a favor se usa automáticamente</div>
+            <p>Cuando registras un pago, el sistema automáticamente suma el saldo a favor que tenga el alumno. No tienes que hacer nada especial.</p>
+        </div>
+
+        <h3>¿Dónde veo el saldo a favor?</h3>
+        <p>Cuando seleccionas un alumno para registrar un pago, verás:</p>
+        <ul>
+            <li><strong>Deuda total:</strong> Lo que debe</li>
+            <li><strong>Saldo a favor:</strong> Lo que tiene adelantado (en azul)</li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 5: VENCIMIENTOS -->
+    <div class="seccion" id="vencimientos">
+        <h2>5. Vencimientos y Recargos</h2>
+
+        <h3>Sistema de Vencimientos Escalonados</h3>
+        <p>Las cuotas tienen diferentes precios según el día del mes en que se pagan:</p>
+
+        <table class="tabla">
+            <tr>
+                <th>Rango</th>
+                <th>Días del mes</th>
+                <th>Estado</th>
+                <th>Recargo</th>
+            </tr>
+            <tr>
+                <td><strong>A</strong></td>
+                <td>Del 1 al 10</td>
+                <td>En término</td>
+                <td>Sin recargo</td>
+            </tr>
+            <tr>
+                <td><strong>B</strong></td>
+                <td>Del 11 al 20</td>
+                <td>Con recargo</td>
+                <td>+5% (configurable)</td>
+            </tr>
+            <tr>
+                <td><strong>C</strong></td>
+                <td>Del 21 al 31</td>
+                <td>Vencida</td>
+                <td>+10% (configurable)</td>
+            </tr>
+        </table>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">Ejemplo con cuota de $15,000</div>
+            <table class="tabla">
+                <tr>
+                    <th>Si paga...</th>
+                    <th>Rango</th>
+                    <th>Monto a pagar</th>
+                </tr>
+                <tr>
+                    <td>Del 1 al 10</td>
+                    <td>A</td>
+                    <td>$15,000</td>
+                </tr>
+                <tr>
+                    <td>Del 11 al 20</td>
+                    <td>B</td>
+                    <td>$15,750 (+5%)</td>
+                </tr>
+                <tr>
+                    <td>Del 21 al 31</td>
+                    <td>C</td>
+                    <td>$16,500 (+10%)</td>
+                </tr>
+            </table>
+        </div>
+
+        <h3>Cómo Configurar los Vencimientos</h3>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Ir a "Generar Cuotas"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Tocar "Vencimientos"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Configurar los rangos</strong>
+            <ul>
+                <li>Ajusta hasta qué día es el Rango A (ej: día 10)</li>
+                <li>Ajusta hasta qué día es el Rango B (ej: día 20)</li>
+                <li>El Rango C es automático (del día siguiente al 31)</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">4</span>
+            <strong>Configurar los recargos</strong>
+            <ul>
+                <li>Elige si el recargo es en % o en pesos</li>
+                <li>Ingresa el recargo para Rango B</li>
+                <li>Ingresa el recargo para Rango C</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">5</span>
+            <strong>Tocar "Guardar"</strong>
+        </div>
+
+        <div class="importante">
+            <div class="importante-titulo">Las cuotas vencidas también aumentan</div>
+            <p>Cuando suben las cuotas (cada 2 meses), las cuotas que están vencidas también suben al nuevo valor. No se quedan en el precio viejo.</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 6: AJUSTAR MONTOS -->
+    <div class="seccion" id="ajustar">
+        <h2>6. Cómo Ajustar Montos</h2>
+
+        <h3>¿Cuándo ajustar los montos?</h3>
+        <p>Los montos de las cuotas pueden cambiar cada 2 meses (bimestralmente). Cuando hay un aumento, debes actualizar los montos.</p>
+
+        <h3>Paso a Paso</h3>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>Ir a "Generar Cuotas"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Tocar "Ajustar montos"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Seleccionar el bimestre</strong>
+            <ul>
+                <li>1° Bimestre (Enero-Febrero)</li>
+                <li>2° Bimestre (Marzo-Abril)</li>
+                <li>3° Bimestre (Mayo-Junio)</li>
+                <li>4° Bimestre (Julio-Agosto)</li>
+                <li>5° Bimestre (Septiembre-Octubre)</li>
+                <li>6° Bimestre (Noviembre-Diciembre)</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">4</span>
+            <strong>Ingresar el nuevo monto</strong>
+            <p>Ej: Si antes era $15,000 y ahora es $17,000</p>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">5</span>
+            <strong>Elegir qué cuotas actualizar</strong>
+            <ul>
+                <li>✓ "Solo cuotas no pagadas" - Las que ya están pagadas no cambian</li>
+                <li>✓ "Actualizar también vencidas" - Las vencidas también suben</li>
+            </ul>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">6</span>
+            <strong>Tocar "Actualizar"</strong>
+        </div>
+
+        <div class="ejemplo">
+            <div class="ejemplo-titulo">Ejemplo de Aumento</div>
+            <p><strong>Situación:</strong> En Mayo hay aumento de $15,000 a $17,000</p>
+            <p><strong>Cuotas afectadas:</strong></p>
+            <ul>
+                <li>Cuota Mayo-Junio: Sube a $17,000</li>
+                <li>Cuota Marzo-Abril (si está vencida y no pagada): También sube a $17,000</li>
+                <li>Cuota Enero-Febrero (ya pagada): No cambia</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 7: CALENDARIO -->
+    <div class="seccion" id="calendario">
+        <h2>7. El Calendario Visual</h2>
+
+        <h3>¿Qué muestra el calendario?</h3>
+        <p>Es una tabla donde puedes ver de un vistazo el estado de todos los alumnos:</p>
+
+        <div class="calendario">
+            <div class="calendario-header">
+                <span style="flex: 2;">ALUMNO</span>
+                <span>INSC</span>
+                <span>MAR</span>
+                <span>MAY</span>
+                <span>JUL</span>
+                <span>SEP</span>
+                <span>NOV</span>
+                <span>DEUDA</span>
+            </div>
+            <div class="calendario-fila">
+                <span style="flex: 2; text-align: left;">López, Federico</span>
+                <span><span class="estado-pagada">✓</span></span>
+                <span><span class="estado-pagada">✓</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span>$60,000</span>
+            </div>
+            <div class="calendario-fila">
+                <span style="flex: 2; text-align: left;">Martínez, Gabriela</span>
+                <span><span class="estado-pagada">✓</span></span>
+                <span><span class="estado-parcial">◐</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span>$67,500</span>
+            </div>
+            <div class="calendario-fila">
+                <span style="flex: 2; text-align: left;">Pérez, Hernán</span>
+                <span><span class="estado-vencida">!</span></span>
+                <span><span class="estado-vencida">!</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span><span class="estado-pendiente">○</span></span>
+                <span>$95,000</span>
+            </div>
+        </div>
+
+        <h3>Significado de los símbolos</h3>
+        <table class="tabla">
+            <tr>
+                <th>Símbolo</th>
+                <th>Color</th>
+                <th>Significa</th>
+            </tr>
+            <tr>
+                <td><span class="estado-pagada">✓</span></td>
+                <td>Verde</td>
+                <td>Cuota PAGADA</td>
+            </tr>
+            <tr>
+                <td><span class="estado-parcial">◐</span></td>
+                <td>Naranja</td>
+                <td>Pago PARCIAL (pagó algo pero no todo)</td>
+            </tr>
+            <tr>
+                <td><span class="estado-pendiente">○</span></td>
+                <td>Gris</td>
+                <td>PENDIENTE (aún no vence)</td>
+            </tr>
+            <tr>
+                <td><span class="estado-vencida">!</span></td>
+                <td>Rojo</td>
+                <td>VENCIDA (pasó la fecha y no pagó)</td>
+            </tr>
+        </table>
+
+        <h3>Cómo usar el calendario</h3>
+        <ul>
+            <li><strong>Tocar una celda:</strong> Abre opciones para registrar pago</li>
+            <li><strong>Tocar el nombre del alumno:</strong> Genera el PDF con su detalle de cuotas</li>
+            <li><strong>Filtrar por año:</strong> Usa los chips arriba (1°A, 1°B, 2°, 3°)</li>
+            <li><strong>Filtrar por estado:</strong> Usa los círculos de colores</li>
+            <li><strong>Buscar alumno:</strong> Escribe en el buscador</li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 8: REPORTES -->
+    <div class="seccion" id="reportes">
+        <h2>8. Reportes y PDF</h2>
+
+        <h3>Detalle de Cuotas por Alumno (PDF)</h3>
+        <p>Genera un PDF con todas las cuotas de un alumno, útil para darle al alumno o tutor.</p>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>En "Gestión de Pagos", tocar "Detalle Alumno"</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">2</span>
+            <strong>Seleccionar el alumno</strong>
+        </div>
+
+        <div class="paso">
+            <span class="paso-numero">3</span>
+            <strong>Tocar "Generar PDF"</strong>
+        </div>
+
+        <p>El PDF incluye:</p>
+        <ul>
+            <li>Datos del alumno</li>
+            <li>Todas sus cuotas</li>
+            <li>Estado de cada cuota (pagada, pendiente, vencida)</li>
+            <li>Historial de pagos</li>
+            <li>Deuda total</li>
+        </ul>
+
+        <h3>Totales por Mes</h3>
+        <p>Ver cuánto se cobró cada mes del año.</p>
+
+        <div class="paso">
+            <span class="paso-numero">1</span>
+            <strong>En "Gestión de Pagos", tocar "Totales por Mes"</strong>
+        </div>
+
+        <p>Verás un gráfico con:</p>
+        <ul>
+            <li>Total cobrado en el año</li>
+            <li>Desglose mes por mes</li>
+            <li>Barras visuales para comparar</li>
+        </ul>
+    </div>
+
+    <!-- RESUMEN FINAL -->
+    <div class="seccion">
+        <h2>Resumen Rápido</h2>
+
+        <table class="tabla">
+            <tr>
+                <th>Quiero...</th>
+                <th>Debo ir a...</th>
+            </tr>
+            <tr>
+                <td>Generar inscripción de 1° año</td>
+                <td>Generar Cuotas → Inscripción 1° Año</td>
+            </tr>
+            <tr>
+                <td>Generar cuotas bimestrales</td>
+                <td>Generar Cuotas → Cuotas Bimestrales</td>
+            </tr>
+            <tr>
+                <td>Registrar un pago</td>
+                <td>Gestión de Pagos → Ingresar Pago</td>
+            </tr>
+            <tr>
+                <td>Ver el PDF de un alumno</td>
+                <td>Gestión de Pagos → Detalle Alumno</td>
+            </tr>
+            <tr>
+                <td>Ver cuánto se cobró por mes</td>
+                <td>Gestión de Pagos → Totales por Mes</td>
+            </tr>
+            <tr>
+                <td>Subir los precios de las cuotas</td>
+                <td>Generar Cuotas → Ajustar montos</td>
+            </tr>
+            <tr>
+                <td>Configurar recargos por vencimiento</td>
+                <td>Generar Cuotas → Vencimientos</td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="text-align: center; padding: 30px; color: #666;">
+        <p>Instituto Superior Laplace</p>
+        <p>Manual de Gestión de Cuotas v1.0</p>
+        <p>2026</p>
+    </div>
+
+</body>
+</html>
