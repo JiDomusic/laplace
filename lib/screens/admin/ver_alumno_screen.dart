@@ -188,8 +188,11 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                           if (_alumno!.observacionesTitulo != null && _alumno!.observacionesTitulo!.isNotEmpty)
                             _buildInfo('Observaciones Titulo', _alumno!.observacionesTitulo!),
                         ]),
-                      const SizedBox(height: 24),
-                      _buildCambiarEstado(),
+                      // Solo mostrar cambiar estado si NO está aprobado
+                      if (_alumno!.estado != 'aprobado') ...[
+                        const SizedBox(height: 24),
+                        _buildCambiarEstado(),
+                      ],
                     ],
                   ),
                 ),

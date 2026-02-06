@@ -15,7 +15,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   final SupabaseService _db = SupabaseService.instance;
   List<Alumno> _alumnos = [];
   bool _isLoading = true;
-  String _filtroEstado = '';
+  String _filtroEstado = 'pendiente'; // Por defecto muestra pendientes
   String _busqueda = '';
   late TabController _tabController;
 
@@ -105,9 +105,20 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    final pendientesCount = _alumnos.where((a) => a.estado == 'pendiente').length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inscripciones'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Inscripciones Pendientes', style: TextStyle(fontSize: 18)),
+            Text(
+              '$pendientesCount por revisar',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -156,6 +167,27 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Banner informativo
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: AppTheme.warningColor.withOpacity(0.15),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: AppTheme.warningColor, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Revisa la documentación y aprueba o rechaza las inscripciones',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Barra de búsqueda y filtros
                 Container(
                   padding: const EdgeInsets.all(16),
