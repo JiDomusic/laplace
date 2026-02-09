@@ -15,7 +15,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   final SupabaseService _db = SupabaseService.instance;
   List<Alumno> _alumnos = [];
   bool _isLoading = true;
-  String _filtroEstado = 'pendiente'; // Por defecto muestra pendientes
+  String _filtroEstado = ''; // Cargar todos
   String _busqueda = '';
   late TabController _tabController;
 
@@ -105,16 +105,14 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    final pendientesCount = _alumnos.where((a) => a.estado == 'pendiente').length;
-
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Inscripciones Pendientes', style: TextStyle(fontSize: 18)),
+            const Text('Alumnos Inscriptos', style: TextStyle(fontSize: 18)),
             Text(
-              '$pendientesCount por revisar',
+              '${_alumnos.length} alumnos',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
@@ -167,28 +165,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Banner informativo
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  color: AppTheme.warningColor.withOpacity(0.15),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: AppTheme.warningColor, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Revisa la documentación y aprueba o rechaza las inscripciones',
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Barra de búsqueda y filtros
+                // Barra de búsqueda
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -197,33 +174,18 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
                       bottom: BorderSide(color: Colors.grey.shade300),
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Buscar por nombre, DNI o código...',
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        onChanged: (v) => setState(() => _busqueda = v),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nombre, DNI o código...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFiltroChip('Pendientes', 'pendiente'),
-                            _buildFiltroChip('Aprobados', 'aprobado'),
-                            _buildFiltroChip('Rechazados', 'rechazado'),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
+                    onChanged: (v) => setState(() => _busqueda = v),
                   ),
                 ),
 
@@ -362,34 +324,6 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     );
   }
 
-  Widget _buildFiltroChip(String label, String estado) {
-    final isSelected = _filtroEstado == estado;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey.shade700,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() => _filtroEstado = selected ? estado : '');
-          _loadAlumnos();
-        },
-        selectedColor: AppTheme.accentColor,
-        backgroundColor: Colors.white,
-        checkmarkColor: Colors.white,
-        side: BorderSide(
-          color: isSelected ? AppTheme.accentColor : Colors.grey.shade300,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-    );
-  }
-
   Widget _buildAlumnoCard(Alumno alumno, {Color? divisionColor}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -485,82 +419,19 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
               ),
 
               // Acciones
-              Column(
-                children: [
-                  _buildEstadoBadge(alumno.estado),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      InkWell(
-                        onTap: () => _abrirWhatsApp(alumno),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.whatsappColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.chat, color: AppTheme.whatsappColor, size: 20),
-                        ),
-                      ),
-                      if (alumno.estado == 'pendiente') ...[
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: () => _aprobarInscripcion(alumno),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.successColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.check, color: AppTheme.successColor, size: 20),
-                          ),
-                        ),
-                      ],
-                    ],
+              InkWell(
+                onTap: () => _abrirWhatsApp(alumno),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.whatsappColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
+                  child: const Icon(Icons.chat, color: AppTheme.whatsappColor, size: 20),
+                ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEstadoBadge(String estado) {
-    Color color;
-    String texto;
-    switch (estado) {
-      case 'pendiente':
-        color = AppTheme.warningColor;
-        texto = 'Pendiente';
-        break;
-      case 'aprobado':
-        color = AppTheme.successColor;
-        texto = 'Aprobado';
-        break;
-      case 'rechazado':
-        color = AppTheme.dangerColor;
-        texto = 'Rechazado';
-        break;
-      default:
-        color = Colors.grey;
-        texto = estado;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        texto,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
         ),
       ),
     );
@@ -574,34 +445,4 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     }
   }
 
-  Future<void> _aprobarInscripcion(Alumno alumno) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Aprobar inscripción'),
-        content: Text('¿Aprobar la inscripción de ${alumno.nombreCompleto}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
-            child: const Text('Aprobar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await _db.updateEstadoAlumno(alumno.id!, 'aprobado');
-      _loadAlumnos();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Inscripción aprobada')),
-        );
-      }
-    }
-  }
 }

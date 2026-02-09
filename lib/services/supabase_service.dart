@@ -108,21 +108,17 @@ class SupabaseService {
   }
 
   Future<Map<String, int>> getEstadisticas() async {
-    final alumnos = await client.from('alumnos').select('estado');
+    final alumnos = await client.from('alumnos').select('id');
     final cuotas = await client
         .from('cuotas')
         .select('estado')
         .or('estado.eq.pendiente,estado.eq.vencida');
 
     int total = (alumnos as List).length;
-    int pendientes = alumnos.where((a) => a['estado'] == 'pendiente').length;
-    int aprobados = alumnos.where((a) => a['estado'] == 'aprobado').length;
     int cuotasPendientes = (cuotas as List).length;
 
     return {
       'total': total,
-      'pendientes': pendientes,
-      'aprobados': aprobados,
       'cuotas_pendientes': cuotasPendientes,
     };
   }
@@ -175,7 +171,7 @@ class SupabaseService {
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
       division: map['division'],
-      estado: map['estado'] ?? 'pendiente',
+      estado: map['estado'] ?? 'aprobado',
       observaciones: map['observaciones'],
       codigoInscripcion: map['codigo_inscripcion'],
       fechaInscripcion: map['fecha_inscripcion'] != null
@@ -689,7 +685,7 @@ class SupabaseService {
           ? DateTime.parse(map['fecha_vencimiento'])
           : DateTime.now(),
       fechaPago: map['fecha_pago'] != null ? DateTime.parse(map['fecha_pago']) : null,
-      estado: map['estado'] ?? 'pendiente',
+      estado: map['estado'] ?? 'aprobado',
       metodoPago: map['metodo_pago'],
       observaciones: map['observaciones'],
       numRecibo: map['num_recibo'],

@@ -156,7 +156,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 icon: Icons.receipt_long,
                 label: 'Cuotas e Inscripciones',
                 color: AppTheme.accentColor,
-                badge: _stats['pendientes'],
+                badge: _stats['total'],
               ),
             ),
             const SizedBox(width: 12),
@@ -258,10 +258,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         children: [
           // Acciones principales directas
           _buildAccionGrande(
-            titulo: 'Inscripciones Pendientes',
-            subtitulo: '${_stats['pendientes'] ?? 0} por revisar · Aprobar documentación',
-            icon: Icons.pending_actions,
-            color: AppTheme.warningColor,
+            titulo: 'Alumnos Inscriptos',
+            subtitulo: '${_stats['total'] ?? 0} alumnos registrados',
+            icon: Icons.people,
+            color: AppTheme.accentColor,
             onTap: () => Navigator.pushNamed(context, '/admin/inscripciones'),
           ),
           const SizedBox(height: 12),
@@ -343,8 +343,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   List<Alumno> _getAlumnosPorDivision(String nivel, String? division) {
     return _alumnos.where((a) {
-      // Solo alumnos aprobados
-      if (a.estado != 'aprobado') return false;
       if (a.nivelInscripcion != nivel) return false;
       if (division != null) {
         return a.division == division;
@@ -436,40 +434,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'DNI: ${alumno.dni}',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildEstadoBadge(alumno.estado),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right, color: Colors.grey),
-        ],
-      ),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: () async {
         await Navigator.pushNamed(context, '/admin/alumno/${alumno.id}');
         _loadData(); // Recargar al volver
       },
-    );
-  }
-
-  Widget _buildEstadoBadge(String estado) {
-    Color color;
-    switch (estado) {
-      case 'aprobado':
-        color = AppTheme.successColor;
-        break;
-      case 'pendiente':
-        color = AppTheme.warningColor;
-        break;
-      default:
-        color = Colors.grey;
-    }
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
     );
   }
 

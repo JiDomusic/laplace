@@ -188,11 +188,6 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                           if (_alumno!.observacionesTitulo != null && _alumno!.observacionesTitulo!.isNotEmpty)
                             _buildInfo('Observaciones Titulo', _alumno!.observacionesTitulo!),
                         ]),
-                      // Solo mostrar cambiar estado si NO está aprobado
-                      if (_alumno!.estado != 'aprobado') ...[
-                        const SizedBox(height: 24),
-                        _buildCambiarEstado(),
-                      ],
                     ],
                   ),
                 ),
@@ -1088,56 +1083,6 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
           ),
         );
       }
-    }
-  }
-
-  Widget _buildCambiarEstado() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Cambiar Estado',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildEstadoButton('pendiente', 'Pendiente', AppTheme.warningColor),
-                _buildEstadoButton('aprobado', 'Aprobar', AppTheme.successColor),
-                _buildEstadoButton('rechazado', 'Rechazar', AppTheme.dangerColor),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEstadoButton(String estado, String label, Color color) {
-    final isSelected = _alumno?.estado == estado;
-    return ElevatedButton(
-      onPressed: isSelected ? null : () => _cambiarEstado(estado),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? color : color.withOpacity(0.1),
-        foregroundColor: isSelected ? Colors.white : color,
-        elevation: isSelected ? 2 : 0,
-      ),
-      child: Text(label),
-    );
-  }
-
-  Future<void> _cambiarEstado(String estado) async {
-    await _db.updateEstadoAlumno(_alumno!.id!, estado);
-    _loadData();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Estado actualizado a $estado')),
-      );
     }
   }
 

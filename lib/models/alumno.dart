@@ -82,7 +82,7 @@ class Alumno {
     this.fotoAlumno,
     required this.nivelInscripcion,
     this.division,
-    this.estado = 'pendiente',
+    this.estado = 'aprobado',
     this.observaciones,
     this.codigoInscripcion,
     this.fechaInscripcion,
@@ -160,7 +160,7 @@ class Alumno {
       fotoAlumno: map['foto_alumno'],
       nivelInscripcion: map['nivel_inscripcion'],
       division: map['division'],
-      estado: map['estado'] ?? 'pendiente',
+      estado: map['estado'] ?? 'aprobado',
       observaciones: map['observaciones'],
       codigoInscripcion: map['codigo_inscripcion'],
       fechaInscripcion: map['fecha_inscripcion'] != null
