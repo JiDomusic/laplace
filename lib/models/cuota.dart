@@ -15,6 +15,8 @@ class Cuota {
   final String? observaciones;
   final String? numRecibo;
   final String? detallePago;
+  final int diaFinRangoA;
+  final int diaFinRangoB;
 
   Cuota({
     this.id,
@@ -24,6 +26,8 @@ class Cuota {
     required this.monto1erVto,
     required this.monto2doVto,
     this.montoPagado = 0,
+    this.diaFinRangoA = 10,
+    this.diaFinRangoB = 20,
     required this.mes,
     required this.anio,
     required this.fechaVencimiento,
@@ -38,6 +42,8 @@ class Cuota {
   /// Obtiene el monto que corresponde según el día actual
   int get montoActual {
     final hoy = DateTime.now();
+    final finA = diaFinRangoA;
+    final finB = diaFinRangoB;
 
     // Si ya está pagada, devolver el monto al día (base)
     if (estaPagada) return montoAlDia;
@@ -49,9 +55,9 @@ class Cuota {
 
     // Si estamos en el mes de vencimiento, calcular según día
     if (fechaVencimiento.year == hoy.year && fechaVencimiento.month == hoy.month) {
-      if (hoy.day <= 10) {
+      if (hoy.day <= finA) {
         return montoAlDia;
-      } else if (hoy.day <= 20) {
+      } else if (hoy.day <= finB) {
         return monto1erVto;
       } else {
         return monto2doVto;
@@ -100,6 +106,8 @@ class Cuota {
       'monto_1er_vto': monto1erVto,
       'monto_2do_vto': monto2doVto,
       'monto_pagado': montoPagado,
+      'dia_fin_rango_a': diaFinRangoA,
+      'dia_fin_rango_b': diaFinRangoB,
       'mes': mes,
       'anio': anio,
       'fecha_vencimiento': fechaVencimiento.toIso8601String(),
@@ -118,6 +126,8 @@ class Cuota {
     final montoAlDia = (map['monto_al_dia'] as num?)?.toInt() ?? montoAnterior ?? 0;
     final monto1erVto = (map['monto_1er_vto'] as num?)?.toInt() ?? montoAlDia;
     final monto2doVto = (map['monto_2do_vto'] as num?)?.toInt() ?? monto1erVto;
+    final diaFinRangoA = (map['dia_fin_rango_a'] as num?)?.toInt() ?? 10;
+    final diaFinRangoB = (map['dia_fin_rango_b'] as num?)?.toInt() ?? 20;
 
     return Cuota(
       id: map['id']?.toString(),
@@ -127,6 +137,8 @@ class Cuota {
       monto1erVto: monto1erVto,
       monto2doVto: monto2doVto,
       montoPagado: (map['monto_pagado'] as num?)?.toInt() ?? 0,
+      diaFinRangoA: diaFinRangoA,
+      diaFinRangoB: diaFinRangoB,
       mes: map['mes'] ?? 1,
       anio: map['anio'] ?? DateTime.now().year,
       fechaVencimiento: map['fecha_vencimiento'] != null
@@ -158,6 +170,8 @@ class Cuota {
     String? observaciones,
     String? numRecibo,
     String? detallePago,
+    int? diaFinRangoA,
+    int? diaFinRangoB,
   }) {
     return Cuota(
       id: id ?? this.id,
@@ -167,6 +181,8 @@ class Cuota {
       monto1erVto: monto1erVto ?? this.monto1erVto,
       monto2doVto: monto2doVto ?? this.monto2doVto,
       montoPagado: montoPagado ?? this.montoPagado,
+      diaFinRangoA: diaFinRangoA ?? this.diaFinRangoA,
+      diaFinRangoB: diaFinRangoB ?? this.diaFinRangoB,
       mes: mes ?? this.mes,
       anio: anio ?? this.anio,
       fechaVencimiento: fechaVencimiento ?? this.fechaVencimiento,

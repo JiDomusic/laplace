@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import '../../models/alumno.dart';
 import '../../models/cuota.dart';
-import '../../models/config_vencimientos.dart';
+import '../../models/config_cuotas_periodo.dart';
 import '../../services/supabase_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/pdf_service.dart';
@@ -24,6 +24,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
   String _busqueda = '';
   String _filtroEstado = '';
   String _filtroNivel = '';
+  String _filtroDivision = '';
+  int _filtroAnio = DateTime.now().year;
   List<Alumno> _alumnosDisponibles = [];
   bool _vistaCalendario = true; // Vista calendario por defecto
   final Map<String, bool> _gruposExpandidos = {}; // Control de grupos plegables
@@ -54,7 +56,12 @@ class _CuotasScreenState extends State<CuotasScreen> {
     setState(() => _isLoading = true);
     try {
       final cuotas = await _db.getAllCuotas();
-      for (final cuota in cuotas) {
+      final diasConfigCache = <String, Map<String, int>>{};
+
+      // Filtrar por año si corresponde
+      final cuotasFiltradas = cuotas.where((c) => c.anio == _filtroAnio).toList();
+
+      for (final cuota in cuotasFiltradas) {
         if (!_alumnos.containsKey(cuota.alumnoId)) {
           final alumno = await _db.getAlumnoById(cuota.alumnoId);
           if (alumno != null) {
@@ -62,10 +69,33 @@ class _CuotasScreenState extends State<CuotasScreen> {
             _alumnos[cuota.alumnoId] = signed != null ? alumno.copyWith(fotoAlumno: signed) : alumno;
           }
         }
+
+        // Aplicar días de rango desde config (si existe)
+        final alumno = _alumnos[cuota.alumnoId];
+        if (alumno != null) {
+          final cacheKey = '${alumno.nivelInscripcion}_${cuota.mes}_${cuota.anio}';
+          if (!diasConfigCache.containsKey(cacheKey)) {
+            final config = await _db.getConfigCuotasPeriodo(
+              nivel: alumno.nivelInscripcion,
+              mes: cuota.mes,
+              anio: cuota.anio,
+            );
+            diasConfigCache[cacheKey] = {
+              'a': config?.diaFinRangoA ?? 10,
+              'b': config?.diaFinRangoB ?? 20,
+            };
+          }
+          final dias = diasConfigCache[cacheKey]!;
+          final idx = cuotasFiltradas.indexOf(cuota);
+          cuotasFiltradas[idx] = cuota.copyWith(
+            diaFinRangoA: dias['a'],
+            diaFinRangoB: dias['b'],
+          );
+        }
       }
       _alumnosDisponibles = await _db.getAllAlumnos();
       setState(() {
-        _cuotas = cuotas;
+        _cuotas = cuotasFiltradas;
         _isLoading = false;
       });
     } catch (e) {
@@ -79,6 +109,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
     if (_filtroEstado.isNotEmpty) {
       resultado = resultado.where((c) => _estadoCuota(c) == _filtroEstado);
     }
+
+    resultado = resultado.where((c) => c.anio == _filtroAnio);
 
     if (_filtroNivel.isNotEmpty) {
       resultado = resultado.where((c) {
@@ -286,43 +318,71 @@ class _CuotasScreenState extends State<CuotasScreen> {
                           ),
                         ],
                       ),
-                    ),
                   ),
+                ),
 
-                  // Leyenda
-                  if (_vistaCalendario)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 4,
-                              children: [
-                                _buildLeyendaItem('✓', AppTheme.successColor, 'Pagada'),
-                                _buildLeyendaItem('◐', Colors.orange, 'Parcial'),
-                                _buildLeyendaItem('○', Colors.grey.shade500, 'Pendiente'),
-                                _buildLeyendaItem('!', AppTheme.dangerColor, 'Vencida'),
-                              ],
+                // Leyenda
+                if (_vistaCalendario)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text('Año: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                              DropdownButton<int>(
+                                value: _filtroAnio,
+                                items: [
+                                  for (final a in [DateTime.now().year - 1, DateTime.now().year, DateTime.now().year + 1])
+                                    DropdownMenuItem(value: a, child: Text('$a')),
+                                ],
+                                onChanged: (v) {
+                                  if (v == null) return;
+                                  setState(() => _filtroAnio = v);
+                                  _loadCuotas();
+                                },
+                              ),
+                            ],
+                          ),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            children: [
+                              _buildLeyendaItem('✓', AppTheme.successColor, 'Pagada'),
+                              _buildLeyendaItem('◐', Colors.orange, 'Parcial'),
+                              _buildLeyendaItem('○', Colors.grey.shade500, 'Pendiente'),
+                              _buildLeyendaItem('!', AppTheme.dangerColor, 'Vencida'),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _abrirGenerarMensuales,
+                              icon: const Icon(Icons.playlist_add),
+                              label: const Text('Generar/Completar cuotas del año'),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
 
                   // Contenido principal
                   if (_vistaCalendario)
                     _buildVistaCalendario()
                   else
                     _buildVistaLista(),
+                  // Espacio inferior para evitar contenido pegado al borde en scroll
+                  SliverToBoxAdapter(child: SizedBox(height: 80)),
                 ],
               ),
             ),
@@ -448,20 +508,20 @@ class _CuotasScreenState extends State<CuotasScreen> {
                         _buildAccionCard(
                           icon: Icons.calendar_month,
                           color: Colors.blue,
-                          titulo: 'Cuotas Bimestrales',
+                          titulo: 'Cuotas Mensuales',
                           subtitulo: '1° año: Mar-Dic  •  2°/3° año: Ene-Dic',
-                          onTap: _abrirGenerarBimestrales,
+                          onTap: _abrirGenerarMensuales,
                         ),
                         const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
-                              child: _buildAccionMini(
-                                icon: Icons.tune,
-                                label: 'Ajustar montos',
-                                onTap: _abrirAjustarBimestre,
-                              ),
-                            ),
+                          child: _buildAccionMini(
+                            icon: Icons.tune,
+                            label: 'Ajustar montos',
+                            onTap: _abrirAjustarMes,
+                          ),
+                        ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _buildAccionMini(
@@ -739,9 +799,34 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
   Widget _buildGrupoCalendario(String grupo, List<Alumno> alumnos) {
     final esPrimerAnio = grupo.startsWith('1°');
-    final bimestres = esPrimerAnio
-        ? [{'mes': 0, 'label': 'INSC'}, {'mes': 3, 'label': 'Mar'}, {'mes': 5, 'label': 'May'}, {'mes': 7, 'label': 'Jul'}, {'mes': 9, 'label': 'Sep'}, {'mes': 11, 'label': 'Nov'}]
-        : [{'mes': 1, 'label': 'Ene'}, {'mes': 3, 'label': 'Mar'}, {'mes': 5, 'label': 'May'}, {'mes': 7, 'label': 'Jul'}, {'mes': 9, 'label': 'Sep'}, {'mes': 11, 'label': 'Nov'}];
+    final meses = esPrimerAnio
+        ? [
+            {'mes': 0, 'label': 'INSC'},
+            {'mes': 3, 'label': 'Mar'},
+            {'mes': 4, 'label': 'Abr'},
+            {'mes': 5, 'label': 'May'},
+            {'mes': 6, 'label': 'Jun'},
+            {'mes': 7, 'label': 'Jul'},
+            {'mes': 8, 'label': 'Ago'},
+            {'mes': 9, 'label': 'Sep'},
+            {'mes': 10, 'label': 'Oct'},
+            {'mes': 11, 'label': 'Nov'},
+            {'mes': 12, 'label': 'Dic'},
+          ]
+        : [
+            {'mes': 1, 'label': 'Ene'},
+            {'mes': 2, 'label': 'Feb'},
+            {'mes': 3, 'label': 'Mar'},
+            {'mes': 4, 'label': 'Abr'},
+            {'mes': 5, 'label': 'May'},
+            {'mes': 6, 'label': 'Jun'},
+            {'mes': 7, 'label': 'Jul'},
+            {'mes': 8, 'label': 'Ago'},
+            {'mes': 9, 'label': 'Sep'},
+            {'mes': 10, 'label': 'Oct'},
+            {'mes': 11, 'label': 'Nov'},
+            {'mes': 12, 'label': 'Dic'},
+          ];
 
     final expandido = _gruposExpandidos[grupo] ?? false;
 
@@ -775,14 +860,14 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ),
         // Contenido colapsable
         if (expandido) ...[
-          // Header de bimestres
+          // Header de meses
           Container(
             color: Colors.grey.shade100,
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
                 const SizedBox(width: 130, child: Padding(padding: EdgeInsets.only(left: 8), child: Text('ALUMNO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)))),
-                ...bimestres.map((b) => SizedBox(
+                ...meses.map((b) => SizedBox(
                   width: 38,
                   child: Center(child: Text(b['label'] as String, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                 )),
@@ -791,14 +876,14 @@ class _CuotasScreenState extends State<CuotasScreen> {
             ),
           ),
           // Filas de alumnos
-          ...alumnos.map((alumno) => _buildFilaAlumno(alumno, bimestres)),
+          ...alumnos.map((alumno) => _buildFilaAlumno(alumno, meses)),
         ],
         const SizedBox(height: 4),
       ],
     );
   }
 
-  Widget _buildFilaAlumno(Alumno alumno, List<Map<String, dynamic>> bimestres) {
+  Widget _buildFilaAlumno(Alumno alumno, List<Map<String, dynamic>> meses) {
     final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumno.id).toList();
     int deudaTotal = cuotasAlumno.fold(0, (sum, c) => sum + c.deuda);
 
@@ -806,6 +891,34 @@ class _CuotasScreenState extends State<CuotasScreen> {
     if (_filtroEstado.isNotEmpty) {
       final tieneEstado = cuotasAlumno.any((c) => _estadoCuota(c) == _filtroEstado);
       if (!tieneEstado) return const SizedBox.shrink();
+    }
+
+    // Si no hay cuotas en el año seleccionado, mostrar aviso con acción para generarlas
+    if (cuotasAlumno.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          border: Border.all(color: Colors.orange.shade200),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'El alumno ${alumno.nombreCompleto} no tiene cuotas en $_filtroAnio.',
+                style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _generarCuotasParaAlumno(alumno),
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Generar cuotas'),
+            ),
+          ],
+        ),
+      );
     }
 
     return InkWell(
@@ -830,8 +943,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
                 ),
               ),
             ),
-            // Celdas de bimestres
-            ...bimestres.map((b) {
+            // Celdas de meses
+            ...meses.map((b) {
               final mes = b['mes'] as int;
               Cuota? cuota;
               if (mes == 0) {
@@ -858,9 +971,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
     );
   }
 
-  Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
-    Color color;
-    String symbol;
+Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
+  Color color;
+  String symbol;
     if (cuota == null) {
       color = Colors.grey.shade300;
       symbol = '';
@@ -889,10 +1002,40 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ),
         child: Center(child: Text(symbol, style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))),
       ),
-    );
+  );
+}
+
+  String _tituloCuota(Cuota cuota) {
+    if (cuota.mes == 0 || cuota.concepto.toLowerCase().contains('inscripción')) {
+      return 'Inscripción ${cuota.anio}';
+    }
+    return 'Cuota ${Cuota.nombreMes(cuota.mes)} ${cuota.anio}';
   }
 
-  String _filtroDivision = '';
+  Future<void> _generarCuotasParaAlumno(Alumno alumno) async {
+    if (alumno.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El alumno no tiene ID válido'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    try {
+      await _db.generarCuotasDesdeConfig(alumno.id!, _filtroAnio);
+      await _loadCuotas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cuotas generadas con la configuración del año'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudieron generar cuotas: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
 
   void _mostrarOpcionesCuota(Cuota cuota, Alumno alumno) {
     if (cuota.estaPagada) {
@@ -911,7 +1054,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${alumno.nombreCompleto}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(cuota.concepto, style: TextStyle(color: Colors.grey.shade600)),
+            Text(_tituloCuota(cuota), style: TextStyle(color: Colors.grey.shade600)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -958,9 +1101,47 @@ class _CuotasScreenState extends State<CuotasScreen> {
       ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
 
     if (cuotasAlumno.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este alumno no tiene cuotas generadas')),
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sin cuotas generadas'),
+          content: Text(
+            'El alumno ${alumno.nombreCompleto} no tiene cuotas para este año.\n\n¿Generar con los montos configurados?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Generar'),
+            ),
+          ],
+        ),
       );
+
+      if (confirmar == true) {
+        try {
+          final alumnoId = alumno.id;
+          if (alumnoId == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('El alumno no tiene ID válido'), backgroundColor: Colors.red),
+            );
+            return;
+          }
+          await _db.generarCuotasDesdeConfig(alumnoId!, DateTime.now().year);
+          await _loadCuotas();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cuotas generadas con la configuración actual'), backgroundColor: Colors.green),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No se pudieron generar cuotas: ${e.toString()}'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
       return;
     }
 
@@ -1139,7 +1320,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
-  Future<void> _abrirGenerarBimestrales() async {
+  Future<void> _abrirGenerarMensuales() async {
     if (_alumnosDisponibles.isEmpty) {
       await _loadCuotas();
     }
@@ -1153,7 +1334,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cuotas Bimestrales'),
+        title: const Text('Cuotas Mensuales'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1165,19 +1346,16 @@ class _CuotasScreenState extends State<CuotasScreen> {
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text('Bimestres por nivel:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
-                      ],
+                    Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Se generan cuotas mensuales: 1° año Mar-Dic, 2°/3° año Ene-Dic.',
+                        style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text('• 1° Año: Mar, May, Jul, Sep, Nov (5 cuotas)', style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
-                    Text('• 2°/3° Año: Ene, Mar, May, Jul, Sep, Nov (6 cuotas)', style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
                   ],
                 ),
               ),
@@ -1216,8 +1394,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
                           ),
                           child: Text(
                             nivel == 'Primer Año'
-                                ? 'Se generarán 5 cuotas (Mar-Nov)'
-                                : 'Se generarán 6 cuotas (Ene-Nov)',
+                                ? 'Se generarán 10 cuotas (Mar-Dic)'
+                                : 'Se generarán 12 cuotas (Ene-Dic)',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -1236,7 +1414,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: montoAlDiaController,
                 decoration: const InputDecoration(
-                  labelText: 'Al día (1-10)',
+                  labelText: '1° Vencimiento (1-10)',
                   prefixText: '\$ ',
                   hintText: 'Ej: 15000',
                 ),
@@ -1246,7 +1424,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: monto1erVtoController,
                 decoration: const InputDecoration(
-                  labelText: '1er Vto (11-20)',
+                  labelText: '2° Vencimiento (11-20)',
                   prefixText: '\$ ',
                   hintText: 'Ej: 16500',
                 ),
@@ -1256,7 +1434,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: monto2doVtoController,
                 decoration: const InputDecoration(
-                  labelText: '2do Vto (21-31)',
+                  labelText: '3° Vencimiento (21-31)',
                   prefixText: '\$ ',
                   hintText: 'Ej: 18000',
                 ),
@@ -1294,7 +1472,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
         return;
       }
       try {
-        await _db.generarCuotasBimestrales(
+        await _db.generarCuotasMensuales(
           alumnoSeleccionado.value!,
           montoAlDia,
           anio,
@@ -1304,7 +1482,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
         await _loadCuotas();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cuotas bimestrales generadas'), backgroundColor: Colors.green),
+            const SnackBar(content: Text('Cuotas mensuales generadas'), backgroundColor: Colors.green),
           );
         }
       } catch (e) {
@@ -1317,41 +1495,36 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
-  Future<void> _abrirAjustarBimestre() async {
+  Future<void> _abrirAjustarMes() async {
     final montoAlDiaController = TextEditingController();
     final monto1erVtoController = TextEditingController();
     final monto2doVtoController = TextEditingController();
     final anioController = TextEditingController(text: DateTime.now().year.toString());
-    final bimestreController = ValueNotifier<int>(1);
+    final mesController = ValueNotifier<int>(DateTime.now().month);
     final soloPendientes = ValueNotifier<bool>(true);
     final incluirVencidas = ValueNotifier<bool>(true);
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Ajustar monto bimestral'),
+        title: const Text('Ajustar montos del mes'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Actualiza los montos de las cuotas de un bimestre.'),
+              const Text('Actualiza los montos de las cuotas de un mes.'),
               const SizedBox(height: 12),
               ValueListenableBuilder<int>(
-                valueListenable: bimestreController,
+                valueListenable: mesController,
                 builder: (_, value, __) {
                   return DropdownButtonFormField<int>(
                     value: value,
-                    decoration: const InputDecoration(labelText: 'Bimestre'),
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('1° Bimestre (Ene-Feb)')),
-                      DropdownMenuItem(value: 2, child: Text('2° Bimestre (Mar-Abr)')),
-                      DropdownMenuItem(value: 3, child: Text('3° Bimestre (May-Jun)')),
-                      DropdownMenuItem(value: 4, child: Text('4° Bimestre (Jul-Ago)')),
-                      DropdownMenuItem(value: 5, child: Text('5° Bimestre (Sep-Oct)')),
-                      DropdownMenuItem(value: 6, child: Text('6° Bimestre (Nov-Dic)')),
-                    ],
-                    onChanged: (v) => bimestreController.value = v ?? 1,
+                    decoration: const InputDecoration(labelText: 'Mes'),
+                    items: List.generate(12, (i) => i + 1)
+                        .map((m) => DropdownMenuItem(value: m, child: Text(Cuota.nombreMes(m))))
+                        .toList(),
+                    onChanged: (v) => mesController.value = v ?? DateTime.now().month,
                   );
                 },
               ),
@@ -1360,19 +1533,19 @@ class _CuotasScreenState extends State<CuotasScreen> {
               const SizedBox(height: 8),
               TextField(
                 controller: montoAlDiaController,
-                decoration: const InputDecoration(labelText: 'Al día (1-10)', prefixText: '\$ '),
+                decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: monto1erVtoController,
-                decoration: const InputDecoration(labelText: '1er Vto (11-20)', prefixText: '\$ '),
+                decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: monto2doVtoController,
-                decoration: const InputDecoration(labelText: '2do Vto (21-31)', prefixText: '\$ '),
+                decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
@@ -1425,15 +1598,26 @@ class _CuotasScreenState extends State<CuotasScreen> {
         );
         return;
       }
-      await _db.updateMontoCuotasBimestre(
+      await _db.updateMontoCuotasMes(
         anio: anio,
-        bimestre: bimestreController.value,
+        mes: mesController.value,
         montoAlDia: montoAlDia,
         monto1erVto: monto1erVto,
         monto2doVto: monto2doVto,
         soloPendientes: soloPendientes.value,
         incluirVencidas: incluirVencidas.value,
       );
+      // Guardar config del mes para todos los niveles
+      for (final nivel in ['Primer Año', 'Segundo Año', 'Tercer Año']) {
+        await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
+          nivel: nivel,
+          mes: mesController.value,
+          anio: anio,
+          montoAlDia: montoAlDia,
+          monto1erVto: monto1erVto,
+          monto2doVto: monto2doVto,
+        ));
+      }
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1727,7 +1911,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: montoAlDiaController,
                 decoration: const InputDecoration(
-                  labelText: 'Al día (1-10)',
+                  labelText: '1° Vencimiento (1-10)',
                   prefixText: '\$ ',
                 ),
                 keyboardType: TextInputType.number,
@@ -1736,7 +1920,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: monto1erVtoController,
                 decoration: const InputDecoration(
-                  labelText: '1er Vto (11-20)',
+                  labelText: '2° Vencimiento (11-20)',
                   prefixText: '\$ ',
                 ),
                 keyboardType: TextInputType.number,
@@ -1745,7 +1929,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
               TextField(
                 controller: monto2doVtoController,
                 decoration: const InputDecoration(
-                  labelText: '2do Vto (21-31)',
+                  labelText: '3° Vencimiento (21-31)',
                   prefixText: '\$ ',
                 ),
                 keyboardType: TextInputType.number,
@@ -2163,6 +2347,13 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final totalEfectivo = efectivoPorMes.values.fold<int>(0, (sum, v) => sum + v);
     final totalTransferencia = transferenciaPorMes.values.fold<int>(0, (sum, v) => sum + v);
 
+    // Asegurar que todos los meses aparezcan aunque estén en 0
+    for (int m = 1; m <= 12; m++) {
+      totalesPorMes.putIfAbsent(m, () => 0);
+      efectivoPorMes.putIfAbsent(m, () => 0);
+      transferenciaPorMes.putIfAbsent(m, () => 0);
+    }
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2242,65 +2433,68 @@ class _CuotasScreenState extends State<CuotasScreen> {
                   shrinkWrap: true,
                   children: [
                     for (int mes = 1; mes <= 12; mes++)
-                      if (totalesPorMes.containsKey(mes))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 70,
-                                    child: Text(
-                                      Cuota.nombreMes(mes),
-                                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                                    ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 70,
+                                  child: Text(
+                                    Cuota.nombreMes(mes),
+                                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                                   ),
-                                  Expanded(
-                                    child: Container(
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.successColor.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: FractionallySizedBox(
-                                        alignment: Alignment.centerLeft,
-                                        widthFactor: totalAnual > 0 ? (totalesPorMes[mes]! / totalAnual).clamp(0.05, 1.0) : 0,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.successColor,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.successColor.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: totalAnual > 0 && totalesPorMes[mes]! > 0
+                                          ? (totalesPorMes[mes]! / totalAnual).clamp(0.05, 1.0)
+                                          : 0,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.successColor,
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 75,
-                                    child: Text(
-                                      _formatMoney(totalesPorMes[mes]!),
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                    ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 75,
+                                  child: Text(
+                                    _formatMoney(totalesPorMes[mes]!),
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
+                                ),
+                              ],
+                            ),
+                            // Desglose efectivo / transferencia por mes
+                            Padding(
+                              padding: const EdgeInsets.only(left: 70, top: 2),
+                              child: Row(
+                                children: [
+                                  if ((efectivoPorMes[mes] ?? 0) > 0)
+                                    Text('Efvo: ${_formatMoney(efectivoPorMes[mes]!)}  ', style: TextStyle(fontSize: 10, color: Colors.green.shade700)),
+                                  if ((transferenciaPorMes[mes] ?? 0) > 0)
+                                    Text('Transf: ${_formatMoney(transferenciaPorMes[mes]!)}', style: TextStyle(fontSize: 10, color: Colors.blue.shade700)),
+                                  if ((efectivoPorMes[mes] ?? 0) == 0 && (transferenciaPorMes[mes] ?? 0) == 0)
+                                    const Text('Sin pagos', style: TextStyle(fontSize: 10, color: Colors.grey)),
                                 ],
                               ),
-                              // Desglose efectivo / transferencia por mes
-                              Padding(
-                                padding: const EdgeInsets.only(left: 70, top: 2),
-                                child: Row(
-                                  children: [
-                                    if ((efectivoPorMes[mes] ?? 0) > 0)
-                                      Text('Efvo: ${_formatMoney(efectivoPorMes[mes]!)}  ', style: TextStyle(fontSize: 10, color: Colors.green.shade700)),
-                                    if ((transferenciaPorMes[mes] ?? 0) > 0)
-                                      Text('Transf: ${_formatMoney(transferenciaPorMes[mes]!)}', style: TextStyle(fontSize: 10, color: Colors.blue.shade700)),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
                     if (totalesPorMes.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(20),
@@ -2322,7 +2516,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
   // ========== CONFIGURAR MONTOS POR PERÍODO ==========
   Future<void> _abrirConfigVencimientos() async {
     // Esta función ahora muestra información sobre el nuevo sistema de montos
-    // Los montos se configuran directamente en "Ajustar Bimestre" o al generar cuotas
+    // Los montos se configuran directamente en "Ajustar Mes" o al generar cuotas
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2351,9 +2545,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                     SizedBox(height: 8),
                     Text('Cada cuota tiene 3 montos enteros:', style: TextStyle(fontSize: 12)),
                     SizedBox(height: 4),
-                    Text('• Al día (1-10): Pago en término', style: TextStyle(fontSize: 12)),
-                    Text('• 1er Vto (11-20): Primer vencimiento', style: TextStyle(fontSize: 12)),
-                    Text('• 2do Vto (21-31): Segundo vencimiento', style: TextStyle(fontSize: 12)),
+                    Text('• 1° Vencimiento (1-10): Pago en término', style: TextStyle(fontSize: 12)),
+                    Text('• 2° Vencimiento (11-20): Segundo vencimiento', style: TextStyle(fontSize: 12)),
+                    Text('• 3° Vencimiento (21-31): Tercer vencimiento', style: TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
@@ -2370,7 +2564,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
                     Text('¿Cómo configurar los montos?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     SizedBox(height: 8),
                     Text('1. Al generar cuotas: Define los 3 montos', style: TextStyle(fontSize: 12)),
-                    Text('2. Ajustar Bimestre: Actualiza montos existentes', style: TextStyle(fontSize: 12)),
+                    Text('2. Ajustar Mes: Actualiza montos existentes', style: TextStyle(fontSize: 12)),
                     Text('3. Editar cuota individual: Click en el monto', style: TextStyle(fontSize: 12)),
                   ],
                 ),
@@ -2388,9 +2582,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                     Text('Ejemplo:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     SizedBox(height: 4),
                     Text('2° Año - Enero/Febrero:', style: TextStyle(fontSize: 12)),
-                    Text('  Al día: \$15.000', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                    Text('  1er Vto: \$16.500', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                    Text('  2do Vto: \$18.000', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                    Text('  1° Vto: \$15.000', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                    Text('  2° Vto: \$16.500', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                    Text('  3° Vto: \$18.000', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
                   ],
                 ),
               ),

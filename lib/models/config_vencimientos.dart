@@ -51,11 +51,11 @@ class ConfigVencimientos {
     final rango = getRango(diaDelMes);
     switch (rango) {
       case 'A':
-        return 'En término (1-$diaFinRangoA)';
+        return '1° Vencimiento (1-$diaFinRangoA)';
       case 'B':
-        return 'Con recargo (${diaFinRangoA + 1}-$diaFinRangoB)';
+        return '2° Vencimiento (${diaFinRangoA + 1}-$diaFinRangoB)';
       case 'C':
-        return 'Vencida (${diaFinRangoB + 1}-31)';
+        return '3° Vencimiento (${diaFinRangoB + 1}-31)';
       default:
         return '';
     }

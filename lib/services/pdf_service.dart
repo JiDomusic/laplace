@@ -274,8 +274,10 @@ class PdfService {
   /// Genera un PDF compacto con el detalle de cuotas de un alumno (1 hoja)
   static Future<Uint8List> generarDetalleCuotas(
     Alumno alumno,
-    List<Cuota> cuotas,
-  ) async {
+    List<Cuota> cuotas, {
+    int diaFinA = 10,
+    int diaFinB = 20,
+  }) async {
     final pdf = pw.Document();
 
     // Calcular totales (enteros)
@@ -376,8 +378,8 @@ class PdfService {
             pw.SizedBox(height: 10),
 
             // Calendario visual compacto
-            _buildCalendarioCompacto(alumno, cuotasOrdenadas),
-            pw.SizedBox(height: 10),
+              _buildCalendarioCompacto(alumno, cuotasOrdenadas),
+              pw.SizedBox(height: 10),
 
             // Tabla de cuotas compacta
             pw.Text('DETALLE DE CUOTAS', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
@@ -519,32 +521,28 @@ class PdfService {
 
   static pw.Widget _buildCalendarioCompacto(Alumno alumno, List<Cuota> cuotas) {
     final esPrimerAnio = alumno.nivelInscripcion == 'Primer Año';
+    final meses = const [
+      {'mes': 1, 'label': 'Ene'},
+      {'mes': 2, 'label': 'Feb'},
+      {'mes': 3, 'label': 'Mar'},
+      {'mes': 4, 'label': 'Abr'},
+      {'mes': 5, 'label': 'May'},
+      {'mes': 6, 'label': 'Jun'},
+      {'mes': 7, 'label': 'Jul'},
+      {'mes': 8, 'label': 'Ago'},
+      {'mes': 9, 'label': 'Sep'},
+      {'mes': 10, 'label': 'Oct'},
+      {'mes': 11, 'label': 'Nov'},
+      {'mes': 12, 'label': 'Dic'},
+    ];
 
-    // Bimestres: mes de inicio y etiqueta corta
-    final bimestres = esPrimerAnio
-        ? [
-            {'mes': 3, 'label': 'M-A'},   // Mar-Abr
-            {'mes': 5, 'label': 'M-J'},   // May-Jun
-            {'mes': 7, 'label': 'J-A'},   // Jul-Ago
-            {'mes': 9, 'label': 'S-O'},   // Sep-Oct
-            {'mes': 11, 'label': 'N-D'},  // Nov-Dic
-          ]
-        : [
-            {'mes': 1, 'label': 'E-F'},   // Ene-Feb
-            {'mes': 3, 'label': 'M-A'},   // Mar-Abr
-            {'mes': 5, 'label': 'M-J'},   // May-Jun
-            {'mes': 7, 'label': 'J-A'},   // Jul-Ago
-            {'mes': 9, 'label': 'S-O'},   // Sep-Oct
-            {'mes': 11, 'label': 'N-D'},  // Nov-Dic
-          ];
-
-    Map<int, Cuota?> cuotasPorBimestre = {for (var b in bimestres) b['mes'] as int: null};
+    final cuotasPorMes = <int, Cuota?>{for (final m in meses) m['mes'] as int: null};
     Cuota? inscripcion;
     for (final c in cuotas) {
       if (c.concepto.toLowerCase().contains('inscripción')) {
         inscripcion = c;
-      } else if (cuotasPorBimestre.containsKey(c.mes)) {
-        cuotasPorBimestre[c.mes] = c;
+      } else {
+        cuotasPorMes[c.mes] = c;
       }
     }
 
@@ -559,25 +557,31 @@ class PdfService {
     final celdas = <pw.Widget>[];
     if (esPrimerAnio) {
       celdas.add(pw.Container(
-        width: 24, height: 18,
+        width: 22,
+        height: 16,
         margin: const pw.EdgeInsets.all(1),
         decoration: pw.BoxDecoration(color: colorEstado(inscripcion), borderRadius: pw.BorderRadius.circular(2)),
         alignment: pw.Alignment.center,
         child: pw.Text('Insc', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
       ));
     }
-    for (final bim in bimestres) {
-      final mes = bim['mes'] as int;
+    for (final m in meses) {
+      final mesNum = m['mes'] as int;
+      final cuota = cuotasPorMes[mesNum];
       celdas.add(pw.Container(
-        width: 24, height: 18,
+        width: 22,
+        height: 16,
         margin: const pw.EdgeInsets.all(1),
-        decoration: pw.BoxDecoration(color: colorEstado(cuotasPorBimestre[mes]), borderRadius: pw.BorderRadius.circular(2)),
+        decoration: pw.BoxDecoration(color: colorEstado(cuota), borderRadius: pw.BorderRadius.circular(2)),
         alignment: pw.Alignment.center,
-        child: pw.Text(bim['label'] as String, style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+        child: pw.Text(m['label'] as String, style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
       ));
     }
 
-    return pw.Row(
+    return pw.Wrap(
+      crossAxisAlignment: pw.WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 4,
       children: [
         pw.Text('Cuotas: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
         ...celdas,

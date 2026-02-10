@@ -107,6 +107,10 @@
             font-weight: bold;
             margin-bottom: 10px;
         }
+        @media print {
+            body { background: white; margin: 10mm 12mm; }
+            .print-hide { display: none !important; }
+        }
         .tabla {
             width: 100%;
             border-collapse: collapse;
@@ -290,8 +294,8 @@
                 <td>Solo alumnos de 1° Año</td>
             </tr>
             <tr>
-                <td><strong>Cuota Bimestral</strong></td>
-                <td>Se paga cada 2 meses</td>
+                <td><strong>Cuota Mensual</strong></td>
+                <td>Se paga una vez al mes</td>
                 <td>Todos los alumnos</td>
             </tr>
         </table>
@@ -299,36 +303,44 @@
         <h3>Cuotas por Año</h3>
 
         <div class="ejemplo">
-            <div class="ejemplo-titulo">PRIMER AÑO (5 cuotas + inscripción)</div>
+            <div class="ejemplo-titulo">PRIMER AÑO (Mar-Dic + Inscripción)</div>
             <table class="tabla">
                 <tr>
-                    <th>Cuota</th>
-                    <th>Meses</th>
-                    <th>Vence</th>
+                    <th>Mes</th>
+                    <th>Concepto</th>
                 </tr>
-                <tr><td>Inscripción</td><td>-</td><td>Marzo</td></tr>
-                <tr><td>Cuota 1</td><td>Marzo-Abril</td><td>1 de Marzo</td></tr>
-                <tr><td>Cuota 2</td><td>Mayo-Junio</td><td>1 de Mayo</td></tr>
-                <tr><td>Cuota 3</td><td>Julio-Agosto</td><td>1 de Julio</td></tr>
-                <tr><td>Cuota 4</td><td>Sept-Octubre</td><td>1 de Septiembre</td></tr>
-                <tr><td>Cuota 5</td><td>Nov-Diciembre</td><td>1 de Noviembre</td></tr>
+                <tr><td>Marzo</td><td>Inscripción + Cuota Marzo</td></tr>
+                <tr><td>Abril</td><td>Cuota Abril</td></tr>
+                <tr><td>Mayo</td><td>Cuota Mayo</td></tr>
+                <tr><td>Junio</td><td>Cuota Junio</td></tr>
+                <tr><td>Julio</td><td>Cuota Julio</td></tr>
+                <tr><td>Agosto</td><td>Cuota Agosto</td></tr>
+                <tr><td>Septiembre</td><td>Cuota Septiembre</td></tr>
+                <tr><td>Octubre</td><td>Cuota Octubre</td></tr>
+                <tr><td>Noviembre</td><td>Cuota Noviembre</td></tr>
+                <tr><td>Diciembre</td><td>Cuota Diciembre</td></tr>
             </table>
         </div>
 
         <div class="ejemplo">
-            <div class="ejemplo-titulo">SEGUNDO Y TERCER AÑO (6 cuotas)</div>
+            <div class="ejemplo-titulo">SEGUNDO Y TERCER AÑO (Ene-Dic)</div>
             <table class="tabla">
                 <tr>
-                    <th>Cuota</th>
-                    <th>Meses</th>
-                    <th>Vence</th>
+                    <th>Mes</th>
+                    <th>Concepto</th>
                 </tr>
-                <tr><td>Cuota 1</td><td>Enero-Febrero</td><td>1 de Enero</td></tr>
-                <tr><td>Cuota 2</td><td>Marzo-Abril</td><td>1 de Marzo</td></tr>
-                <tr><td>Cuota 3</td><td>Mayo-Junio</td><td>1 de Mayo</td></tr>
-                <tr><td>Cuota 4</td><td>Julio-Agosto</td><td>1 de Julio</td></tr>
-                <tr><td>Cuota 5</td><td>Sept-Octubre</td><td>1 de Septiembre</td></tr>
-                <tr><td>Cuota 6</td><td>Nov-Diciembre</td><td>1 de Noviembre</td></tr>
+                <tr><td>Enero</td><td>Cuota Enero</td></tr>
+                <tr><td>Febrero</td><td>Cuota Febrero</td></tr>
+                <tr><td>Marzo</td><td>Cuota Marzo</td></tr>
+                <tr><td>Abril</td><td>Cuota Abril</td></tr>
+                <tr><td>Mayo</td><td>Cuota Mayo</td></tr>
+                <tr><td>Junio</td><td>Cuota Junio</td></tr>
+                <tr><td>Julio</td><td>Cuota Julio</td></tr>
+                <tr><td>Agosto</td><td>Cuota Agosto</td></tr>
+                <tr><td>Septiembre</td><td>Cuota Septiembre</td></tr>
+                <tr><td>Octubre</td><td>Cuota Octubre</td></tr>
+                <tr><td>Noviembre</td><td>Cuota Noviembre</td></tr>
+                <tr><td>Diciembre</td><td>Cuota Diciembre</td></tr>
             </table>
         </div>
 
@@ -382,7 +394,7 @@
             <p>La inscripción solo se puede generar UNA VEZ por alumno. Si intentas generarla de nuevo, el sistema te avisará que ya existe.</p>
         </div>
 
-        <h3>Paso a Paso: Generar Cuotas Bimestrales</h3>
+        <h3>Paso a Paso: Generar Cuotas Mensuales</h3>
 
         <div class="paso">
             <span class="paso-numero">1</span>
@@ -391,8 +403,8 @@
 
         <div class="paso">
             <span class="paso-numero">2</span>
-            <strong>Seleccionar "Cuotas Bimestrales"</strong>
-            <p>Toca el botón azul <span class="boton boton-azul">Cuotas Bimestrales</span></p>
+            <strong>Seleccionar "Cuotas Mensuales"</strong>
+            <p>Toca el botón azul <span class="boton boton-azul">Cuotas Mensuales</span></p>
         </div>
 
         <div class="paso">
@@ -400,7 +412,7 @@
             <strong>Completar los datos</strong>
             <ul>
                 <li><strong>Alumno:</strong> Selecciona de la lista</li>
-                <li><strong>Monto por bimestre:</strong> Ej: $15,000</li>
+                <li><strong>Monto mensual:</strong> Ej: $15,000</li>
                 <li><strong>Año:</strong> 2026</li>
             </ul>
         </div>
@@ -408,24 +420,25 @@
         <div class="paso">
             <span class="paso-numero">4</span>
             <strong>Tocar "Generar"</strong>
-            <p>Se crearán todas las cuotas del año automáticamente</p>
+            <p>Se crearán todas las cuotas del año automáticamente.</p>
+            <p><strong>¿Necesitas subir los montos después?</strong> Usa el botón “Ajustar montos” (elige el mes, carga los tres valores y marca si quieres incluir vencidas) o edita una cuota puntual tocando su celda y “Editar montos”. Los ajustes son por mes; no cambian retroactivamente los otros meses.</p>
         </div>
 
         <div class="ejemplo">
             <div class="ejemplo-titulo">Ejemplo: Alumno de 1° Año</div>
-            <p>Si generas cuotas bimestrales de $15,000 para un alumno de 1° Año:</p>
+            <p>Ejemplo mensual de $15,000 para un alumno de 1° Año:</p>
             <ul>
-                <li>Se crean 5 cuotas (Marzo a Noviembre)</li>
-                <li>Total: $15,000 x 5 = <strong>$75,000</strong></li>
+                <li>Se crean 10 cuotas (Marzo a Diciembre) + Inscripción</li>
+                <li>Total mensual: $15,000 x 10 = <strong>$150,000</strong> (inscripción aparte si la cobras)</li>
             </ul>
         </div>
 
         <div class="ejemplo">
             <div class="ejemplo-titulo">Ejemplo: Alumno de 2° o 3° Año</div>
-            <p>Si generas cuotas bimestrales de $15,000 para un alumno de 2° o 3° Año:</p>
+            <p>Ejemplo mensual de $15,000 para un alumno de 2° o 3° Año:</p>
             <ul>
-                <li>Se crean 6 cuotas (Enero a Noviembre)</li>
-                <li>Total: $15,000 x 6 = <strong>$90,000</strong></li>
+                <li>Se crean 12 cuotas (Enero a Diciembre)</li>
+                <li>Total mensual: $15,000 x 12 = <strong>$180,000</strong></li>
             </ul>
         </div>
     </div>
@@ -575,13 +588,13 @@
                 <td><strong>B</strong></td>
                 <td>Del 11 al 20</td>
                 <td>Con recargo</td>
-                <td>+5% (configurable)</td>
+                <td>Monto fijo que configures (enteros, sin %)</td>
             </tr>
             <tr>
                 <td><strong>C</strong></td>
                 <td>Del 21 al 31</td>
                 <td>Vencida</td>
-                <td>+10% (configurable)</td>
+                <td>Monto fijo que configures (enteros, sin %)</td>
             </tr>
         </table>
 
@@ -601,12 +614,12 @@
                 <tr>
                     <td>Del 11 al 20</td>
                     <td>B</td>
-                    <td>$15,750 (+5%)</td>
+                    <td>Monto fijo del 2° vencimiento</td>
                 </tr>
                 <tr>
                     <td>Del 21 al 31</td>
                     <td>C</td>
-                    <td>$16,500 (+10%)</td>
+                    <td>Monto fijo del 3° vencimiento</td>
                 </tr>
             </table>
         </div>
@@ -635,11 +648,11 @@
 
         <div class="paso">
             <span class="paso-numero">4</span>
-            <strong>Configurar los recargos</strong>
+            <strong>Configurar los montos de cada vencimiento</strong>
             <ul>
-                <li>Elige si el recargo es en % o en pesos</li>
-                <li>Ingresa el recargo para Rango B</li>
-                <li>Ingresa el recargo para Rango C</li>
+                <li>Ingresa el monto fijo del 1° vencimiento (Rango A, enteros)</li>
+                <li>Ingresa el monto fijo del 2° vencimiento (Rango B, enteros)</li>
+                <li>Ingresa el monto fijo del 3° vencimiento (Rango C, enteros)</li>
             </ul>
         </div>
 
@@ -649,8 +662,8 @@
         </div>
 
         <div class="importante">
-            <div class="importante-titulo">Las cuotas vencidas también aumentan</div>
-            <p>Cuando suben las cuotas (cada 2 meses), las cuotas que están vencidas también suben al nuevo valor. No se quedan en el precio viejo.</p>
+            <div class="importante-titulo">Las cuotas vencidas también pueden ajustarse</div>
+            <p>Cuando el admin actualiza los montos del mes y marca "incluir vencidas", esas cuotas toman el nuevo valor. Si no se marca, se mantienen con el valor anterior.</p>
         </div>
     </div>
 
@@ -659,7 +672,7 @@
         <h2>6. Cómo Ajustar Montos</h2>
 
         <h3>¿Cuándo ajustar los montos?</h3>
-        <p>Los montos de las cuotas pueden cambiar cada 2 meses (bimestralmente). Cuando hay un aumento, debes actualizar los montos.</p>
+        <p>Los montos de las cuotas cambian cuando el admin lo decide. Carga los tres valores del mes y, si quieres que afecten cuotas vencidas, marca la opción al actualizar.</p>
 
         <h3>Paso a Paso</h3>
 
@@ -675,14 +688,9 @@
 
         <div class="paso">
             <span class="paso-numero">3</span>
-            <strong>Seleccionar el bimestre</strong>
+            <strong>Seleccionar el mes</strong>
             <ul>
-                <li>1° Bimestre (Enero-Febrero)</li>
-                <li>2° Bimestre (Marzo-Abril)</li>
-                <li>3° Bimestre (Mayo-Junio)</li>
-                <li>4° Bimestre (Julio-Agosto)</li>
-                <li>5° Bimestre (Septiembre-Octubre)</li>
-                <li>6° Bimestre (Noviembre-Diciembre)</li>
+                <li>Elige el mes exacto a ajustar (Enero, Febrero, Marzo, etc.)</li>
             </ul>
         </div>
 
@@ -711,10 +719,11 @@
             <p><strong>Situación:</strong> En Mayo hay aumento de $15,000 a $17,000</p>
             <p><strong>Cuotas afectadas:</strong></p>
             <ul>
-                <li>Cuota Mayo-Junio: Sube a $17,000</li>
-                <li>Cuota Marzo-Abril (si está vencida y no pagada): También sube a $17,000</li>
-                <li>Cuota Enero-Febrero (ya pagada): No cambia</li>
+                <li>Cuota Mayo: Sube a $17,000</li>
+                <li>Cuota Abril (si está vencida y no pagada): También sube a $17,000</li>
+                <li>Cuotas ya pagadas: No cambian</li>
             </ul>
+            <p><strong>¿Solo una cuota?</strong> Toca la celda del alumno en el mes y usa “Editar montos” para cambiar los tres valores de esa cuota puntual.</p>
         </div>
     </div>
 
@@ -723,50 +732,7 @@
         <h2>7. El Calendario Visual</h2>
 
         <h3>¿Qué muestra el calendario?</h3>
-        <p>Es una tabla donde puedes ver de un vistazo el estado de todos los alumnos:</p>
-
-        <div class="calendario">
-            <div class="calendario-header">
-                <span style="flex: 2;">ALUMNO</span>
-                <span>INSC</span>
-                <span>MAR</span>
-                <span>MAY</span>
-                <span>JUL</span>
-                <span>SEP</span>
-                <span>NOV</span>
-                <span>DEUDA</span>
-            </div>
-            <div class="calendario-fila">
-                <span style="flex: 2; text-align: left;">López, Federico</span>
-                <span><span class="estado-pagada">✓</span></span>
-                <span><span class="estado-pagada">✓</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span>$60,000</span>
-            </div>
-            <div class="calendario-fila">
-                <span style="flex: 2; text-align: left;">Martínez, Gabriela</span>
-                <span><span class="estado-pagada">✓</span></span>
-                <span><span class="estado-parcial">◐</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span>$67,500</span>
-            </div>
-            <div class="calendario-fila">
-                <span style="flex: 2; text-align: left;">Pérez, Hernán</span>
-                <span><span class="estado-vencida">!</span></span>
-                <span><span class="estado-vencida">!</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span><span class="estado-pendiente">○</span></span>
-                <span>$95,000</span>
-            </div>
-        </div>
+        <p>Es una tabla mensual (INSC + Ene a Dic) donde cada alumno tiene una celda por mes con su estado: ✓ pagada, ◐ parcial, ○ pendiente, ! vencida. La columna DEUDA muestra el total del año filtrado.</p>
 
         <h3>Significado de los símbolos</h3>
         <table class="tabla">
@@ -868,8 +834,8 @@
                 <td>Generar Cuotas → Inscripción 1° Año</td>
             </tr>
             <tr>
-                <td>Generar cuotas bimestrales</td>
-                <td>Generar Cuotas → Cuotas Bimestrales</td>
+                <td>Generar cuotas mensuales</td>
+                <td>Generar Cuotas → Cuotas Mensuales</td>
             </tr>
             <tr>
                 <td>Registrar un pago</td>
@@ -888,13 +854,13 @@
                 <td>Generar Cuotas → Ajustar montos</td>
             </tr>
             <tr>
-                <td>Configurar recargos por vencimiento</td>
+                <td>Configurar montos de vencimiento (A, B, C)</td>
                 <td>Generar Cuotas → Vencimientos</td>
             </tr>
         </table>
     </div>
 
-    <div style="text-align: center; padding: 30px; color: #666;">
+    <div class="print-hide" style="text-align: center; padding: 30px; color: #666;">
         <p>Instituto Superior Laplace</p>
         <p>Manual de Gestión de Cuotas v1.0</p>
         <p>2026</p>

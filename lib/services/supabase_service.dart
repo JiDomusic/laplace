@@ -218,80 +218,6 @@ class SupabaseService {
 
   // ==================== CUOTAS ====================
 
-  /// Genera cuotas anuales con los 3 montos de vencimiento
-  /// Esta función no se usa actualmente - usar generarCuotasBimestrales
-  Future<void> generarCuotasAnuales(
-    String alumnoId,
-    int montoAlDia,
-    int anio, {
-    int? monto1erVto,
-    int? monto2doVto,
-    int? montoInscripcion,
-    bool generarInscripcion = true,
-  }) async {
-    final alumno = await getAlumnoById(alumnoId);
-    final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
-
-    final bimestres = esPrimero
-        ? [
-            {'mes': 3, 'nombre': 'Marzo-Abril'},
-            {'mes': 5, 'nombre': 'Mayo-Junio'},
-            {'mes': 7, 'nombre': 'Julio-Agosto'},
-            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
-            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
-          ]
-        : [
-            {'mes': 1, 'nombre': 'Enero-Febrero'},
-            {'mes': 3, 'nombre': 'Marzo-Abril'},
-            {'mes': 5, 'nombre': 'Mayo-Junio'},
-            {'mes': 7, 'nombre': 'Julio-Agosto'},
-            {'mes': 9, 'nombre': 'Septiembre-Octubre'},
-            {'mes': 11, 'nombre': 'Noviembre-Diciembre'},
-          ];
-
-    final m1 = monto1erVto ?? montoAlDia;
-    final m2 = monto2doVto ?? m1;
-
-    final cuotas = bimestres
-        .map(
-          (bim) => {
-            'alumno_id': alumnoId,
-            'concepto': 'Cuota ${bim['nombre']} $anio',
-            'monto_al_dia': montoAlDia,
-            'monto_1er_vto': m1,
-            'monto_2do_vto': m2,
-            'monto_pagado': 0,
-            'mes': bim['mes'],
-            'anio': anio,
-            'fecha_vencimiento': DateTime(anio, bim['mes'] as int, 1).toIso8601String().split('T')[0],
-            'estado': 'pendiente',
-          },
-        )
-        .toList();
-
-    // Inscripción única (solo 1.er año y si no existe una previa)
-    if (esPrimero && generarInscripcion) {
-      final tieneInscripcion = await _tieneCuotaInscripcion(alumnoId);
-      if (!tieneInscripcion) {
-        final montoInsc = montoInscripcion ?? montoAlDia;
-        cuotas.insert(0, {
-          'alumno_id': alumnoId,
-          'concepto': 'Inscripción $anio',
-          'monto_al_dia': montoInsc,
-          'monto_1er_vto': montoInsc,
-          'monto_2do_vto': montoInsc,
-          'monto_pagado': 0,
-          'mes': 3,
-          'anio': anio,
-          'fecha_vencimiento': DateTime(anio, 3, 1).toIso8601String().split('T')[0],
-          'estado': 'pendiente',
-        });
-      }
-    }
-
-    await client.from('cuotas').insert(cuotas);
-  }
-
   Future<bool> _tieneCuotaInscripcion(String alumnoId) async {
     final response = await client
         .from('cuotas')
@@ -323,15 +249,15 @@ class SupabaseService {
     });
   }
 
-  /// Genera cuotas bimestrales con los 3 montos de vencimiento
-  Future<void> generarCuotasBimestrales(
+  /// Genera cuotas mensuales con los 3 montos de vencimiento
+  Future<void> generarCuotasMensuales(
     String alumnoId,
     int montoAlDia,
     int anio, {
     int? monto1erVto,
     int? monto2doVto,
   }) async {
-    // Verificar si ya existen cuotas bimestrales para este alumno y año
+    // Verificar si ya existen cuotas para este alumno y año
     final existentes = await client
         .from('cuotas')
         .select('id')
@@ -341,39 +267,26 @@ class SupabaseService {
         .limit(1);
 
     if ((existentes as List).isNotEmpty) {
-      throw Exception('Ya existen cuotas bimestrales para este alumno en $anio');
+      throw Exception('Ya existen cuotas para este alumno en $anio');
     }
 
     final alumno = await getAlumnoById(alumnoId);
     final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
     final nivel = alumno?.nivelInscripcion ?? '';
 
-    // 1° año: Mar, May, Jul, Sep, Nov (5 bimestres)
-    // 2°/3° año: Ene, Mar, May, Jul, Sep, Nov (6 bimestres)
-    final bimestresConfig = esPrimero
-        ? [
-            {'mes': 3, 'nombre': 'Marzo-Abril', 'bimestre': 2},
-            {'mes': 5, 'nombre': 'Mayo-Junio', 'bimestre': 3},
-            {'mes': 7, 'nombre': 'Julio-Agosto', 'bimestre': 4},
-            {'mes': 9, 'nombre': 'Septiembre-Octubre', 'bimestre': 5},
-            {'mes': 11, 'nombre': 'Noviembre-Diciembre', 'bimestre': 6},
-          ]
-        : [
-            {'mes': 1, 'nombre': 'Enero-Febrero', 'bimestre': 1},
-            {'mes': 3, 'nombre': 'Marzo-Abril', 'bimestre': 2},
-            {'mes': 5, 'nombre': 'Mayo-Junio', 'bimestre': 3},
-            {'mes': 7, 'nombre': 'Julio-Agosto', 'bimestre': 4},
-            {'mes': 9, 'nombre': 'Septiembre-Octubre', 'bimestre': 5},
-            {'mes': 11, 'nombre': 'Noviembre-Diciembre', 'bimestre': 6},
-          ];
+    // Mensual: 1° año Mar-Dic, 2°/3° Ene-Dic
+    final meses = esPrimero
+        ? [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
     final cuotas = <Map<String, dynamic>>[];
 
-    for (final bim in bimestresConfig) {
-      // Buscar configuración específica para este nivel/bimestre/año
+    for (final mes in meses) {
+      final nombreMes = ConfigCuotasPeriodo.nombreMes(mes);
+      // Buscar configuración específica para este nivel/mes/año
       final config = await getConfigCuotasPeriodo(
         nivel: nivel,
-        bimestre: bim['bimestre'] as int,
+        mes: mes,
         anio: anio,
       );
 
@@ -383,19 +296,134 @@ class SupabaseService {
 
       cuotas.add({
         'alumno_id': alumnoId,
-        'concepto': 'Cuota ${bim['nombre']} $anio',
+        'concepto': 'Cuota $nombreMes $anio',
         'monto_al_dia': montoA,
         'monto_1er_vto': montoB,
         'monto_2do_vto': montoC,
         'monto_pagado': 0,
-        'mes': bim['mes'],
+        'mes': mes,
         'anio': anio,
-        'fecha_vencimiento': DateTime(anio, bim['mes'] as int, 1).toIso8601String().split('T')[0],
+        'fecha_vencimiento': DateTime(anio, mes, 1).toIso8601String().split('T')[0],
         'estado': 'pendiente',
       });
     }
 
     await client.from('cuotas').insert(cuotas);
+  }
+
+  /// Genera cuotas mensuales usando los montos configurados por mes (config_cuotas_periodo)
+  Future<void> generarCuotasDesdeConfig(
+    String alumnoId,
+    int anio, {
+    bool generarInscripcion = true,
+  }) async {
+    // Evitar duplicar cuotas para ese año
+    final existentes = await client
+        .from('cuotas')
+        .select('id')
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio)
+        .not('concepto', 'ilike', '%Inscripción%')
+        .limit(1);
+
+    if ((existentes as List).isNotEmpty) {
+      throw Exception('Ya existen cuotas para este alumno en $anio');
+    }
+
+    final alumno = await getAlumnoById(alumnoId);
+    if (alumno == null) {
+      throw Exception('Alumno no encontrado');
+    }
+
+    final nivel = alumno.nivelInscripcion ?? '';
+    final bool esPrimero = nivel == 'Primer Año';
+
+    final meses = esPrimero
+        ? [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    final cuotas = <Map<String, dynamic>>[];
+
+    for (final mes in meses) {
+      final config = await getConfigCuotasPeriodo(nivel: nivel, mes: mes, anio: anio);
+      if (config == null) {
+        // Si no hay config para este mes, saltarlo
+        continue;
+      }
+
+      final nombreMes = ConfigCuotasPeriodo.nombreMes(mes);
+      cuotas.add({
+        'alumno_id': alumnoId,
+        'concepto': 'Cuota $nombreMes $anio',
+        'monto_al_dia': config.montoAlDia,
+        'monto_1er_vto': config.monto1erVto,
+        'monto_2do_vto': config.monto2doVto,
+        'monto_pagado': 0,
+        'mes': mes,
+        'anio': anio,
+        'fecha_vencimiento': DateTime(anio, mes, 1).toIso8601String().split('T')[0],
+        'estado': 'pendiente',
+      });
+    }
+
+    // Inscripción solo 1.er año si se solicita
+    if (esPrimero && generarInscripcion) {
+      final tieneInscripcion = await _tieneCuotaInscripcion(alumnoId);
+      if (!tieneInscripcion) {
+        final configInsc = await getConfigCuotasPeriodo(nivel: nivel, mes: 3, anio: anio);
+        if (configInsc != null) {
+          cuotas.insert(0, {
+            'alumno_id': alumnoId,
+            'concepto': 'Inscripción $anio',
+            'monto_al_dia': configInsc.montoAlDia,
+            'monto_1er_vto': configInsc.montoAlDia,
+            'monto_2do_vto': configInsc.montoAlDia,
+            'monto_pagado': 0,
+            'mes': 3,
+            'anio': anio,
+            'fecha_vencimiento': DateTime(anio, 3, 1).toIso8601String().split('T')[0],
+            'estado': 'pendiente',
+          });
+        }
+      }
+    }
+
+    if (cuotas.isEmpty) {
+      throw Exception('No hay configuración de montos para generar cuotas en $anio');
+    }
+
+    await client.from('cuotas').insert(cuotas);
+  }
+
+  /// Actualiza los montos de cuotas de un mes con los 3 valores
+  Future<void> updateMontoCuotasMes({
+    required int anio,
+    required int mes,
+    required int montoAlDia,
+    required int monto1erVto,
+    required int monto2doVto,
+    bool soloPendientes = true,
+    bool incluirVencidas = true,
+  }) async {
+    List<String> estadosActualizar = [];
+    if (!soloPendientes) {
+      estadosActualizar = ['pendiente', 'vencida', 'pagada', 'parcial'];
+    } else if (incluirVencidas) {
+      estadosActualizar = ['pendiente', 'vencida', 'parcial'];
+    } else {
+      estadosActualizar = ['pendiente', 'parcial'];
+    }
+
+    await client
+        .from('cuotas')
+        .update({
+          'monto_al_dia': montoAlDia,
+          'monto_1er_vto': monto1erVto,
+          'monto_2do_vto': monto2doVto,
+        })
+        .eq('anio', anio)
+        .eq('mes', mes)
+        .inFilter('estado', estadosActualizar);
   }
 
   Future<void> actualizarSaldoFavor(String alumnoId, num monto) async {
@@ -621,49 +649,6 @@ class SupabaseService {
         .eq('id', cuotaId);
   }
 
-  /// Actualiza los montos de cuotas de un bimestre con los 3 valores
-  Future<void> updateMontoCuotasBimestre({
-    required int anio,
-    required int bimestre,
-    required int montoAlDia,
-    required int monto1erVto,
-    required int monto2doVto,
-    bool soloPendientes = true,
-    bool incluirVencidas = true,
-  }) async {
-    final Map<int, List<int>> bimestresMap = {
-      1: [1, 2],
-      2: [3, 4],
-      3: [5, 6],
-      4: [7, 8],
-      5: [9, 10],
-      6: [11, 12],
-    };
-    final meses = bimestresMap[bimestre] ?? [];
-    if (meses.isEmpty) return;
-
-    // Construir lista de estados a actualizar
-    List<String> estadosActualizar = [];
-    if (!soloPendientes) {
-      estadosActualizar = ['pendiente', 'vencida', 'pagada', 'parcial'];
-    } else if (incluirVencidas) {
-      estadosActualizar = ['pendiente', 'vencida', 'parcial'];
-    } else {
-      estadosActualizar = ['pendiente', 'parcial'];
-    }
-
-    await client
-        .from('cuotas')
-        .update({
-          'monto_al_dia': montoAlDia,
-          'monto_1er_vto': monto1erVto,
-          'monto_2do_vto': monto2doVto,
-        })
-        .eq('anio', anio)
-        .inFilter('mes', meses)
-        .inFilter('estado', estadosActualizar);
-  }
-
   Cuota _cuotaFromSupabase(Map<String, dynamic> map) {
     // Compatibilidad con estructura anterior (monto único)
     final montoAnterior = (map['monto'] as num?)?.toInt();
@@ -746,13 +731,13 @@ class SupabaseService {
   /// Cache local de configuraciones por período
   final Map<String, ConfigCuotasPeriodo> _cacheConfigPeriodo = {};
 
-  /// Obtiene la configuración de montos para un nivel/bimestre/año específico
+  /// Obtiene la configuración de montos para un nivel/mes/año específico
   Future<ConfigCuotasPeriodo?> getConfigCuotasPeriodo({
     required String nivel,
-    required int bimestre,
+    required int mes,
     required int anio,
   }) async {
-    final cacheKey = '${nivel}_${bimestre}_$anio';
+    final cacheKey = '${nivel}_m${mes}_$anio';
     if (_cacheConfigPeriodo.containsKey(cacheKey)) {
       return _cacheConfigPeriodo[cacheKey];
     }
@@ -762,7 +747,7 @@ class SupabaseService {
           .from('config_cuotas_periodo')
           .select()
           .eq('nivel', nivel)
-          .eq('bimestre', bimestre)
+          .eq('mes', mes)
           .eq('anio', anio)
           .maybeSingle();
 
@@ -785,7 +770,7 @@ class SupabaseService {
           .select()
           .eq('anio', anio)
           .order('nivel')
-          .order('bimestre');
+          .order('mes');
 
       return (response as List)
           .map((map) => ConfigCuotasPeriodo.fromMap(map))
@@ -797,7 +782,7 @@ class SupabaseService {
 
   /// Guarda o actualiza la configuración de montos para un período
   Future<void> guardarConfigCuotasPeriodo(ConfigCuotasPeriodo config) async {
-    final cacheKey = '${config.nivel}_${config.bimestre}_${config.anio}';
+    final cacheKey = '${config.nivel}_m${config.mes}_${config.anio}';
 
     try {
       // Buscar si ya existe
@@ -805,13 +790,14 @@ class SupabaseService {
           .from('config_cuotas_periodo')
           .select('id')
           .eq('nivel', config.nivel)
-          .eq('bimestre', config.bimestre)
+          .eq('mes', config.mes)
           .eq('anio', config.anio)
           .maybeSingle();
 
       final data = {
         'nivel': config.nivel,
-        'bimestre': config.bimestre,
+        'mes': config.mes,
+        'bimestre': ConfigCuotasPeriodo.bimestreDesdeMes(config.mes),
         'anio': config.anio,
         'monto_al_dia': config.montoAlDia,
         'monto_1er_vto': config.monto1erVto,
@@ -838,29 +824,18 @@ class SupabaseService {
   /// Actualiza los montos de cuotas existentes según la configuración del período
   Future<void> actualizarCuotasConConfigPeriodo({
     required String nivel,
-    required int bimestre,
+    required int mes,
     required int anio,
     bool soloPendientes = true,
+    bool incluirVencidas = true,
   }) async {
     final config = await getConfigCuotasPeriodo(
       nivel: nivel,
-      bimestre: bimestre,
+      mes: mes,
       anio: anio,
     );
 
     if (config == null) return;
-
-    // Mapear bimestre a meses
-    final Map<int, List<int>> bimestresMap = {
-      1: [1, 2],
-      2: [3, 4],
-      3: [5, 6],
-      4: [7, 8],
-      5: [9, 10],
-      6: [11, 12],
-    };
-    final meses = bimestresMap[bimestre] ?? [];
-    if (meses.isEmpty) return;
 
     // Obtener alumnos del nivel
     final alumnos = await client
@@ -880,14 +855,33 @@ class SupabaseService {
           'monto_2do_vto': config.monto2doVto,
         })
         .eq('anio', anio)
-        .inFilter('mes', meses)
+        .eq('mes', mes)
         .inFilter('alumno_id', alumnoIds);
 
     if (soloPendientes) {
-      await query.inFilter('estado', ['pendiente', 'vencida', 'parcial']);
+      final estados = incluirVencidas ? ['pendiente', 'vencida', 'parcial'] : ['pendiente', 'parcial'];
+      await query.inFilter('estado', estados);
     } else {
       await query;
     }
+  }
+
+  /// Verifica si el mes actual tiene config para todos los niveles
+  /// Retorna lista de niveles que faltan configurar
+  Future<List<String>> verificarConfigMesActual() async {
+    final ahora = DateTime.now();
+    final mes = ahora.month;
+    final anio = ahora.year;
+    final niveles = ['Primer Año', 'Segundo Año', 'Tercer Año'];
+    final faltantes = <String>[];
+
+    for (final nivel in niveles) {
+      final config = await getConfigCuotasPeriodo(nivel: nivel, mes: mes, anio: anio);
+      if (config == null) {
+        faltantes.add(nivel);
+      }
+    }
+    return faltantes;
   }
 
   /// Limpia el cache de configuraciones
