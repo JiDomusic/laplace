@@ -219,11 +219,12 @@ class SupabaseService {
   // ==================== CUOTAS ====================
 
   Future<bool> _tieneCuotaInscripcion(String alumnoId) async {
+    // Buscar inscripciones con o sin tilde para evitar duplicados
     final response = await client
         .from('cuotas')
         .select('id')
-        .ilike('concepto', '%Inscripción%')
         .eq('alumno_id', alumnoId)
+        .or('concepto.ilike.%Inscripción%,concepto.ilike.%Inscripcion%')
         .limit(1);
     return response.isNotEmpty;
   }
