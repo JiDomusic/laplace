@@ -1039,13 +1039,25 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       );
       return;
     }
+
+    final cuotasAntes = _cuotas.where((c) => c.alumnoId == alumno.id && c.anio == _filtroAnio).length;
     try {
       await _db.generarCuotasDesdeConfig(alumno.id!, _filtroAnio);
       await _loadCuotas();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuotas generadas con la configuración del año'), backgroundColor: Colors.green),
-        );
+        final cuotasDespues = _cuotas.where((c) => c.alumnoId == alumno.id && c.anio == _filtroAnio).length;
+        if (cuotasDespues > cuotasAntes) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuotas generadas con la configuración del año'), backgroundColor: Colors.green),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No se generaron cuotas. Revisa la configuración de montos de ${alumno.nivelInscripcion ?? ''} para $_filtroAnio.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1062,6 +1074,12 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       await _loadCuotas();
     }
 
+    // Contar cuotas actuales por alumno/año para saber si luego se agregaron
+    final countsBefore = <String, int>{};
+    for (final c in _cuotas.where((c) => c.anio == _filtroAnio)) {
+      countsBefore[c.alumnoId] = (countsBefore[c.alumnoId] ?? 0) + 1;
+    }
+
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1076,7 +1094,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     if (confirmar != true) return;
 
     setState(() => _generandoTodos = true);
-    int generadas = 0;
     int yaExistian = 0;
     int errores = 0;
     final skipPorFaltaConfig = <String,int>{}; // nivel -> meses sin config
@@ -1089,7 +1106,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       }
       try {
         await _db.generarCuotasDesdeConfig(id, _filtroAnio);
-        generadas++;
       } catch (e) {
         final msg = e.toString();
         if (msg.contains('Ya existen cuotas') || msg.contains('ya existen cuotas')) {
@@ -1104,13 +1120,34 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     }
 
     await _loadCuotas();
+
+    // Calcular cuántas nuevas se sumaron por alumno/año
+    final countsAfter = <String, int>{};
+    for (final c in _cuotas.where((c) => c.anio == _filtroAnio)) {
+      countsAfter[c.alumnoId] = (countsAfter[c.alumnoId] ?? 0) + 1;
+    }
+    int generadas = 0;
+    int sinNuevas = 0;
+    for (final alumno in _alumnosDisponibles) {
+      final id = alumno.id;
+      if (id == null) continue;
+      final before = countsBefore[id] ?? 0;
+      final after = countsAfter[id] ?? 0;
+      if (after > before) {
+        generadas += (after - before);
+      } else {
+        sinNuevas++;
+      }
+    }
+
     if (mounted) {
       final skipMsg = skipPorFaltaConfig.entries.isNotEmpty
           ? ' | Sin config: ' + skipPorFaltaConfig.entries.map((e) => '${e.key} (${e.value})').join(', ')
           : '';
+      final sinMsg = sinNuevas > 0 ? ' | Sin nuevas: $sinNuevas alumnos (revisar config del año)' : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Generadas: $generadas • Ya existían: $yaExistian • Errores: $errores$skipMsg'),
+          content: Text('Generadas: $generadas • Ya existían: $yaExistian • Errores: $errores$skipMsg$sinMsg'),
           backgroundColor: errores > 0 ? Colors.orange : Colors.green,
         ),
       );

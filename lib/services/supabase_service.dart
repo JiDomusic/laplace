@@ -257,19 +257,6 @@ class SupabaseService {
     int? monto1erVto,
     int? monto2doVto,
   }) async {
-    // Verificar si ya existen cuotas para este alumno y año
-    final existentes = await client
-        .from('cuotas')
-        .select('id')
-        .eq('alumno_id', alumnoId)
-        .eq('anio', anio)
-        .not('concepto', 'ilike', '%Inscripción%')
-        .limit(1);
-
-    if ((existentes as List).isNotEmpty) {
-      throw Exception('Ya existen cuotas para este alumno en $anio');
-    }
-
     final alumno = await getAlumnoById(alumnoId);
     final bool esPrimero = alumno?.nivelInscripcion == 'Primer Año';
     final nivel = alumno?.nivelInscripcion ?? '';
@@ -281,7 +268,21 @@ class SupabaseService {
 
     final cuotas = <Map<String, dynamic>>[];
 
+    // Buscar meses ya existentes para no duplicar
+    final existentesMes = await client
+        .from('cuotas')
+        .select('mes')
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio)
+        .not('concepto', 'ilike', '%Inscripción%');
+    final mesesYaCreados = {
+      for (final c in (existentesMes as List)) (c['mes'] as int? ?? 0)
+    };
+
     for (final mes in meses) {
+      if (mesesYaCreados.contains(mes)) {
+        continue; // ya existe cuota para este mes
+      }
       final nombreMes = ConfigCuotasPeriodo.nombreMes(mes);
       // Buscar configuración específica para este nivel/mes/año
       final config = await getConfigCuotasPeriodo(
@@ -308,7 +309,9 @@ class SupabaseService {
       });
     }
 
-    await client.from('cuotas').insert(cuotas);
+    if (cuotas.isNotEmpty) {
+      await client.from('cuotas').insert(cuotas);
+    }
   }
 
   /// Genera cuotas mensuales usando los montos configurados por mes (config_cuotas_periodo)
@@ -317,19 +320,6 @@ class SupabaseService {
     int anio, {
     bool generarInscripcion = true,
   }) async {
-    // Evitar duplicar cuotas para ese año
-    final existentes = await client
-        .from('cuotas')
-        .select('id')
-        .eq('alumno_id', alumnoId)
-        .eq('anio', anio)
-        .not('concepto', 'ilike', '%Inscripción%')
-        .limit(1);
-
-    if ((existentes as List).isNotEmpty) {
-      throw Exception('Ya existen cuotas para este alumno en $anio');
-    }
-
     final alumno = await getAlumnoById(alumnoId);
     if (alumno == null) {
       throw Exception('Alumno no encontrado');
@@ -344,7 +334,21 @@ class SupabaseService {
 
     final cuotas = <Map<String, dynamic>>[];
 
+    // Buscar meses ya existentes para no duplicar
+    final existentesMes = await client
+        .from('cuotas')
+        .select('mes')
+        .eq('alumno_id', alumnoId)
+        .eq('anio', anio)
+        .not('concepto', 'ilike', '%Inscripción%');
+    final mesesYaCreados = {
+      for (final c in (existentesMes as List)) (c['mes'] as int? ?? 0)
+    };
+
     for (final mes in meses) {
+      if (mesesYaCreados.contains(mes)) {
+        continue; // ya existe cuota para este mes
+      }
       final config = await getConfigCuotasPeriodo(nivel: nivel, mes: mes, anio: anio);
       if (config == null) {
         // Si no hay config para este mes, saltarlo
@@ -388,11 +392,9 @@ class SupabaseService {
       }
     }
 
-    if (cuotas.isEmpty) {
-      throw Exception('No hay configuración de montos para generar cuotas en $anio');
+    if (cuotas.isNotEmpty) {
+      await client.from('cuotas').insert(cuotas);
     }
-
-    await client.from('cuotas').insert(cuotas);
   }
 
   /// Actualiza los montos de cuotas de un mes con los 3 valores
