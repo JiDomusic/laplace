@@ -26,6 +26,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
   String _filtroNivel = '';
   String _filtroDivision = '';
   int _filtroAnio = DateTime.now().year;
+  bool _generandoTodos = false;
   List<Alumno> _alumnosDisponibles = [];
   bool _vistaCalendario = true; // Vista calendario por defecto
   final Map<String, bool> _gruposExpandidos = {}; // Control de grupos plegables
@@ -365,10 +366,26 @@ class _CuotasScreenState extends State<CuotasScreen> {
                           const SizedBox(height: 6),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: _abrirGenerarMensuales,
-                              icon: const Icon(Icons.playlist_add),
-                              label: const Text('Generar/Completar cuotas del año'),
+                            child: Wrap(
+                              spacing: 8,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: _abrirGenerarMensuales,
+                                  icon: const Icon(Icons.playlist_add),
+                                  label: const Text('Generar/Completar cuotas del año'),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _generandoTodos ? null : _generarCuotasParaTodos,
+                                  icon: _generandoTodos
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.group_add),
+                                  label: const Text('Generar para todos'),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1037,6 +1054,61 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         );
       }
     }
+  }
+
+  Future<void> _generarCuotasParaTodos() async {
+    if (_generandoTodos) return;
+    if (_alumnosDisponibles.isEmpty) {
+      await _loadCuotas();
+    }
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar cuotas para todos'),
+        content: Text('Se generarán las cuotas del año $_filtroAnio para todos los alumnos usando la configuración mensual. ¿Continuar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Generar')),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    setState(() => _generandoTodos = true);
+    int generadas = 0;
+    int yaExistian = 0;
+    int errores = 0;
+
+    for (final alumno in _alumnosDisponibles) {
+      final id = alumno.id;
+      if (id == null) {
+        errores++;
+        continue;
+      }
+      try {
+        await _db.generarCuotasDesdeConfig(id, _filtroAnio);
+        generadas++;
+      } catch (e) {
+        final msg = e.toString();
+        if (msg.contains('Ya existen cuotas') || msg.contains('ya existen cuotas')) {
+          yaExistian++;
+        } else {
+          errores++;
+        }
+      }
+    }
+
+    await _loadCuotas();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Generadas: $generadas • Ya existían: $yaExistian • Errores: $errores'),
+          backgroundColor: errores > 0 ? Colors.orange : Colors.green,
+        ),
+      );
+    }
+    setState(() => _generandoTodos = false);
   }
 
 
