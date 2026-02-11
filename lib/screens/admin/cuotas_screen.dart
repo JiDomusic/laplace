@@ -957,11 +957,13 @@ class _CuotasScreenState extends State<CuotasScreen> {
             }),
             // Deuda
             SizedBox(
-              width: 50,
-              child: Center(
+              width: 70,
+              child: Align(
+                alignment: Alignment.centerRight,
                 child: Text(
-                  deudaTotal > 0 ? _formatMoney(deudaTotal) : '-',
-                  style: TextStyle(fontSize: 10, color: deudaTotal > 0 ? AppTheme.dangerColor : Colors.grey, fontWeight: deudaTotal > 0 ? FontWeight.bold : FontWeight.normal),
+                  deudaTotal > 0 ? _formatMoney(deudaTotal) : '',
+                  style: TextStyle(fontSize: 11, color: deudaTotal > 0 ? AppTheme.dangerColor : Colors.grey, fontWeight: deudaTotal > 0 ? FontWeight.bold : FontWeight.normal),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -994,11 +996,12 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     return GestureDetector(
       onTap: cuota != null ? () => _mostrarOpcionesCuota(cuota, alumno) : null,
       child: Container(
-        width: 36, height: 24,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
+        width: 42,
+        height: 26,
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         decoration: BoxDecoration(
           color: color.withOpacity(cuota == null ? 0.3 : 0.8),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Center(child: Text(symbol, style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))),
       ),
