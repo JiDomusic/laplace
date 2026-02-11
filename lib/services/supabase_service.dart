@@ -511,6 +511,7 @@ class SupabaseService {
     String? observaciones,
     String? numRecibo,
     String? detallePago,
+    DateTime? fechaPago,
   }) async {
     final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuotaData == null) return null;
@@ -519,21 +520,21 @@ class SupabaseService {
     final montoActual = cuota.montoActual;
 
     // Paga la cuota actual completa
+    final fecha = fechaPago ?? DateTime.now();
     await client.from('cuotas').update({
       'monto_pagado': montoActual,
       'estado': 'pagada',
-      'fecha_pago': DateTime.now().toIso8601String(),
+      'fecha_pago': fecha.toIso8601String(),
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
       'num_recibo': numRecibo,
       'detalle_pago': (detallePago?.isNotEmpty ?? false)
           ? detallePago
-          : 'Pago total ${cuotaData['concepto']} - \$${montoActual} el ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+          : 'Pago total ${cuotaData['concepto']} - \$${montoActual} el ${DateFormat('dd/MM/yyyy').format(fecha)}',
     }).eq('id', cuotaId);
 
     // Detectar si es pago adelantado: la cuota aún no venció
-    final ahora = DateTime.now();
-    if (cuota.fechaVencimiento.isAfter(ahora)) {
+    if (cuota.fechaVencimiento.isAfter(fecha)) {
       // Buscar la siguiente cuota pendiente
       final siguiente = await client
           .from('cuotas')
@@ -558,6 +559,7 @@ class SupabaseService {
     String? observaciones,
     String? numRecibo,
     String? detallePago,
+    DateTime? fechaPago,
   }) async {
     final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuotaData == null) return;
@@ -580,7 +582,8 @@ class SupabaseService {
     final nuevoMontoPagado = montoPagadoActual + pagaActual;
     final estaPagada = nuevoMontoPagado >= montoActual;
 
-    final hoy = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    final fecha = fechaPago ?? DateTime.now();
+    final hoy = DateFormat('dd/MM/yyyy').format(fecha);
     final detalleConExcedente = excedente > 0
         ? 'Pago parcial \$$monto el $hoy - excedente \$$excedente distribuido a sig. cuota'
         : detallePago ?? 'Pago parcial \$$monto el $hoy';
@@ -588,7 +591,7 @@ class SupabaseService {
     await client.from('cuotas').update({
       'monto_pagado': nuevoMontoPagado,
       'estado': estaPagada ? 'pagada' : 'parcial',
-      'fecha_pago': DateTime.now().toIso8601String(),
+      'fecha_pago': fecha.toIso8601String(),
       'metodo_pago': metodoPago,
       'observaciones': observaciones,
       'num_recibo': numRecibo,
@@ -614,12 +617,12 @@ class SupabaseService {
 
         final nuevoPagado = cuotaSig.montoPagado + paga;
         final pagada = nuevoPagado >= cuotaSig.montoActual;
-        final fechaHoy = DateFormat('dd/MM/yyyy').format(DateTime.now());
+        final fechaHoy = DateFormat('dd/MM/yyyy').format(fecha);
         final detalleSig = 'Excedente de ${cuota.concepto} - \$$paga aplicado el $fechaHoy (pago original: \$$monto)';
         await client.from('cuotas').update({
           'monto_pagado': nuevoPagado,
           'estado': pagada ? 'pagada' : 'parcial',
-          'fecha_pago': DateTime.now().toIso8601String(),
+          'fecha_pago': fecha.toIso8601String(),
           'metodo_pago': metodoPago,
           'detalle_pago': detalleSig,
           'num_recibo': numRecibo,

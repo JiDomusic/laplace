@@ -155,7 +155,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Text('Ciclo Lectivo: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const Text('Ciclo lectivo: ', style: TextStyle(fontWeight: FontWeight.w500)),
                   SizedBox(
                     width: 100,
                     child: TextFormField(
@@ -227,7 +227,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    'Ciclo Lectivo ${provider.cicloLectivo}',
+                    'Ciclo lectivo ${provider.cicloLectivo}',
                     style: TextStyle(color: Colors.grey.shade600),
                   ),
                 ],
@@ -244,6 +244,30 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Cohorte vs Reinscripción
+        _buildSeccion('Tipo de inscripción', [
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Cohorte'),
+                selected: true,
+                onSelected: (_) => provider.setTipoInscripcion('cohorte'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  decoration: const InputDecoration(labelText: 'Año cohorte (aaaa)'),
+                  initialValue: provider.cicloLectivo,
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) => provider.cicloLectivo = v,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+                ),
+              ),
+            ],
+          ),
+        ]),
+        const SizedBox(height: 16),
+
         // Foto del alumno
         _buildSeccion('Foto del Alumno', [
           _buildImagePicker(
@@ -397,11 +421,10 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         // Contacto
         _buildSeccion('Contacto', [
           TextFormField(
-            decoration: const InputDecoration(labelText: 'Email *'),
+            decoration: const InputDecoration(labelText: 'Email'),
             initialValue: provider.email,
             keyboardType: TextInputType.emailAddress,
             onChanged: (v) => provider.email = v,
-            validator: (v) => v!.isEmpty ? 'Requerido' : null,
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -665,6 +688,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         _buildResumenCard('Direccion', '${provider.calle} ${provider.numero}, ${provider.localidad}'),
         _buildResumenCard('Contacto Urgencia', '${provider.contactoUrgenciaNombre} (${provider.contactoUrgenciaVinculo})'),
         _buildResumenCard('Tel. Urgencia', provider.contactoUrgenciaTelefono),
+        _buildResumenCard('Tipo de inscripción', provider.tipoInscripcion == 'cohorte' ? 'Cohorte (nuevo)' : 'Reinscripción'),
 
         const SizedBox(height: 24),
 
@@ -766,29 +790,53 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
   }
 
   Widget _buildDatePicker(InscripcionProvider provider) {
-    return InkWell(
-      onTap: () async {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: provider.fechaNacimiento ?? DateTime(2000),
-          firstDate: DateTime(1950),
-          lastDate: DateTime.now(),
-        );
-        if (date != null) {
-          setState(() => provider.fechaNacimiento = date);
-        }
-      },
-      child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Fecha de Nacimiento *',
-          suffixIcon: Icon(Icons.calendar_today),
+    return Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            decoration: const InputDecoration(labelText: 'Día (dd) *'),
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final dia = int.tryParse(v) ?? 0;
+              final fecha = provider.fechaNacimiento ?? DateTime(2000);
+              if (dia > 0 && dia <= 31) {
+                setState(() => provider.fechaNacimiento = DateTime(fecha.year, fecha.month, dia));
+              }
+            },
+            validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+          ),
         ),
-        child: Text(
-          provider.fechaNacimiento != null
-              ? DateFormat('dd/MM/yyyy').format(provider.fechaNacimiento!)
-              : 'Seleccionar fecha',
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextFormField(
+            decoration: const InputDecoration(labelText: 'Mes (mm) *'),
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final mes = int.tryParse(v) ?? 0;
+              final fecha = provider.fechaNacimiento ?? DateTime(2000);
+              if (mes > 0 && mes <= 12) {
+                setState(() => provider.fechaNacimiento = DateTime(fecha.year, mes, fecha.day));
+              }
+            },
+            validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextFormField(
+            decoration: const InputDecoration(labelText: 'Año (aaaa) *'),
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final anio = int.tryParse(v) ?? 0;
+              final fecha = provider.fechaNacimiento ?? DateTime(2000);
+              if (anio > 1900 && anio <= DateTime.now().year) {
+                setState(() => provider.fechaNacimiento = DateTime(anio, fecha.month, fecha.day));
+              }
+            },
+            validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+          ),
+        ),
+      ],
     );
   }
 

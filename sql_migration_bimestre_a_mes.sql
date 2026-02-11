@@ -43,3 +43,4 @@
   WHERE mes IS NOT NULL;
 
   COMMIT;
+o sea

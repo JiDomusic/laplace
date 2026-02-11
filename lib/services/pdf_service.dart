@@ -280,18 +280,27 @@ class PdfService {
   }) async {
     final pdf = pw.Document();
 
-    // Calcular totales (enteros)
-    int totalMonto = 0;
-    int totalPagado = 0;
-    for (final cuota in cuotas) {
-      totalMonto += cuota.montoActual;
-      totalPagado += cuota.montoPagado;
-    }
-    final totalDeuda = totalMonto - totalPagado;
+    // Mostrar solo cuotas con pago (total o parcial) para no listar deudas
+    final cuotasPagadas = cuotas.where((c) => c.montoPagado > 0 || c.estaPagada || c.esParcial).toList();
+
+    // Calcular total pagado (enteros)
+    final totalPagado = cuotasPagadas.fold<int>(0, (sum, c) => sum + c.montoPagado);
 
     // Ordenar cuotas por fecha de vencimiento
-    final cuotasOrdenadas = List<Cuota>.from(cuotas)
-      ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+    final cuotasOrdenadas = List<Cuota>.from(cuotasPagadas)
+      ..sort((a, b) {
+        // Ordenar primero por fecha de pago (más reciente arriba); si no hay, por vencimiento.
+        final fpA = a.fechaPago;
+        final fpB = b.fechaPago;
+        if (fpA != null && fpB != null) {
+          return fpB.compareTo(fpA);
+        } else if (fpA != null) {
+          return -1;
+        } else if (fpB != null) {
+          return 1;
+        }
+        return a.fechaVencimiento.compareTo(b.fechaVencimiento);
+      });
 
     pdf.addPage(
       pw.Page(
@@ -304,10 +313,7 @@ class PdfService {
             pw.Center(
               child: pw.Column(
                 children: [
-                  pw.Text(
-                    'Instituto Laplace',
-                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-                  ),
+                  pw.Text('INSTITUTO SUPERIOR LAPLACE', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
                   pw.Text(_carrera, style: const pw.TextStyle(fontSize: 8)),
                   pw.Text(_autorizacion, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
                 ],
@@ -336,20 +342,20 @@ class PdfService {
                 pw.Container(
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
-                    color: totalDeuda > 0 ? PdfColors.red50 : PdfColors.green50,
+                    color: PdfColors.green50,
                     borderRadius: pw.BorderRadius.circular(4),
-                    border: pw.Border.all(color: totalDeuda > 0 ? PdfColors.red200 : PdfColors.green200),
+                    border: pw.Border.all(color: PdfColors.green200),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('ADEUDA', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
+                      pw.Text('PAGADO', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
                       pw.Text(
-                        _formatMoney(totalDeuda),
+                        _formatMoney(totalPagado),
                         style: pw.TextStyle(
                           fontSize: 14,
                           fontWeight: pw.FontWeight.bold,
-                          color: totalDeuda > 0 ? PdfColors.red700 : PdfColors.green700,
+                          color: PdfColors.green700,
                         ),
                       ),
                     ],
@@ -369,66 +375,110 @@ class PdfService {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                 children: [
-                  pw.Text('Total: ${_formatMoney(totalMonto)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
                   pw.Text('Pagado: ${_formatMoney(totalPagado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
-                  pw.Text('Debe: ${_formatMoney(totalDeuda)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: totalDeuda > 0 ? PdfColors.red700 : PdfColors.green700)),
+                  pw.Text('Cuotas con pago: ${cuotasPagadas.length}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
             ),
             pw.SizedBox(height: 10),
 
-            // Calendario visual compacto
-              _buildCalendarioCompacto(alumno, cuotasOrdenadas),
+            // Resumen del último pago como comprobante
+            if (cuotasPagadas.any((c) => c.fechaPago != null)) ...[
+              () {
+                final pagosOrdenados = List<Cuota>.from(cuotasPagadas.where((c) => c.fechaPago != null))
+                  ..sort((a, b) => b.fechaPago!.compareTo(a.fechaPago!));
+                final ultimo = pagosOrdenados.first;
+                final detalle = (ultimo.detallePago ?? '').isNotEmpty ? ultimo.detallePago! : (ultimo.esParcial ? 'Pago parcial' : 'Pago total');
+                return pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue50,
+                    borderRadius: pw.BorderRadius.circular(6),
+                    border: pw.Border.all(color: PdfColors.blue200),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Comprobante del último pago', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                      pw.SizedBox(height: 6),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('Fecha: ${DateFormat('dd/MM/yyyy').format(ultimo.fechaPago!)}', style: const pw.TextStyle(fontSize: 9)),
+                          pw.Text('Recibo: ${ultimo.numRecibo ?? '-'}', style: const pw.TextStyle(fontSize: 9)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Alumno: ${alumno.nombreCompleto}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Curso: ${alumno.nivelInscripcion}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Cuota: ${ultimo.concepto}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Importe: ${_formatMoney(ultimo.montoPagado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green900)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Observaciones: $detalle', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                    ],
+                  ),
+                );
+              }(),
               pw.SizedBox(height: 10),
+            ],
+
+            // Calendario visual compacto sólo con pagos
+            _buildCalendarioCompacto(alumno, cuotasOrdenadas),
+            pw.SizedBox(height: 10),
 
             // Tabla de cuotas compacta
-            pw.Text('DETALLE DE CUOTAS', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+            pw.Text('DETALLE DE PAGOS', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(2.5), // Concepto
-                1: const pw.FlexColumnWidth(1), // Vence
-                2: const pw.FlexColumnWidth(1), // Monto
-                3: const pw.FlexColumnWidth(1), // Pagado
-                4: const pw.FlexColumnWidth(1), // Debe
-                5: const pw.FlexColumnWidth(1), // Estado
-              },
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColor.fromHex('#1A237E')),
-                  children: [
-                    _buildTableHeaderCompact('Concepto'),
-                    _buildTableHeaderCompact('Vence'),
-                    _buildTableHeaderCompact('Monto'),
-                    _buildTableHeaderCompact('Pagado'),
-                    _buildTableHeaderCompact('Debe'),
-                    _buildTableHeaderCompact('Estado'),
-                  ],
-                ),
-                ...cuotasOrdenadas.map((cuota) {
-                  final estado = cuota.estaPagada ? 'PAGADA' : cuota.esParcial ? 'PARCIAL' : cuota.estaVencida ? 'VENCIDA' : 'PEND.';
-                  final estadoColor = cuota.estaPagada ? PdfColors.green700 : cuota.estaVencida ? PdfColors.red700 : PdfColors.orange700;
-                  return pw.TableRow(
+            if (cuotasPagadas.isNotEmpty)
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1), // Fecha pago
+                  1: const pw.FlexColumnWidth(1), // Importe
+                  2: const pw.FlexColumnWidth(1), // Estado
+                  3: const pw.FlexColumnWidth(3), // Detalle
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColor.fromHex('#1A237E')),
                     children: [
-                      _buildTableCellCompact(cuota.concepto),
-                      _buildTableCellCompact(DateFormat('dd/MM').format(cuota.fechaVencimiento)),
-                      _buildTableCellCompact(_formatMoney(cuota.montoActual)),
-                      _buildTableCellCompact(cuota.montoPagado > 0 ? _formatMoney(cuota.montoPagado) : '', color: PdfColors.green700),
-                      _buildTableCellCompact(cuota.deuda > 0 ? _formatMoney(cuota.deuda) : '', color: PdfColors.red700),
-                      _buildTableCellCompact(estado, color: estadoColor),
+                      _buildTableHeaderCompact('Fecha pago'),
+                      _buildTableHeaderCompact('Importe'),
+                      _buildTableHeaderCompact('Estado'),
+                      _buildTableHeaderCompact('Detalle'),
                     ],
-                  );
-                }),
-              ],
-            ),
+                  ),
+                  ...cuotasOrdenadas.map((cuota) {
+                    final estado = cuota.estaPagada ? 'PAGADA' : 'PARCIAL';
+                    final estadoColor = cuota.estaPagada ? PdfColors.green700 : PdfColors.orange700;
+                    final fechaPago = cuota.fechaPago != null
+                        ? DateFormat('dd/MM/yy').format(cuota.fechaPago!)
+                        : DateFormat('dd/MM/yy').format(cuota.fechaVencimiento);
+                    final detalle = (cuota.detallePago ?? '').isNotEmpty
+                        ? cuota.detallePago!
+                        : cuota.esParcial
+                            ? 'Pago parcial ${_formatMoney(cuota.montoPagado)}'
+                            : 'Pago total ${cuota.concepto}';
+                    return pw.TableRow(
+                      children: [
+                        _buildTableCellCompact(fechaPago),
+                        _buildTableCellCompact(_formatMoney(cuota.montoPagado), color: PdfColors.green700),
+                        _buildTableCellCompact(estado, color: estadoColor),
+                        _buildTableCellCompact(detalle),
+                      ],
+                    );
+                  }),
+                ],
+              )
+            else
+              pw.Text('No hay pagos registrados.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
 
             // Espacio flexible para empujar pagos al final si hay espacio
             pw.Spacer(),
 
             // Detalle de pagos realizados (compacto)
             if (cuotasOrdenadas.any((c) => c.fechaPago != null)) ...[
-              pw.Text('PAGOS REALIZADOS', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              pw.Text('PAGOS REALIZADOS (con distribución de excedentes si aplica)', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -484,7 +534,7 @@ class PdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Emitido: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
-                pw.Text('Instituto Laplace - Sistema de Gestión', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                pw.Text('INSTITUTO SUPERIOR LAPLACE - Sistema de Gestión', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
               ],
             ),
           ],

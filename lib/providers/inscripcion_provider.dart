@@ -31,9 +31,15 @@ class InscripcionProvider with ChangeNotifier {
   String celular = '';
   bool trabaja = false;
   String _cicloLectivo = DateTime.now().year.toString();
+  String tipoInscripcion = 'cohorte'; // cohorte (nuevo)
   String get cicloLectivo => _cicloLectivo;
   set cicloLectivo(String value) {
     _cicloLectivo = value;
+    notifyListeners();
+  }
+
+  void setTipoInscripcion(String value) {
+    tipoInscripcion = 'cohorte';
     notifyListeners();
   }
 
@@ -260,6 +266,7 @@ class InscripcionProvider with ChangeNotifier {
         cicloLectivo: cicloLectivo,
         fotoAlumno: fotoUrl,
         nivelInscripcion: _nivelSeleccionado!,
+        observaciones: 'Cohorte (nuevo)',
       );
 
       // Insertar en Supabase
@@ -319,6 +326,7 @@ class InscripcionProvider with ChangeNotifier {
     celular = '';
     trabaja = false;
     _cicloLectivo = DateTime.now().year.toString();
+    tipoInscripcion = 'cohorte';
     contactoUrgenciaNombre = '';
     contactoUrgenciaTelefono = '';
     contactoUrgenciaVinculo = '';
