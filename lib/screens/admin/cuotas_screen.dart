@@ -1079,6 +1079,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     int generadas = 0;
     int yaExistian = 0;
     int errores = 0;
+    final skipPorFaltaConfig = <String,int>{}; // nivel -> meses sin config
 
     for (final alumno in _alumnosDisponibles) {
       final id = alumno.id;
@@ -1093,6 +1094,9 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         final msg = e.toString();
         if (msg.contains('Ya existen cuotas') || msg.contains('ya existen cuotas')) {
           yaExistian++;
+        } else if (msg.contains('No hay configuración de montos')) {
+          final nivel = alumno.nivelInscripcion;
+          skipPorFaltaConfig[nivel] = (skipPorFaltaConfig[nivel] ?? 0) + 1;
         } else {
           errores++;
         }
@@ -1101,9 +1105,12 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
 
     await _loadCuotas();
     if (mounted) {
+      final skipMsg = skipPorFaltaConfig.entries.isNotEmpty
+          ? ' | Sin config: ' + skipPorFaltaConfig.entries.map((e) => '${e.key} (${e.value})').join(', ')
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Generadas: $generadas • Ya existían: $yaExistian • Errores: $errores'),
+          content: Text('Generadas: $generadas • Ya existían: $yaExistian • Errores: $errores$skipMsg'),
           backgroundColor: errores > 0 ? Colors.orange : Colors.green,
         ),
       );
