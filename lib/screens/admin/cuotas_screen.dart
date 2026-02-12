@@ -160,10 +160,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
     return 'pendiente';
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
   String _formatMoney(num amount) {
     return '\$${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
@@ -961,45 +957,48 @@ class _CuotasScreenState extends State<CuotasScreen> {
           border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
           color: deudaTotal > 0 ? AppTheme.dangerColor.withOpacity(0.03) : null,
         ),
-        child: Row(
-          children: [
-            // Nombre
-            SizedBox(
-              width: 120,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
-                  '${alumno.apellido}, ${alumno.nombre.split(' ').first}',
-                  style: const TextStyle(fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Nombre
+              SizedBox(
+                width: 120,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    '${alumno.apellido}, ${alumno.nombre.split(' ').first}',
+                    style: const TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
-            // Celdas de meses
-            ...meses.map((b) {
-              final mes = b['mes'] as int;
-              Cuota? cuota;
-              if (mes == 0) {
-                // Inscripción
-                cuota = cuotasAlumno.where((c) => c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
-              } else {
-                cuota = cuotasAlumno.where((c) => c.mes == mes && !c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
-              }
-              return _buildCeldaEstado(cuota, alumno);
-            }),
-            // Deuda
-            SizedBox(
-              width: 70,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  deudaTotal > 0 ? _formatMoney(deudaTotal) : '',
-                  style: TextStyle(fontSize: 11, color: deudaTotal > 0 ? AppTheme.dangerColor : Colors.grey, fontWeight: deudaTotal > 0 ? FontWeight.bold : FontWeight.normal),
-                  overflow: TextOverflow.ellipsis,
+              // Celdas de meses
+              ...meses.map((b) {
+                final mes = b['mes'] as int;
+                Cuota? cuota;
+                if (mes == 0) {
+                  // Inscripción
+                  cuota = cuotasAlumno.where((c) => c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
+                } else {
+                  cuota = cuotasAlumno.where((c) => c.mes == mes && !c.concepto.toLowerCase().contains('inscripción')).firstOrNull;
+                }
+                return _buildCeldaEstado(cuota, alumno);
+              }),
+              // Deuda
+              SizedBox(
+                width: 70,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    deudaTotal > 0 ? _formatMoney(deudaTotal) : '',
+                    style: TextStyle(fontSize: 11, color: deudaTotal > 0 ? AppTheme.dangerColor : Colors.grey, fontWeight: deudaTotal > 0 ? FontWeight.bold : FontWeight.normal),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1282,7 +1281,8 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
     if (mounted) {
       final nombreSeguro = '${alumno.apellido}_${alumno.nombre}'.replaceAll(' ', '_');
-      await Printing.layoutPdf(onLayout: (_) => pdfData, name: 'Cuotas_$nombreSeguro.pdf');
+      final anio = DateTime.now().year;
+      await Printing.layoutPdf(onLayout: (_) => pdfData, name: 'EstadoCuenta_${nombreSeguro}_$anio.pdf');
     }
   }
 
@@ -1784,16 +1784,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     }
   }
 
-  bool _esPrimerAnio(String? alumnoId) {
-    if (alumnoId == null) return false;
-    try {
-      final alumno = _alumnosDisponibles.firstWhere((a) => a.id == alumnoId);
-      return alumno.nivelInscripcion == 'Primer Año';
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<void> _registrarPagoTotal(Cuota cuota) async {
     final metodoController = TextEditingController(text: 'efectivo');
     final obsController = TextEditingController();
@@ -2200,10 +2190,14 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
 
       if (mounted) {
-        await Printing.layoutPdf(
-          onLayout: (_) => pdfData,
-          name: 'Cuotas_${alumno.apellido}_${alumno.nombre}.pdf',
-        );
+        final nombreSeguro = '${alumno.apellido}_${alumno.nombre}'.replaceAll(' ', '_');
+        final anio = DateTime.now().year;
+        final fileName = 'EstadoCuenta_${nombreSeguro}_$anio.pdf';
+
+        // Opción imprimir/guardar (el navegador puede cambiar el nombre)
+        await Printing.layoutPdf(onLayout: (_) => pdfData, name: fileName);
+        // Opción descargar/compartir con nombre fijo
+        await Printing.sharePdf(bytes: pdfData, filename: fileName);
       }
     }
   }
@@ -2356,6 +2350,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                       labelText: 'N° Recibo *',
                       hintText: 'Ej: 00001',
                     ),
+                    keyboardType: TextInputType.text,
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -2475,6 +2470,12 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
               ElevatedButton.icon(
                 onPressed: () async {
                   final importe = int.tryParse(importeController.text) ?? 0;
+                  if (reciboController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ingrese N° de recibo'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
                   if (importe <= 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Ingrese un importe válido'), backgroundColor: Colors.red),
@@ -2589,12 +2590,11 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       if (mounted) {
         String mensaje = 'Pago registrado correctamente';
         if (saldoUsado > 0) mensaje += '. Se usó ${_formatMoney(saldoUsado)} de saldo a favor';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
+          );
+        }
       }
-    }
-
     await _loadCuotas();
   }
 
@@ -2684,6 +2684,10 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           );
         }
         await _loadCuotas();
+        if (mounted) {
+          // Al volver al dashboard, se recalculan stats
+          Navigator.pop(context);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

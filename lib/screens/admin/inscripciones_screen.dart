@@ -22,6 +22,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
   final List<String> _niveles = ['Primer Año', 'Segundo Año', 'Tercer Año'];
   // Primer Año: divisiones A y B
   // Segundo y Tercer Año: sin divisiones
+  // Divisiones por defecto (no se usa directamente en UI actual)
   final List<String> _divisionesPrimerAnio = ['A', 'B'];
 
   @override
@@ -99,6 +100,7 @@ class _InscripcionesScreenState extends State<InscripcionesScreen> with SingleTi
     return _alumnos.where((a) => a.nivelInscripcion == nivel).length;
   }
 
+  // Reservado: contar alumnos por división (no se usa actualmente)
   int _contarPorDivision(String nivel, String? division) {
     return _filtrarAlumnos(nivel, division).length;
   }

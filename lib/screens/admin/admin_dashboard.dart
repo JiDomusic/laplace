@@ -484,7 +484,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             subtitulo: '${_stats['total'] ?? 0} alumnos registrados',
             icon: Icons.people,
             color: AppTheme.accentColor,
-            onTap: () => Navigator.pushNamed(context, '/admin/inscripciones'),
+            onTap: () async {
+              await Navigator.pushNamed(context, '/admin/inscripciones');
+              if (mounted) _loadData();
+            },
           ),
           const SizedBox(height: 12),
           _buildAccionGrande(
@@ -492,7 +495,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             subtitulo: '${_stats['cuotas_pendientes'] ?? 0} pagos pendientes',
             icon: Icons.payment,
             color: Colors.teal,
-            onTap: () => Navigator.pushNamed(context, '/admin/cuotas'),
+            onTap: () async {
+              await Navigator.pushNamed(context, '/admin/cuotas');
+              if (mounted) _loadData();
+            },
           ),
           const SizedBox(height: 20),
           // Acciones secundarias

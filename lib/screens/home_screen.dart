@@ -337,38 +337,6 @@ class HomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 20),
 
-                              // Badge inscripción
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentColor.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppTheme.accentColor.withOpacity(0.25),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.event_available_rounded,
-                                      size: 18,
-                                      color: AppTheme.accentColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'INSCRIPCIÓN ABIERTA',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppTheme.accentColor,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ],
                           ),
                         ),

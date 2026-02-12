@@ -401,13 +401,14 @@ class PdfService {
                     children: [
                       pw.Text('Comprobante del último pago', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
                       pw.SizedBox(height: 6),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('Fecha: ${DateFormat('dd/MM/yyyy').format(ultimo.fechaPago!)}', style: const pw.TextStyle(fontSize: 9)),
-                          pw.Text('Recibo: ${ultimo.numRecibo ?? '-'}', style: const pw.TextStyle(fontSize: 9)),
-                        ],
-                      ),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Fecha: ${DateFormat('dd/MM/yyyy').format(ultimo.fechaPago!)}', style: const pw.TextStyle(fontSize: 9)),
+                        if (ultimo.numRecibo != null && ultimo.numRecibo!.isNotEmpty)
+                          pw.Text('Recibo: ${ultimo.numRecibo}', style: const pw.TextStyle(fontSize: 9)),
+                      ],
+                    ),
                       pw.SizedBox(height: 4),
                       pw.Text('Alumno: ${alumno.nombreCompleto}', style: const pw.TextStyle(fontSize: 9)),
                       pw.Text('Curso: ${alumno.nivelInscripcion}', style: const pw.TextStyle(fontSize: 9)),
