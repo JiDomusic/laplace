@@ -688,7 +688,7 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
         _buildResumenCard('Direccion', '${provider.calle} ${provider.numero}, ${provider.localidad}'),
         _buildResumenCard('Contacto Urgencia', '${provider.contactoUrgenciaNombre} (${provider.contactoUrgenciaVinculo})'),
         _buildResumenCard('Tel. Urgencia', provider.contactoUrgenciaTelefono),
-        _buildResumenCard('Tipo de inscripción', provider.tipoInscripcion == 'cohorte' ? 'Cohorte (nuevo)' : 'Reinscripción'),
+        _buildResumenCard('Tipo de inscripción', provider.tipoInscripcion == 'cohorte' ? 'Cohorte (nuevo)' : 'Ciclo lectivo'),
 
         const SizedBox(height: 24),
 

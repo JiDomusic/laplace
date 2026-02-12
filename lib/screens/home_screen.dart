@@ -448,17 +448,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _abrirWhatsApp,
-        backgroundColor: AppTheme.whatsappColor,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.chat_rounded),
-        label: Text(
-          'WhatsApp',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-        ),
-      ),
+      floatingActionButton: null,
     );
   }
 

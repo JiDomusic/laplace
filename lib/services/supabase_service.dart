@@ -92,6 +92,51 @@ class SupabaseService {
     return _alumnoFromSupabase(response);
   }
 
+  /// Promociona alumnos al siguiente nivel (1->2, 2->3) y actualiza ciclo_lectivo.
+  /// Luego genera cuotas del nuevo año usando la configuración mensual (sin duplicar).
+  Future<Map<String, int>> promocionarAlumnos(int nuevoAnio) async {
+    final alumnos = await getAllAlumnos();
+    int promovidos = 0;
+    int sinCambio = 0;
+    int cuotasGeneradas = 0;
+
+    for (final alumno in alumnos) {
+      if (alumno.id == null) {
+        sinCambio++;
+        continue;
+      }
+      String nuevoNivel = alumno.nivelInscripcion;
+      if (alumno.nivelInscripcion == 'Primer Año') {
+        nuevoNivel = 'Segundo Año';
+      } else if (alumno.nivelInscripcion == 'Segundo Año') {
+        nuevoNivel = 'Tercer Año';
+      } else {
+        sinCambio++; // Tercer Año se mantiene
+        continue;
+      }
+
+      await client.from('alumnos').update({
+        'nivel_inscripcion': nuevoNivel,
+        'ciclo_lectivo': nuevoAnio.toString(),
+      }).eq('id', alumno.id!);
+
+      promovidos++;
+
+      try {
+        await generarCuotasDesdeConfig(alumno.id!, nuevoAnio, generarInscripcion: false);
+        cuotasGeneradas++;
+      } catch (_) {
+        // Continuar con el resto aunque falle uno
+      }
+    }
+
+    return {
+      'promovidos': promovidos,
+      'sinCambio': sinCambio,
+      'cuotasGeneradas': cuotasGeneradas,
+    };
+  }
+
   Future<void> updateEstadoAlumno(String id, String estado, {String? observaciones}) async {
     final map = {'estado': estado};
     if (observaciones != null) map['observaciones'] = observaciones;

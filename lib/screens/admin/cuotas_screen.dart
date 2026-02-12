@@ -309,25 +309,31 @@ class _CuotasScreenState extends State<CuotasScreen> {
                               onChanged: (v) => setState(() => _busqueda = v),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
                                 _buildMiniChip('1°A', 'Primer Año', division: 'A'),
                                 _buildMiniChip('1°B', 'Primer Año', division: 'B'),
                                 _buildMiniChip('2°', 'Segundo Año'),
                                 _buildMiniChip('3°', 'Tercer Año'),
                                 const SizedBox(width: 8),
                                 _buildEstadoChip('✓', 'pagada', AppTheme.successColor),
-                                _buildEstadoChip('◐', 'parcial', Colors.orange),
-                                _buildEstadoChip('○', 'pendiente', AppTheme.warningColor),
-                                _buildEstadoChip('!', 'vencida', AppTheme.dangerColor),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                    _buildEstadoChip('◐', 'parcial', Colors.orange),
+                    _buildEstadoChip('○', 'pendiente', AppTheme.warningColor),
+                    _buildEstadoChip('!', 'vencida', AppTheme.dangerColor),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.upgrade, size: 16),
+                      label: const Text('Promocionar alumnos'),
+                      onPressed: _abrirPromocionarAlumnos,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
                   ),
                 ),
 
@@ -2395,6 +2401,60 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // Resumen tipo planilla
+                  ValueListenableBuilder<String?>(
+                    valueListenable: alumnoSeleccionado,
+                    builder: (_, value, __) {
+                      if (value == null) return const SizedBox.shrink();
+                      final alumno = _alumnos[value];
+                      if (alumno == null) return const SizedBox.shrink();
+                      final cuotasMarcadas = _cuotas.where((c) => cuotasSeleccionadas.contains(c.id)).toList();
+                      final cuotaDe = cuotasMarcadas.isNotEmpty ? cuotasMarcadas.map((c) => c.concepto).join(', ') : 'Sin seleccionar';
+                      final obs = detalleController.text.isNotEmpty ? detalleController.text : '-';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Resumen', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Table(
+                            columnWidths: const {
+                              0: FlexColumnWidth(1.3), // Curso
+                              1: FlexColumnWidth(2), // Apellido
+                              2: FlexColumnWidth(1.2), // Recibo
+                              3: FlexColumnWidth(2), // Cuota de
+                              4: FlexColumnWidth(1.3), // Importe
+                              5: FlexColumnWidth(2), // Observaciones
+                            },
+                            border: TableBorder.all(color: Colors.grey.shade300),
+                            children: [
+                              TableRow(
+                                decoration: BoxDecoration(color: Colors.grey.shade100),
+                                children: const [
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Curso', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Apellido, Nombre', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Recibo N°', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Cuota de', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Importe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text('Observaciones', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                ],
+                              ),
+                              TableRow(
+                                children: [
+                                  Padding(padding: const EdgeInsets.all(6), child: Text(alumno.nivelInscripcion, style: const TextStyle(fontSize: 11))),
+                                  Padding(padding: const EdgeInsets.all(6), child: Text('${alumno.apellido}, ${alumno.nombre}', style: const TextStyle(fontSize: 11))),
+                                  Padding(padding: const EdgeInsets.all(6), child: Text(reciboController.text.isEmpty ? '-' : reciboController.text, style: const TextStyle(fontSize: 11))),
+                                  Padding(padding: const EdgeInsets.all(6), child: Text(cuotaDe, style: const TextStyle(fontSize: 11))),
+                                  Padding(padding: const EdgeInsets.all(6), child: Text(_formatMoney(int.tryParse(importeController.text) ?? 0), style: const TextStyle(fontSize: 11))),
+                                  Padding(padding: const EdgeInsets.all(6), child: Text(obs, style: const TextStyle(fontSize: 11))),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   ValueListenableBuilder<String>(
                     valueListenable: metodo,
                     builder: (_, value, __) => DropdownButtonFormField<String>(
@@ -2547,6 +2607,91 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       }
     }
     return total;
+  }
+
+  Future<void> _abrirPromocionarAlumnos() async {
+    final anioSiguiente = DateTime.now().year + 1;
+    final anioController = TextEditingController(text: anioSiguiente.toString());
+    bool conCuotas = true;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.upgrade, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Promocionar al próximo año'),
+          ],
+        ),
+        content: StatefulBuilder(
+          builder: (context, setStateDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Se moverán: 1° → 2° y 2° → 3°.'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: anioController,
+                decoration: const InputDecoration(labelText: 'Nuevo ciclo lectivo (año)'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: conCuotas,
+                onChanged: (v) => setStateDialog(() => conCuotas = v ?? true),
+                title: const Text('Generar cuotas del nuevo año (sin duplicar)'),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Consejo: ejecutar a fines de diciembre, así en enero ya tienen ciclo y cuotas nuevas.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Promocionar')),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final nuevoAnio = int.tryParse(anioController.text) ?? anioSiguiente;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Promocionando alumnos a $nuevoAnio...'), backgroundColor: Colors.blue),
+        );
+      }
+      try {
+        final res = await _db.promocionarAlumnos(nuevoAnio);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Promovidos: ${res['promovidos']} • Sin cambio: ${res['sinCambio']} • Cuotas nuevas: ${res['cuotasGeneradas']}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        await _loadCuotas();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al promocionar: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   // ========== TOTALES POR MES ==========
