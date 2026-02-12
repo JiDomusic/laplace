@@ -1639,86 +1639,105 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final soloPendientes = ValueNotifier<bool>(true);
     final incluirVencidas = ValueNotifier<bool>(true);
 
+    Future<void> _cargarConfig(int mes, int anio, void Function(void Function()) setStateDialog) async {
+      final cfg = await _db.getConfigCuotasPeriodo(nivel: 'Primer Año', mes: mes, anio: anio);
+      setStateDialog(() {
+        montoAlDiaController.text = cfg?.montoAlDia.toString() ?? '';
+        monto1erVtoController.text = cfg?.monto1erVto.toString() ?? '';
+        monto2doVtoController.text = cfg?.monto2doVto.toString() ?? '';
+      });
+    }
+
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajustar montos del mes'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Actualiza los montos de las cuotas de un mes.'),
-              const SizedBox(height: 12),
-              ValueListenableBuilder<int>(
-                valueListenable: mesController,
-                builder: (_, value, __) {
-                  return DropdownButtonFormField<int>(
-                    value: value,
-                    decoration: const InputDecoration(labelText: 'Mes'),
-                    items: List.generate(12, (i) => i + 1)
-                        .map((m) => DropdownMenuItem(value: m, child: Text(Cuota.nombreMes(m))))
-                        .toList(),
-                    onChanged: (v) => mesController.value = v ?? DateTime.now().month,
-                  );
-                },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          // Cargar config inicial
+          _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+          return AlertDialog(
+            title: const Text('Ajustar montos del mes'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Actualiza los montos de las cuotas de un mes.'),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<int>(
+                    valueListenable: mesController,
+                    builder: (_, value, __) {
+                      return DropdownButtonFormField<int>(
+                        value: value,
+                        decoration: const InputDecoration(labelText: 'Mes'),
+                        items: List.generate(12, (i) => i + 1)
+                            .map((m) => DropdownMenuItem(value: m, child: Text(Cuota.nombreMes(m))))
+                            .toList(),
+                        onChanged: (v) {
+                          mesController.value = v ?? DateTime.now().month;
+                          _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Montos de vencimiento (enteros):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: montoAlDiaController,
+                    decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: monto1erVtoController,
+                    decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: monto2doVtoController,
+                    decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: anioController,
+                    decoration: const InputDecoration(labelText: 'Año'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => _cargarConfig(mesController.value, int.tryParse(v) ?? DateTime.now().year, setStateDialog),
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: soloPendientes,
+                    builder: (_, value, __) {
+                      return CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Solo cuotas no pagadas'),
+                        value: value,
+                        onChanged: (v) => soloPendientes.value = v ?? true,
+                      );
+                    },
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: incluirVencidas,
+                    builder: (_, value, __) {
+                      return CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Actualizar también vencidas'),
+                        value: value,
+                        onChanged: (v) => incluirVencidas.value = v ?? true,
+                      );
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              const Text('Montos de vencimiento (enteros):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: montoAlDiaController,
-                decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto1erVtoController,
-                decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto2doVtoController,
-                decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: anioController,
-                decoration: const InputDecoration(labelText: 'Año'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              ValueListenableBuilder<bool>(
-                valueListenable: soloPendientes,
-                builder: (_, value, __) {
-                  return CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Solo cuotas no pagadas'),
-                    value: value,
-                    onChanged: (v) => soloPendientes.value = v ?? true,
-                  );
-                },
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: incluirVencidas,
-                builder: (_, value, __) {
-                  return CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Actualizar también vencidas'),
-                    value: value,
-                    onChanged: (v) => incluirVencidas.value = v ?? true,
-                  );
-                },
-              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Actualizar')),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Actualizar')),
-        ],
+          );
+        },
       ),
     );
 
