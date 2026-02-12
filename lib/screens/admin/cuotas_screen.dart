@@ -2239,6 +2239,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final metodo = ValueNotifier<String>('efectivo');
     final fechaPago = ValueNotifier<DateTime>(DateTime.now());
     final cuotasSeleccionadas = <String>{};
+    final aplicarSaldoFavor = ValueNotifier<bool>(true);
 
     await showDialog(
       context: context,
@@ -2310,7 +2311,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text('Saldo a favor:', style: TextStyle(fontSize: 13)),
+                                      const Text('Saldo a favor disponible:', style: TextStyle(fontSize: 13)),
                                       Text(_formatMoney(saldoFavor), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
                                     ],
                                   ),
@@ -2469,6 +2470,35 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                     },
                   ),
                   const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: aplicarSaldoFavor,
+                      builder: (_, value, __) {
+                        final alumno = alumnoSeleccionado.value != null ? _alumnos[alumnoSeleccionado.value] : null;
+                        final saldoFavor = alumno?.saldoFavor ?? 0;
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Aplicar saldo a favor (${_formatMoney(saldoFavor)})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: const Text(
+                            'Si está marcado, se sumará el saldo a favor al importe.\nSi no, el saldo queda intacto.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: value,
+                          onChanged: (v) => aplicarSaldoFavor.value = v ?? true,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   ValueListenableBuilder<String>(
                     valueListenable: metodo,
                     builder: (_, value, __) => DropdownButtonFormField<String>(
@@ -2513,6 +2543,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                     detallePago: detalleController.text.isEmpty ? null : detalleController.text,
                     fechaPago: fechaPago.value,
                     cuotasIds: cuotasSeleccionadas.isEmpty ? null : cuotasSeleccionadas,
+                    aplicarSaldoFavor: aplicarSaldoFavor.value,
                   );
                 },
                 icon: const Icon(Icons.check),
@@ -2534,13 +2565,14 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     String? detallePago,
     required DateTime fechaPago,
     Set<String>? cuotasIds,
+    bool aplicarSaldoFavor = true,
   }) async {
     // Obtener saldo a favor actual del alumno
     final alumno = _alumnosDisponibles.where((a) => a.id == alumnoId).firstOrNull;
     final saldoFavorActual = (alumno?.saldoFavor ?? 0).toInt();
 
     // Sumar saldo a favor al importe pagado
-    int importeTotal = importe + saldoFavorActual;
+    int importeTotal = aplicarSaldoFavor ? importe + saldoFavorActual : importe;
     int saldoUsado = 0;
 
     // Obtener cuotas pendientes ordenadas por vencimiento
