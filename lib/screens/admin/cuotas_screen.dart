@@ -2239,7 +2239,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final metodo = ValueNotifier<String>('efectivo');
     final fechaPago = ValueNotifier<DateTime>(DateTime.now());
     final cuotasSeleccionadas = <String>{};
-    final aplicarSaldoFavor = ValueNotifier<bool>(true);
+    final aplicarSaldoFavor = ValueNotifier<bool>(true); // siempre se aplica, solo informamos
 
     await showDialog(
       context: context,
@@ -2482,18 +2482,19 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                       builder: (_, value, __) {
                         final alumno = alumnoSeleccionado.value != null ? _alumnos[alumnoSeleccionado.value] : null;
                         final saldoFavor = alumno?.saldoFavor ?? 0;
-                        return CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            'Aplicar saldo a favor (${_formatMoney(saldoFavor)})',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: const Text(
-                            'Si está marcado, se sumará el saldo a favor al importe.\nSi no, el saldo queda intacto.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          value: value,
-                          onChanged: (v) => aplicarSaldoFavor.value = v ?? true,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Se aplicará el saldo a favor de ${_formatMoney(saldoFavor)} al importe.',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'El saldo se sumará automáticamente. Si no querés usarlo, ponelo en \$0 antes de cobrar.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
                         );
                       },
                     ),
