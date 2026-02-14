@@ -144,8 +144,45 @@ class SupabaseService {
     await client.from('alumnos').update(map).eq('id', id);
   }
 
-  Future<void> updateDivisionAlumno(String id, String? division) async {
+  Future<void> updateDivisionAlumno(String id, String? division, {String? usuario}) async {
+    // Registrar en historial
+    final prevData = await client.from('alumnos').select().eq('id', id).maybeSingle();
+    if (prevData != null) {
+      await registrarHistorial(
+        tabla: 'alumnos',
+        registroId: id,
+        accion: 'cambiar_division',
+        datosAnteriores: prevData,
+        datosNuevos: {'division': division},
+        descripcion: 'Cambio de division de ${prevData['apellido']}, ${prevData['nombre']}: ${prevData['division'] ?? 'sin asignar'} -> ${division ?? 'sin asignar'}',
+        usuario: usuario,
+      );
+    }
+
     await client.from('alumnos').update({'division': division}).eq('id', id);
+  }
+
+  Future<void> updateAlumno(String id, Alumno alumno, {String? usuario}) async {
+    // Registrar en historial
+    final prevData = await client.from('alumnos').select().eq('id', id).maybeSingle();
+    if (prevData != null) {
+      await registrarHistorial(
+        tabla: 'alumnos',
+        registroId: id,
+        accion: 'editar_alumno',
+        datosAnteriores: prevData,
+        datosNuevos: alumno.toMap(),
+        descripcion: 'Edicion de ${alumno.apellido}, ${alumno.nombre}',
+        usuario: usuario,
+      );
+    }
+
+    final map = alumno.toMap();
+    map.remove('id');
+    map.remove('codigo_inscripcion');
+    map.remove('fecha_inscripcion');
+    map.remove('saldo_favor');
+    await client.from('alumnos').update(map).eq('id', id);
   }
 
   Future<void> deleteAlumno(String id) async {
@@ -557,12 +594,24 @@ class SupabaseService {
     String? numRecibo,
     String? detallePago,
     DateTime? fechaPago,
+    String? usuario,
   }) async {
     final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuotaData == null) return null;
 
     final cuota = _cuotaFromSupabase(cuotaData);
     final montoActual = cuota.montoActual;
+
+    // Registrar en historial antes de modificar
+    await registrarHistorial(
+      tabla: 'cuotas',
+      registroId: cuotaId,
+      accion: 'pago_total',
+      datosAnteriores: cuotaData,
+      datosNuevos: {'estado': 'pagada', 'monto_pagado': montoActual, 'metodo_pago': metodoPago},
+      descripcion: 'Pago total ${cuotaData['concepto']} - \$$montoActual',
+      usuario: usuario,
+    );
 
     // Paga la cuota actual completa
     final fecha = fechaPago ?? DateTime.now();
@@ -605,9 +654,21 @@ class SupabaseService {
     String? numRecibo,
     String? detallePago,
     DateTime? fechaPago,
+    String? usuario,
   }) async {
     final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
     if (cuotaData == null) return;
+
+    // Registrar en historial antes de modificar
+    await registrarHistorial(
+      tabla: 'cuotas',
+      registroId: cuotaId,
+      accion: 'pago_parcial',
+      datosAnteriores: cuotaData,
+      datosNuevos: {'monto_parcial': monto, 'metodo_pago': metodoPago},
+      descripcion: 'Pago parcial ${cuotaData['concepto']} - \$$monto',
+      usuario: usuario,
+    );
 
     final alumnoId = cuotaData['alumno_id'];
     final cuota = _cuotaFromSupabase(cuotaData);
@@ -685,7 +746,22 @@ class SupabaseService {
     required int montoAlDia,
     required int monto1erVto,
     required int monto2doVto,
+    String? usuario,
   }) async {
+    // Registrar en historial
+    final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
+    if (cuotaData != null) {
+      await registrarHistorial(
+        tabla: 'cuotas',
+        registroId: cuotaId,
+        accion: 'editar_monto',
+        datosAnteriores: cuotaData,
+        datosNuevos: {'monto_al_dia': montoAlDia, 'monto_1er_vto': monto1erVto, 'monto_2do_vto': monto2doVto},
+        descripcion: 'Cambio de montos ${cuotaData['concepto']}: \$$montoAlDia / \$$monto1erVto / \$$monto2doVto',
+        usuario: usuario,
+      );
+    }
+
     await client.from('cuotas').update({
       'monto_al_dia': montoAlDia,
       'monto_1er_vto': monto1erVto,
@@ -1136,5 +1212,129 @@ class SupabaseService {
         .eq('email', email)
         .maybeSingle();
     return response;
+  }
+
+  // ==================== HISTORIAL DE CAMBIOS ====================
+
+  Future<String> registrarHistorial({
+    required String tabla,
+    required String registroId,
+    required String accion,
+    Map<String, dynamic>? datosAnteriores,
+    Map<String, dynamic>? datosNuevos,
+    String? descripcion,
+    String? usuario,
+  }) async {
+    final response = await client.from('historial_cambios').insert({
+      'tabla': tabla,
+      'registro_id': registroId,
+      'accion': accion,
+      'datos_anteriores': datosAnteriores,
+      'datos_nuevos': datosNuevos,
+      'descripcion': descripcion,
+      'usuario': usuario,
+    }).select('id').single();
+    return response['id'] as String;
+  }
+
+  Future<List<Map<String, dynamic>>> getHistorial({
+    String? tabla,
+    String? registroId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    var query = client.from('historial_cambios').select();
+    if (tabla != null) query = query.eq('tabla', tabla);
+    if (registroId != null) query = query.eq('registro_id', registroId);
+
+    final response = await query
+        .order('fecha', ascending: false)
+        .range(offset, offset + limit - 1);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> revertirCambio(String historialId) async {
+    final entry = await client
+        .from('historial_cambios')
+        .select()
+        .eq('id', historialId)
+        .single();
+
+    if (entry['revertido'] == true) {
+      throw Exception('Este cambio ya fue revertido');
+    }
+
+    final tabla = entry['tabla'] as String;
+    final registroId = entry['registro_id'] as String;
+    final datosAnteriores = entry['datos_anteriores'] as Map<String, dynamic>?;
+
+    if (datosAnteriores == null) {
+      throw Exception('No hay datos anteriores para revertir');
+    }
+
+    // Restore previous state
+    final restoreData = Map<String, dynamic>.from(datosAnteriores);
+    restoreData.remove('id');
+    restoreData.remove('fecha_inscripcion');
+    restoreData.remove('codigo_inscripcion');
+    restoreData.remove('fecha_creacion');
+
+    await client.from(tabla).update(restoreData).eq('id', registroId);
+
+    // Mark as reverted
+    await client.from('historial_cambios').update({
+      'revertido': true,
+    }).eq('id', historialId);
+  }
+
+  // ==================== GESTION DE ADMINISTRADORES ====================
+
+  Future<List<Map<String, dynamic>>> getAllAdmins() async {
+    final response = await client
+        .from('administradores')
+        .select()
+        .order('nombre');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> createAdmin({
+    required String email,
+    required String password,
+    required String nombre,
+    String rol = 'admin',
+  }) async {
+    await client.from('administradores').insert({
+      'email': email,
+      'password': password,
+      'nombre': nombre,
+      'rol': rol,
+      'activo': true,
+    });
+  }
+
+  Future<void> updateAdmin(String id, {
+    String? nombre,
+    String? email,
+    String? rol,
+    bool? activo,
+  }) async {
+    final map = <String, dynamic>{};
+    if (nombre != null) map['nombre'] = nombre;
+    if (email != null) map['email'] = email;
+    if (rol != null) map['rol'] = rol;
+    if (activo != null) map['activo'] = activo;
+    if (map.isNotEmpty) {
+      await client.from('administradores').update(map).eq('id', id);
+    }
+  }
+
+  Future<void> deleteAdmin(String id) async {
+    await client.from('administradores').delete().eq('id', id);
+  }
+
+  Future<void> changeAdminPassword(String id, String newPassword) async {
+    await client.from('administradores').update({
+      'password': newPassword,
+    }).eq('id', id);
   }
 }

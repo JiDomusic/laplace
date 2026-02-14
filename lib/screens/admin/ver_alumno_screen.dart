@@ -6,6 +6,7 @@ import '../../models/legajo.dart';
 import '../../services/supabase_service.dart';
 import '../../services/pdf_service.dart';
 import '../../utils/app_theme.dart';
+import 'editar_alumno_screen.dart';
 
 class VerAlumnoScreen extends StatefulWidget {
   final String alumnoId;
@@ -99,6 +100,19 @@ class _VerAlumnoScreenState extends State<VerAlumnoScreen> {
                 );
               },
               tooltip: 'Descargar Ficha de Inscripcion',
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditarAlumnoScreen(alumno: _alumno!),
+                  ),
+                );
+                if (result == true) _loadData();
+              },
+              tooltip: 'Editar Alumno',
             ),
             IconButton(
               icon: const Icon(Icons.delete_forever, color: Colors.red),

@@ -13,6 +13,7 @@ import 'screens/admin/inscripciones_screen.dart';
 import 'screens/admin/ver_alumno_screen.dart';
 import 'screens/admin/cuotas_screen.dart';
 import 'screens/admin/galeria_screen.dart';
+import 'screens/admin/usuarios_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() async {
@@ -61,6 +62,7 @@ class MyApp extends StatelessWidget {
           '/admin/inscripciones': (context) => const AuthGuard(child: InscripcionesScreen()),
           '/admin/cuotas': (context) => const AuthGuard(child: CuotasScreen()),
           '/admin/galeria': (context) => const AuthGuard(child: GaleriaScreen()),
+          '/admin/usuarios': (context) => const AuthGuard(child: UsuariosScreen()),
         },
         onGenerateRoute: (settings) {
           if (settings.name?.startsWith('/admin/alumno/') ?? false) {

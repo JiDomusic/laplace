@@ -1172,9 +1172,24 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
 
   void _mostrarOpcionesCuota(Cuota cuota, Alumno alumno) {
     if (cuota.estaPagada) {
-      // Solo mostrar info
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${cuota.concepto} - Pagada'), duration: const Duration(seconds: 1)),
+      showModalBottomSheet(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(alumno.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('${cuota.concepto} - PAGADA', style: TextStyle(color: AppTheme.successColor)),
+              const SizedBox(height: 8),
+              Text('Monto pagado: ${_formatMoney(cuota.montoPagado)}'),
+              if (cuota.fechaPago != null) Text('Fecha: ${DateFormat('dd/MM/yyyy').format(cuota.fechaPago!)}'),
+              if (cuota.metodoPago != null) Text('Método: ${cuota.metodoPago}'),
+              if (cuota.numRecibo != null && cuota.numRecibo!.isNotEmpty) Text('Recibo: ${cuota.numRecibo}'),
+            ],
+          ),
+        ),
       );
       return;
     }
@@ -1186,7 +1201,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${alumno.nombreCompleto}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(alumno.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             Text(_tituloCuota(cuota), style: TextStyle(color: Colors.grey.shade600)),
             const SizedBox(height: 8),
             Row(
@@ -1219,6 +1234,34 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
                     child: const Text('Pago Total'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _editarMonto(cuota);
+                    },
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Editar Montos'),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _editarMontoMes(cuota);
+                    },
+                    icon: const Icon(Icons.calendar_month, size: 16),
+                    label: const Text('Editar Mes'),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
                   ),
                 ),
               ],
@@ -2113,6 +2156,77 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Montos actualizados')),
+        );
+      }
+    }
+  }
+
+  Future<void> _editarMontoMes(Cuota cuota) async {
+    final montoAlDiaController = TextEditingController(text: cuota.montoAlDia.toString());
+    final monto1erVtoController = TextEditingController(text: cuota.monto1erVto.toString());
+    final monto2doVtoController = TextEditingController(text: cuota.monto2doVto.toString());
+    final mesNombre = Cuota.nombreMes(cuota.mes);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Editar Montos - $mesNombre ${cuota.anio}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Esto cambiará los montos de TODAS las cuotas pendientes/vencidas de $mesNombre.',
+                style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: montoAlDiaController,
+                decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: monto1erVtoController,
+                decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: monto2doVtoController,
+                decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Aplicar a Todos'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final montoAlDia = int.tryParse(montoAlDiaController.text) ?? cuota.montoAlDia;
+      final monto1erVto = int.tryParse(monto1erVtoController.text) ?? cuota.monto1erVto;
+      final monto2doVto = int.tryParse(monto2doVtoController.text) ?? cuota.monto2doVto;
+      await _db.updateMontoCuotasMes(
+        anio: cuota.anio,
+        mes: cuota.mes,
+        montoAlDia: montoAlDia,
+        monto1erVto: monto1erVto,
+        monto2doVto: monto2doVto,
+      );
+      await _loadCuotas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Montos actualizados para $mesNombre')),
         );
       }
     }

@@ -74,6 +74,7 @@ class PdfService {
               child: pw.Row(
                 children: [
                   pw.Expanded(child: _buildFilaCompacta('Nivel', alumno.nivelInscripcion)),
+                  pw.Expanded(child: _buildFilaCompacta('Cohorte', alumno.cicloLectivo ?? DateTime.now().year.toString())),
                   if (alumno.division != null) pw.Expanded(child: _buildFilaCompacta('División', alumno.division!)),
                   pw.Expanded(child: _buildFilaCompacta('Estado', alumno.estado.toUpperCase())),
                 ],

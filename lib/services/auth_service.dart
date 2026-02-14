@@ -123,4 +123,29 @@ class AuthService with ChangeNotifier {
     _savedEmail = null;
     notifyListeners();
   }
+
+  bool get isSuperAdmin => _currentUser?['rol'] == 'superadmin';
+
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    if (_currentUser == null) return false;
+    final id = _currentUser!['id']?.toString();
+    if (id == null) return false;
+
+    // Verify current password
+    final adminData = await _db.getAdminByEmail(userEmail);
+    if (adminData == null || adminData['password'] != currentPassword) {
+      _error = 'Contraseña actual incorrecta';
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      await _db.changeAdminPassword(id, newPassword);
+      return true;
+    } catch (e) {
+      _error = 'Error al cambiar contraseña: $e';
+      notifyListeners();
+      return false;
+    }
+  }
 }

@@ -523,6 +523,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAccionCompacta(
+                  titulo: 'Usuarios',
+                  icon: Icons.admin_panel_settings,
+                  color: Colors.purple,
+                  onTap: () => Navigator.pushNamed(context, '/admin/usuarios'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
         ],
       ),
     );
