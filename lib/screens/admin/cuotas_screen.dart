@@ -1232,6 +1232,18 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
               if (cuota.fechaPago != null) Text('Fecha: ${DateFormat('dd/MM/yyyy').format(cuota.fechaPago!)}'),
               if (cuota.metodoPago != null) Text('Método: ${cuota.metodoPago}'),
               if (cuota.numRecibo != null && cuota.numRecibo!.isNotEmpty) Text('Recibo: ${cuota.numRecibo}'),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.undo, color: Colors.red),
+                  label: const Text('Deshacer pago', style: TextStyle(color: Colors.red)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _deshacerPago(cuota);
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -2903,6 +2915,70 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al promocionar: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deshacerPago(Cuota cuota) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.undo, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Deshacer pago'),
+          ],
+        ),
+        content: Text(
+          '¿Seguro que desea revertir el pago de "${cuota.concepto}"?\n\n'
+          'La cuota volverá a estado pendiente y el monto pagado se pondrá en 0.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Deshacer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && cuota.id != null) {
+      try {
+        // Buscar el historial del pago para revertirlo
+        final historial = await _db.getHistorial(tabla: 'cuotas', registroId: cuota.id!);
+        final entradaPago = historial.firstWhereOrNull(
+          (h) => (h['accion'] == 'pago_total' || h['accion'] == 'pago_parcial') && h['revertido'] != true,
+        );
+
+        if (entradaPago != null) {
+          await _db.revertirCambio(entradaPago['id'].toString());
+        } else {
+          // Sin historial, revertir manualmente
+          await _db.client.from('cuotas').update({
+            'estado': 'pendiente',
+            'monto_pagado': 0,
+            'fecha_pago': null,
+            'metodo_pago': null,
+            'num_recibo': null,
+            'detalle_pago': null,
+          }).eq('id', cuota.id!);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pago revertido correctamente'), backgroundColor: Colors.green),
+          );
+        }
+        await _loadCuotas();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al revertir: $e'), backgroundColor: Colors.red),
           );
         }
       }
