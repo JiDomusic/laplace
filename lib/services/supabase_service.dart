@@ -137,6 +137,59 @@ class SupabaseService {
     };
   }
 
+  /// Deshace la última promoción: revierte niveles (2->1, 3->2) y elimina cuotas del año indicado.
+  Future<Map<String, int>> deshacerPromocion(int anioPromocionado) async {
+    final alumnos = await getAllAlumnos();
+    int revertidos = 0;
+    int sinCambio = 0;
+    int cuotasEliminadas = 0;
+
+    for (final alumno in alumnos) {
+      if (alumno.id == null) {
+        sinCambio++;
+        continue;
+      }
+      // Solo revertir si el ciclo lectivo coincide con el año promocionado
+      final ciclo = int.tryParse(alumno.cicloLectivo ?? '') ?? 0;
+      if (ciclo != anioPromocionado) {
+        sinCambio++;
+        continue;
+      }
+
+      String nivelAnterior = alumno.nivelInscripcion;
+      if (alumno.nivelInscripcion == 'Segundo Año') {
+        nivelAnterior = 'Primer Año';
+      } else if (alumno.nivelInscripcion == 'Tercer Año') {
+        nivelAnterior = 'Segundo Año';
+      } else {
+        sinCambio++;
+        continue;
+      }
+
+      await client.from('alumnos').update({
+        'nivel_inscripcion': nivelAnterior,
+        'ciclo_lectivo': (anioPromocionado - 1).toString(),
+      }).eq('id', alumno.id!);
+
+      // Eliminar cuotas generadas para ese año
+      final deleted = await client
+          .from('cuotas')
+          .delete()
+          .eq('alumno_id', alumno.id!)
+          .eq('anio', anioPromocionado)
+          .select('id');
+      cuotasEliminadas += (deleted as List).length;
+
+      revertidos++;
+    }
+
+    return {
+      'revertidos': revertidos,
+      'sinCambio': sinCambio,
+      'cuotasEliminadas': cuotasEliminadas,
+    };
+  }
+
   Future<void> updateEstadoAlumno(String id, String estado, {String? observaciones}) async {
     final map = {'estado': estado};
     if (observaciones != null) map['observaciones'] = observaciones;
@@ -1156,51 +1209,15 @@ class SupabaseService {
   // ==================== AUTENTICACIÓN ADMIN ====================
 
   Future<Map<String, dynamic>?> loginAdmin(String email, String password) async {
-    // Intentar login via Supabase Auth si el usuario existe allí
-    try {
-      final authResponse = await Supabase.instance.client.auth
-          .signInWithPassword(email: email, password: password);
-
-      if (authResponse.session != null) {
-        // Buscar datos extra en la tabla administradores
-        final adminRow = await getAdminByEmail(email);
-        if (adminRow != null) {
-          await client
-              .from('administradores')
-              .update({'ultimo_acceso': DateTime.now().toIso8601String()})
-              .eq('id', adminRow['id']);
-          return adminRow;
-        }
-
-        // Si no hay fila en administradores, devolver datos básicos del auth user
-        return {
-          'id': authResponse.session!.user.id,
-          'email': email,
-          'nombre': authResponse.session!.user.email ?? email,
-          'rol': 'admin',
-          'activo': true,
-        };
-      }
-    } catch (_) {
-      // Ignorar y probar login por tabla
-    }
-
-    // Fallback: login contra tabla administradores (password en texto plano)
-    final response = await client
-        .from('administradores')
-        .select()
-        .eq('email', email)
-        .eq('password', password)
-        .or('activo.is.null,activo.eq.true,activo.eq.1')
-        .maybeSingle();
+    // Login contra tabla administradores (password en texto plano).
+    // Se omite Supabase Auth para evitar errores 400 cuando no existe el usuario en Auth.
+    final response = await client.from('administradores').select().eq('email', email).eq('password', password).or(
+        'activo.is.null,activo.eq.true,activo.eq.1').maybeSingle();
 
     if (response == null) return null;
 
     // Actualizar último acceso
-    await client
-        .from('administradores')
-        .update({'ultimo_acceso': DateTime.now().toIso8601String()})
-        .eq('id', response['id']);
+    await client.from('administradores').update({'ultimo_acceso': DateTime.now().toIso8601String()}).eq('id', response['id']);
 
     return response;
   }
@@ -1303,6 +1320,17 @@ class SupabaseService {
     required String nombre,
     String rol = 'admin',
   }) async {
+    // Intentar usar Edge Function manage-admin (si está desplegada)
+    final invoked = await _invokeManageAdmin({
+      'action': 'create_user',
+      'email': email,
+      'password': password,
+      'nombre': nombre,
+      'rol': rol,
+      'activo': true,
+    });
+    if (invoked) return;
+
     await client.from('administradores').insert({
       'email': email,
       'password': password,
@@ -1332,9 +1360,29 @@ class SupabaseService {
     await client.from('administradores').delete().eq('id', id);
   }
 
-  Future<void> changeAdminPassword(String id, String newPassword) async {
+  Future<void> changeAdminPassword(String id, String newPassword, {String? email}) async {
+    // Intentar usar Edge Function manage-admin (si está desplegada)
+    final invoked = await _invokeManageAdmin({
+      'action': 'change_password',
+      'user_id': id,
+      'email': email,
+      'new_password': newPassword,
+    });
+    if (invoked) return;
+
     await client.from('administradores').update({
       'password': newPassword,
     }).eq('id', id);
+  }
+
+  /// Llama a la Edge Function `manage-admin` si existe. Devuelve true si retornó ok.
+  Future<bool> _invokeManageAdmin(Map<String, dynamic> body) async {
+    try {
+      final response = await client.functions.invoke('manage-admin', body: body);
+      if (response.data is Map && (response.data['ok'] == true)) return true;
+    } catch (_) {
+      // Ignorar para que el flujo continúe con el fallback local
+    }
+    return false;
   }
 }

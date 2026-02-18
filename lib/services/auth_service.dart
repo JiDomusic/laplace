@@ -131,7 +131,7 @@ class AuthService with ChangeNotifier {
     final id = _currentUser!['id']?.toString();
     if (id == null) return false;
 
-    // Verify current password
+    // Verify current password contra la tabla de administradores
     final adminData = await _db.getAdminByEmail(userEmail);
     if (adminData == null || adminData['password'] != currentPassword) {
       _error = 'Contraseña actual incorrecta';
@@ -140,7 +140,18 @@ class AuthService with ChangeNotifier {
     }
 
     try {
-      await _db.changeAdminPassword(id, newPassword);
+      await _db.changeAdminPassword(id, newPassword, email: userEmail);
+
+      // Si el usuario también existe en Supabase Auth, intentar actualizar allí para mantenerlo en sync
+      final authUser = Supabase.instance.client.auth.currentUser;
+      if (authUser != null) {
+        try {
+          await Supabase.instance.client.auth.updateUser(UserAttributes(password: newPassword));
+        } catch (_) {
+          // Ignorar error de Supabase Auth; la tabla ya se actualizó
+        }
+      }
+
       return true;
     } catch (e) {
       _error = 'Error al cambiar contraseña: $e';

@@ -58,52 +58,91 @@ class _CuotasScreenState extends State<CuotasScreen> {
   Future<void> _loadCuotas() async {
     setState(() => _isLoading = true);
     try {
-      final cuotas = await _db.getAllCuotas();
-      final diasConfigCache = <String, Map<String, int>>{};
+      // Cargar cuotas y alumnos en paralelo (2 queries en vez de N)
+      final results = await Future.wait([
+        _db.getAllCuotas(),
+        _db.getAllAlumnos(),
+      ]);
+      final cuotas = results[0] as List<Cuota>;
+      final todosAlumnos = results[1] as List<Alumno>;
 
-      // Filtrar por año si corresponde
+      // Indexar alumnos por id de una sola vez
+      final alumnoMap = <String, Alumno>{};
+      for (final a in todosAlumnos) {
+        if (a.id != null) alumnoMap[a.id!] = a;
+      }
+
+      // Filtrar por año
       final cuotasFiltradas = cuotas.where((c) => c.anio == _filtroAnio).toList();
 
+      // Recopilar configs necesarias y cargarlas en paralelo
+      final configKeys = <String, Future<ConfigCuotasPeriodo?>>{};
       for (final cuota in cuotasFiltradas) {
-        if (!_alumnos.containsKey(cuota.alumnoId)) {
-          final alumno = await _db.getAlumnoById(cuota.alumnoId);
-          if (alumno != null) {
-            final signed = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
-            _alumnos[cuota.alumnoId] = signed != null ? alumno.copyWith(fotoAlumno: signed) : alumno;
-          }
-        }
-
-        // Aplicar días de rango desde config (si existe)
-        final alumno = _alumnos[cuota.alumnoId];
+        final alumno = alumnoMap[cuota.alumnoId];
         if (alumno != null) {
           final cacheKey = '${alumno.nivelInscripcion}_${cuota.mes}_${cuota.anio}';
-          if (!diasConfigCache.containsKey(cacheKey)) {
-            final config = await _db.getConfigCuotasPeriodo(
+          if (!configKeys.containsKey(cacheKey)) {
+            configKeys[cacheKey] = _db.getConfigCuotasPeriodo(
               nivel: alumno.nivelInscripcion,
               mes: cuota.mes,
               anio: cuota.anio,
             );
-            diasConfigCache[cacheKey] = {
-              'a': config?.diaFinRangoA ?? 10,
-              'b': config?.diaFinRangoB ?? 20,
-            };
           }
-          final dias = diasConfigCache[cacheKey]!;
-          final idx = cuotasFiltradas.indexOf(cuota);
-          cuotasFiltradas[idx] = cuota.copyWith(
-            diaFinRangoA: dias['a'],
-            diaFinRangoB: dias['b'],
+        }
+      }
+      final configResults = <String, ConfigCuotasPeriodo?>{};
+      final keys = configKeys.keys.toList();
+      final values = await Future.wait(configKeys.values);
+      for (int i = 0; i < keys.length; i++) {
+        configResults[keys[i]] = values[i];
+      }
+
+      // Aplicar días de rango
+      for (int i = 0; i < cuotasFiltradas.length; i++) {
+        final cuota = cuotasFiltradas[i];
+        final alumno = alumnoMap[cuota.alumnoId];
+        if (alumno != null) {
+          final cacheKey = '${alumno.nivelInscripcion}_${cuota.mes}_${cuota.anio}';
+          final config = configResults[cacheKey];
+          cuotasFiltradas[i] = cuota.copyWith(
+            diaFinRangoA: config?.diaFinRangoA ?? 10,
+            diaFinRangoB: config?.diaFinRangoB ?? 20,
           );
         }
       }
-      _alumnosDisponibles = await _db.getAllAlumnos();
+
+      // Actualizar mapa de alumnos sin fotos para mostrar rápido
+      _alumnos.addAll(alumnoMap.map((k, v) => MapEntry(k, v)));
+      _alumnosDisponibles = todosAlumnos;
       setState(() {
         _cuotas = cuotasFiltradas;
         _isLoading = false;
       });
+
+      // Cargar fotos en background sin bloquear la UI
+      _loadFotosEnBackground(cuotasFiltradas, alumnoMap);
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadFotosEnBackground(List<Cuota> cuotas, Map<String, Alumno> alumnoMap) async {
+    final alumnoIdsConFoto = <String>{};
+    for (final cuota in cuotas) {
+      final alumno = alumnoMap[cuota.alumnoId];
+      if (alumno != null && alumno.fotoAlumno != null && alumno.fotoAlumno!.isNotEmpty) {
+        alumnoIdsConFoto.add(cuota.alumnoId);
+      }
+    }
+    for (final id in alumnoIdsConFoto) {
+      final alumno = alumnoMap[id];
+      if (alumno == null) continue;
+      final signed = await _db.getSignedFotoAlumno(alumno.fotoAlumno);
+      if (signed != null && mounted) {
+        _alumnos[id] = alumno.copyWith(fotoAlumno: signed);
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   List<Cuota> get _cuotasFiltradas {
@@ -324,6 +363,12 @@ class _CuotasScreenState extends State<CuotasScreen> {
                       icon: const Icon(Icons.upgrade, size: 16),
                       label: const Text('Promocionar alumnos'),
                       onPressed: _abrirPromocionarAlumnos,
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.undo, size: 16, color: Colors.red),
+                      label: const Text('Deshacer promoción', style: TextStyle(color: Colors.red)),
+                      onPressed: _deshacerPromocion,
                     ),
                   ],
                 ),
@@ -2858,6 +2903,86 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al promocionar: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deshacerPromocion() async {
+    final anioController = TextEditingController(text: DateTime.now().year.toString());
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.undo, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Deshacer promoción'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Se revertirán los niveles (2°→1°, 3°→2°) y se eliminarán las cuotas generadas del año indicado.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Esta acción no se puede deshacer. Solo usar si la promoción fue un error.',
+                style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: anioController,
+              decoration: const InputDecoration(labelText: 'Año de la promoción a revertir'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Deshacer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Revirtiendo promoción del $anio...'), backgroundColor: Colors.orange),
+        );
+      }
+      try {
+        final res = await _db.deshacerPromocion(anio);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Revertidos: ${res['revertidos']} • Sin cambio: ${res['sinCambio']} • Cuotas eliminadas: ${res['cuotasEliminadas']}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        await _loadCuotas();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al revertir: $e'), backgroundColor: Colors.red),
           );
         }
       }
