@@ -158,7 +158,6 @@ class InscripcionProvider with ChangeNotifier {
         numero.isNotEmpty &&
         localidad.isNotEmpty &&
         codigoPostal.isNotEmpty &&
-        email.isNotEmpty &&
         celular.isNotEmpty &&
         contactoUrgenciaNombre.isNotEmpty &&
         contactoUrgenciaTelefono.isNotEmpty &&

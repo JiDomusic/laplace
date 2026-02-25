@@ -301,7 +301,7 @@ class _EditarAlumnoScreenState extends State<EditarAlumnoScreen> {
                     ),
                   ]),
                   _buildSeccion('Contacto', [
-                    _buildField('Email', _emailCtrl, required: true, keyboardType: TextInputType.emailAddress),
+                    _buildField('Email', _emailCtrl, keyboardType: TextInputType.emailAddress),
                     Row(
                       children: [
                         Expanded(child: _buildField('Celular', _celularCtrl, required: true, keyboardType: TextInputType.phone)),
