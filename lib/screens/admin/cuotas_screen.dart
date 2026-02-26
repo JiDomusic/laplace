@@ -1909,13 +1909,10 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final reciboController = TextEditingController();
     final detalleController = TextEditingController(text: cuota.concepto);
     DateTime fechaPagoSeleccionada = DateTime.now();
-    int montoCalculado = cuota.montoActual;
     bool calculando = false;
 
-    // Calcular monto inicial con fecha de hoy
-    _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada).then((m) {
-      montoCalculado = m;
-    });
+    // Calcular monto inicial con fecha de hoy antes de mostrar el diálogo
+    int montoCalculado = await _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada);
 
     final confirmar = await showDialog<bool>(
       context: context,
