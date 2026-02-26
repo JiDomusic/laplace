@@ -226,7 +226,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     int cantPendientes = 0;
     int cantVencidas = 0;
 
-    // Sólo cuotas del mes y año vigentes
+    // Cuotas del mes actual (para cobrado y por cobrar del mes)
     final cuotasMesActual = _cuotas.where((c) => c.mes == mesActual && c.anio == anioActual);
 
     for (final cuota in cuotasMesActual) {
@@ -238,7 +238,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       switch (estado) {
         case 'pagada':
           cantPagadas++;
-          montoPagadas += cuota.montoPagado; // Usar montoPagado para consistencia
+          montoPagadas += cuota.montoPagado;
           break;
         case 'parcial':
           cantParciales++;
@@ -248,12 +248,21 @@ class _CuotasScreenState extends State<CuotasScreen> {
         case 'vencida':
           cantVencidas++;
           deudaVencidas += cuota.deuda;
-          cobradoVencidas += cuota.montoPagado; // Capturar pagos parciales en vencidas
+          cobradoVencidas += cuota.montoPagado;
           break;
         default:
           cantPendientes++;
           deudaPendientes += cuota.deuda;
       }
+    }
+
+    // Deuda acumulada: cuotas de meses anteriores no pagadas
+    int deudaAcumulada = 0;
+    final cuotasVencidas = _cuotas.where((c) =>
+        !c.estaPagada &&
+        (c.anio < anioActual || (c.anio == anioActual && c.mes < mesActual)));
+    for (final cuota in cuotasVencidas) {
+      deudaAcumulada += cuota.deuda;
     }
 
     return {
@@ -268,6 +277,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
       'deudaPendientes': deudaPendientes,
       'deudaVencidas': deudaVencidas,
       'cobradoVencidas': cobradoVencidas,
+      'deudaAcumulada': deudaAcumulada,
       // Cantidades
       'cantPagadas': cantPagadas,
       'cantParciales': cantParciales,
@@ -315,9 +325,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.05),
                       child: Row(
                         children: [
-                          _buildMiniStat('Cobrado', stats['totalCobrado'], AppTheme.successColor),
-                          _buildMiniStat('Por cobrar', stats['totalPorCobrar'], AppTheme.dangerColor),
-                          _buildMiniStat('Total', stats['totalFacturacion'], AppTheme.primaryColor),
+                          _buildMiniStat('Cobrado en ${Cuota.nombreMes(DateTime.now().month)}', stats['totalCobrado'], AppTheme.successColor),
+                          _buildMiniStat('Por cobrar ${Cuota.nombreMes(DateTime.now().month)}', stats['totalPorCobrar'], AppTheme.dangerColor),
+                          _buildMiniStat('Deuda acumulada', stats['deudaAcumulada'], AppTheme.primaryColor),
                         ],
                       ),
                     ),
@@ -958,7 +968,10 @@ class _CuotasScreenState extends State<CuotasScreen> {
 
   Widget _buildFilaAlumno(Alumno alumno, List<Map<String, dynamic>> meses) {
     final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumno.id).toList();
-    int deudaTotal = cuotasAlumno.fold(0, (sum, c) => sum + c.deuda);
+    final ahora = DateTime.now();
+    int deudaTotal = cuotasAlumno
+        .where((c) => !c.estaPagada && (c.anio < ahora.year || (c.anio == ahora.year && c.mes <= ahora.month)))
+        .fold(0, (sum, c) => sum + c.deuda);
 
     // Filtrar por estado si hay filtro
     if (_filtroEstado.isNotEmpty) {
