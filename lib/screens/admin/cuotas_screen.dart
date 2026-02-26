@@ -1761,12 +1761,17 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       });
     }
 
+    bool configCargada = false;
+
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setStateDialog) {
-          // Cargar config inicial
-          _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+          // Cargar config solo la primera vez
+          if (!configCargada) {
+            configCargada = true;
+            _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+          }
           return AlertDialog(
             title: const Text('Ajustar montos del mes'),
             content: SingleChildScrollView(
