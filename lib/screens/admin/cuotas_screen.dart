@@ -596,24 +596,10 @@ class _CuotasScreenState extends State<CuotasScreen> {
                           onTap: _abrirGenerarMensuales,
                         ),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                          child: _buildAccionMini(
-                            icon: Icons.tune,
-                            label: 'Ajustar montos',
-                            onTap: _abrirAjustarMes,
-                          ),
-                        ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildAccionMini(
-                                icon: Icons.access_time,
-                                label: 'Vencimientos',
-                                onTap: _abrirConfigVencimientos,
-                              ),
-                            ),
-                          ],
+                        _buildAccionMini(
+                          icon: Icons.tune,
+                          label: 'Ajustar montos',
+                          onTap: _abrirAjustarMes,
                         ),
                         const SizedBox(height: 10),
                         _buildAccionMini(
@@ -3316,52 +3302,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
   }
 
   // ========== CONFIGURAR MONTOS POR PERÍODO ==========
-  Future<void> _abrirConfigVencimientos() async {
-    final meses = List.generate(12, (i) => i + 1);
-    int mesSel = DateTime.now().month;
-    int anioSel = DateTime.now().year;
-    final anioController = TextEditingController(text: anioSel.toString());
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Configurar montos de un mes'),
-        content: StatefulBuilder(
-          builder: (context, setStateDialog) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                value: mesSel,
-                items: meses
-                    .map((m) => DropdownMenuItem(
-                          value: m,
-                          child: Text('Mes ${m.toString().padLeft(2, '0')}'),
-                        ))
-                    .toList(),
-                decoration: const InputDecoration(labelText: 'Mes'),
-                onChanged: (v) => setStateDialog(() => mesSel = v ?? mesSel),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: anioController,
-                decoration: const InputDecoration(labelText: 'Año'),
-                keyboardType: TextInputType.number,
-                onChanged: (v) => setStateDialog(() => anioSel = int.tryParse(v) ?? anioSel),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuar')),
-        ],
-      ),
-    );
-
-    if (confirmar == true) {
-      _abrirAjustarMes(mesInicial: mesSel, anioInicial: anioSel);
-    }
-  }
 
   // ========== LIMPIAR CUOTAS ==========
   Future<void> _abrirLimpiarCuotas() async {
