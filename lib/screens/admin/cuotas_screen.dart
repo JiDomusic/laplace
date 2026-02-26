@@ -1908,66 +1908,107 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final obsController = TextEditingController();
     final reciboController = TextEditingController();
     final detalleController = TextEditingController(text: cuota.concepto);
+    DateTime fechaPagoSeleccionada = DateTime.now();
+    int montoCalculado = cuota.montoActual;
+    bool calculando = false;
+
+    // Calcular monto inicial con fecha de hoy
+    _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada).then((m) {
+      montoCalculado = m;
+    });
 
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('Importe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.successColor, fontSize: 18)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reciboController,
-                decoration: const InputDecoration(
-                  labelText: 'N° Recibo *',
-                  hintText: 'Ej: 00001',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Registrar Pago'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Fecha de pago: '),
+                    TextButton.icon(
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(DateFormat('dd/MM/yyyy').format(fechaPagoSeleccionada)),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: fechaPagoSeleccionada,
+                          firstDate: DateTime(cuota.anio, cuota.mes, 1),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            fechaPagoSeleccionada = picked;
+                            calculando = true;
+                          });
+                          final nuevoMonto = await _db.calcularMontoConFecha(cuota, picked);
+                          setDialogState(() {
+                            montoCalculado = nuevoMonto;
+                            calculando = false;
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: detalleController,
-                decoration: const InputDecoration(
-                  labelText: 'Detalle (que cuotas abona)',
-                  hintText: 'Ej: Cuota Marzo 2026',
+                const SizedBox(height: 8),
+                calculando
+                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text('Importe: ${_formatMoney(montoCalculado - cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor, fontSize: 18)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reciboController,
+                  decoration: const InputDecoration(
+                    labelText: 'N° Recibo *',
+                    hintText: 'Ej: 00001',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: metodoController.text,
-                decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
-                items: const [
-                  DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
-                  DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
-                ],
-                onChanged: (v) => metodoController.text = v ?? 'efectivo',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: obsController,
-                decoration: const InputDecoration(labelText: 'Observaciones'),
-                maxLines: 2,
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: detalleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Detalle (que cuotas abona)',
+                    hintText: 'Ej: Cuota Marzo 2026',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: metodoController.text,
+                  decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
+                  items: const [
+                    DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                    DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                  ],
+                  onChanged: (v) => metodoController.text = v ?? 'efectivo',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: obsController,
+                  decoration: const InputDecoration(labelText: 'Observaciones'),
+                  maxLines: 2,
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: calculando ? null : () => Navigator.pop(context, true),
+              icon: const Icon(Icons.check),
+              label: const Text('Confirmar Pago'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check),
-            label: const Text('Confirmar Pago'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
-          ),
-        ],
       ),
     );
 
@@ -1978,6 +2019,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         observaciones: obsController.text.isEmpty ? null : obsController.text,
         numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
         detallePago: detalleController.text.isEmpty ? null : detalleController.text,
+        fechaPago: fechaPagoSeleccionada,
       );
       await _loadCuotas();
       if (mounted) {

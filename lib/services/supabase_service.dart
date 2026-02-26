@@ -639,6 +639,31 @@ class SupabaseService {
     }).eq('id', cuotaId);
   }
 
+  /// Obtiene el nivel de inscripción de un alumno por su ID.
+  Future<String?> _getNivelAlumno(String alumnoId) async {
+    final alumno = await getAlumnoById(alumnoId);
+    return alumno?.nivelInscripcion;
+  }
+
+  /// Calcula el monto correcto según la fecha real de pago.
+  /// Si se paga en un mes posterior al de la cuota, usa tier C del mes de pago.
+  Future<int> calcularMontoConFecha(Cuota cuota, DateTime fechaPago) async {
+    // Mismo mes → usar montos de la propia cuota
+    if (fechaPago.year == cuota.anio && fechaPago.month == cuota.mes) {
+      return cuota.montoSegunFecha(fechaPago);
+    }
+    // Mes posterior → buscar config del mes de pago para tier C
+    final nivel = await _getNivelAlumno(cuota.alumnoId);
+    if (nivel != null) {
+      final config = await getConfigCuotasPeriodo(
+        nivel: nivel, mes: fechaPago.month, anio: fechaPago.year);
+      if (config != null) {
+        return cuota.montoSegunFecha(fechaPago, monto2doVtoMesPago: config.monto2doVto);
+      }
+    }
+    return cuota.montoSegunFecha(fechaPago); // fallback
+  }
+
   /// Registra pago total. Devuelve el nombre del siguiente período si es pago adelantado, o null.
   Future<String?> registrarPagoTotal(
     String cuotaId,
@@ -653,7 +678,8 @@ class SupabaseService {
     if (cuotaData == null) return null;
 
     final cuota = _cuotaFromSupabase(cuotaData);
-    final montoActual = cuota.montoActual;
+    final fecha = fechaPago ?? DateTime.now();
+    final montoActual = await calcularMontoConFecha(cuota, fecha);
 
     // Registrar en historial antes de modificar
     await registrarHistorial(
@@ -667,7 +693,6 @@ class SupabaseService {
     );
 
     // Paga la cuota actual completa
-    final fecha = fechaPago ?? DateTime.now();
     await client.from('cuotas').update({
       'monto_pagado': montoActual,
       'estado': 'pagada',

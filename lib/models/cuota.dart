@@ -68,6 +68,17 @@ class Cuota {
     return montoAlDia;
   }
 
+  /// Calcula el monto según una fecha de pago específica.
+  /// Si se paga en un mes posterior, usa [monto2doVtoMesPago] (tier C del mes de pago).
+  int montoSegunFecha(DateTime fechaPago, {int? monto2doVtoMesPago}) {
+    if (fechaPago.year > anio || (fechaPago.year == anio && fechaPago.month > mes)) {
+      return monto2doVtoMesPago ?? monto2doVto;
+    }
+    if (fechaPago.day <= diaFinRangoA) return montoAlDia;
+    if (fechaPago.day <= diaFinRangoB) return monto1erVto;
+    return monto2doVto;
+  }
+
   /// Calcula la deuda restante basada en el monto actual
   int get deuda => montoActual - montoPagado;
 
