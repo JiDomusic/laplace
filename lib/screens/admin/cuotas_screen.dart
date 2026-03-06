@@ -2047,102 +2047,157 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final obsController = TextEditingController();
     final reciboController = TextEditingController();
     final detalleController = TextEditingController(text: 'Pago parcial - ${cuota.concepto}');
+    DateTime fechaPagoSeleccionada = DateTime.now();
+    bool calculando = false;
+    String? errorMonto;
+
+    // Calcular monto/deuda inicial según fecha de hoy
+    int montoCalculado = await _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada);
+    int deudaCalculada = montoCalculado - cuota.montoPagado;
 
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago Parcial'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Monto total:', style: TextStyle(color: Colors.grey.shade600)),
-                  Text(_formatMoney(cuota.montoActual)),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Ya pagado:', style: TextStyle(color: Colors.grey.shade600)),
-                  Text(_formatMoney(cuota.montoPagado), style: TextStyle(color: AppTheme.successColor)),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Deuda:', style: TextStyle(color: Colors.grey.shade600)),
-                  Text(_formatMoney(cuota.deuda), style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const Divider(height: 24),
-              TextField(
-                controller: reciboController,
-                decoration: const InputDecoration(
-                  labelText: 'N° Recibo *',
-                  hintText: 'Ej: 00001',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Registrar Pago Parcial'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Fecha de pago: '),
+                    TextButton.icon(
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(DateFormat('dd/MM/yyyy').format(fechaPagoSeleccionada)),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: fechaPagoSeleccionada,
+                          firstDate: DateTime(cuota.anio, cuota.mes, 1),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            fechaPagoSeleccionada = picked;
+                            calculando = true;
+                            errorMonto = null;
+                          });
+                          final nuevoMonto = await _db.calcularMontoConFecha(cuota, picked);
+                          setDialogState(() {
+                            montoCalculado = nuevoMonto;
+                            deudaCalculada = nuevoMonto - cuota.montoPagado;
+                            calculando = false;
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: montoController,
-                decoration: InputDecoration(
-                  labelText: 'Importe a pagar ahora',
-                  prefixText: '\$ ',
-                  helperText: 'Deuda cuota: ${_formatMoney(cuota.deuda)} (excedente va a siguiente)',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: detalleController,
-                decoration: const InputDecoration(
-                  labelText: 'Detalle (que cuotas abona)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: metodoController.text,
-                decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
-                items: const [
-                  DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
-                  DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                const SizedBox(height: 8),
+                if (calculando)
+                  const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                else ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Monto total:', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(_formatMoney(montoCalculado)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Ya pagado:', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(_formatMoney(cuota.montoPagado), style: TextStyle(color: AppTheme.successColor)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Deuda:', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(_formatMoney(deudaCalculada), style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ],
-                onChanged: (v) => metodoController.text = v ?? 'efectivo',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: obsController,
-                decoration: const InputDecoration(labelText: 'Observaciones'),
-                maxLines: 2,
-              ),
-            ],
+                const Divider(height: 24),
+                TextField(
+                  controller: reciboController,
+                  decoration: const InputDecoration(
+                    labelText: 'N° Recibo *',
+                    hintText: 'Ej: 00001',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: montoController,
+                  decoration: InputDecoration(
+                    labelText: 'Importe a pagar ahora',
+                    prefixText: '\$ ',
+                    helperText: 'Deuda cuota: ${_formatMoney(deudaCalculada)} (excedente va a siguiente)',
+                    errorText: errorMonto,
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    final monto = int.tryParse(v) ?? 0;
+                    setDialogState(() {
+                      if (monto == deudaCalculada) {
+                        errorMonto = 'Para pagar el total usá "Pago Total"';
+                      } else {
+                        errorMonto = null;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: detalleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Detalle (que cuotas abona)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: metodoController.text,
+                  decoration: const InputDecoration(labelText: 'Efectivo o Transferencia'),
+                  items: const [
+                    DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                    DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                  ],
+                  onChanged: (v) => metodoController.text = v ?? 'efectivo',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: obsController,
+                  decoration: const InputDecoration(labelText: 'Observaciones'),
+                  maxLines: 2,
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: calculando || errorMonto != null ? null : () => Navigator.pop(context, true),
+              icon: const Icon(Icons.payments),
+              label: const Text('Registrar'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.payments),
-            label: const Text('Registrar'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-          ),
-        ],
       ),
     );
 
     if (confirmar == true && cuota.id != null) {
       final monto = int.tryParse(montoController.text) ?? 0;
       if (monto > 0) {
-        final excedente = monto > cuota.deuda ? monto - cuota.deuda : 0;
+        final excedente = monto > deudaCalculada ? monto - deudaCalculada : 0;
         await _db.registrarPagoParcial(
           cuota.id!,
           monto,
@@ -2150,6 +2205,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           observaciones: obsController.text.isEmpty ? null : obsController.text,
           numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
           detallePago: detalleController.text.isEmpty ? null : detalleController.text,
+          fechaPago: fechaPagoSeleccionada,
         );
         await _loadCuotas();
         if (mounted) {
