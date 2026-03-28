@@ -22,6 +22,45 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
+  /// Animación de fade + slide hacia arriba
+  Widget _fadeSlide({required Widget child, int delayMs = 0}) {
+    const animMs = 600;
+    final totalMs = animMs + delayMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.linear,
+      builder: (context, value, _) {
+        final elapsedMs = value * totalMs;
+        final progress = ((elapsedMs - delayMs) / animMs).clamp(0.0, 1.0);
+        final curved = Curves.easeOutCubic.transform(progress);
+        final dy = (1 - curved) * 20;
+        return Opacity(
+          opacity: curved,
+          child: Transform.translate(offset: Offset(0, dy), child: child),
+        );
+      },
+    );
+  }
+
+  /// Animación de escala elástica para el CTA
+  Widget _scaleIn({required Widget child, int delayMs = 0}) {
+    const animMs = 700;
+    final totalMs = animMs + delayMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.linear,
+      builder: (context, value, _) {
+        final elapsedMs = value * totalMs;
+        final progress = ((elapsedMs - delayMs) / animMs).clamp(0.0, 1.0);
+        final curved = Curves.elasticOut.transform(progress);
+        final scale = 0.9 + (1.0 - 0.9) * curved;
+        return Transform.scale(scale: scale, child: child);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -32,50 +71,14 @@ class HomeScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           // ============ TOP BAR ============
-          SliverToBoxAdapter(
-            child: Container(
-              color: AppTheme.primaryColor,
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'INSTITUTO LAPLACE',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.accentLight,
-                          letterSpacing: 2.5,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => Navigator.pushNamed(context, '/admin'),
-                        child: Text(
-                          'ACCESO ADMIN',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.7),
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Top bar removido
 
           // ============ HERO SECTION ============
           SliverToBoxAdapter(
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
+                  colors: [Color(0xFF1F3D66), Color(0xFF162C4D)], // azul navy aclarado
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -84,34 +87,36 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 32),
 
-                  // Logo grande, nítido, sin recortar
-                  Container(
-                    width: isWide ? 180 : 150,
-                    height: isWide ? 180 : 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
+                  _fadeSlide(
+                    delayMs: 0,
+                    child: Container(
+                      width: isWide ? 180 : 150,
+                      height: isWide ? 180 : 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo.jpg',
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.high,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.school_rounded,
+                              size: 64,
+                              color: AppTheme.primaryColor,
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(6),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/logo.jpg',
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.high,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.school_rounded,
-                            size: 64,
-                            color: AppTheme.primaryColor,
-                          );
-                        },
                       ),
                     ),
                   ),
@@ -119,58 +124,109 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 28),
 
                   // Nombre institucional
-                  Text(
-                    'Instituto Superior',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: isWide ? 18 : 15,
-                      fontWeight: FontWeight.w400,
-                      color: AppTheme.accentLight,
-                      letterSpacing: 1.0,
+                  _fadeSlide(
+                    delayMs: 120,
+                    child: Text(
+                      'Instituto Superior',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: isWide ? 18 : 15,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.8),
+                        letterSpacing: 1.0,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'LAPLACE',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: isWide ? 48 : 38,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 6.0,
+                  _fadeSlide(
+                    delayMs: 200,
+                    child: Text(
+                      'LAPLACE',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: isWide ? 48 : 38,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 6.0,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'ROSARIO',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withOpacity(0.6),
-                      letterSpacing: 4.0,
+                  _fadeSlide(
+                    delayMs: 260,
+                    child: Text(
+                      'ROSARIO',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.65),
+                        letterSpacing: 4.0,
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
                   // Línea decorativa dorada
-                  Container(
-                    width: 60,
-                    height: 2,
-                    color: AppTheme.accentColor,
+                  _fadeSlide(
+                    delayMs: 320,
+                    child: Container(
+                      width: 60,
+                      height: 2,
+                      color: AppTheme.accentColor,
+                    ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  Text(
-                    'Fundado en 1992',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white.withOpacity(0.5),
-                      letterSpacing: 1.5,
+                  _fadeSlide(
+                    delayMs: 380,
+                    child: Text(
+                      'Fundado en 1992',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.6),
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
+
+                  // Botón destacado de Admin (único)
+                  _scaleIn(
+                    delayMs: 480,
+                    child: SizedBox(
+                      width: isWide ? 280 : double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pushNamed(context, '/admin'),
+                        icon: const Icon(Icons.admin_panel_settings_outlined, color: Colors.black87),
+                        label: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Text(
+                            'ACCESO ADMIN',
+                            style: GoogleFonts.inter(
+                              fontSize: isWide ? 16 : 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF2C94C), // dorado claro y visible
+                          foregroundColor: Colors.black87,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.black.withOpacity(0.08)),
+                          ),
+                          elevation: 10,
+                          shadowColor: Colors.black.withOpacity(0.4),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
 
                   // Línea inferior decorativa
                   Container(
