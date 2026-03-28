@@ -21,6 +21,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
   final SupabaseService _db = SupabaseService.instance;
   final AuthService _auth = AuthService.instance;
   final Map<String, Alumno?> _alumnos = {};
+  final Map<String, int> _montoHoyPorCuota = {}; // Monto recalculado al día actual
   List<Cuota> _cuotas = [];
   bool _isLoading = true;
   String _busqueda = '';
@@ -119,6 +120,24 @@ class _CuotasScreenState extends State<CuotasScreen> {
         _isLoading = false;
       });
 
+      // Calcular montos al día para cada cuota (usa regla de mes de pago)
+      final hoy = DateTime.now();
+      final calculados = <String, int>{};
+      for (final cuota in cuotasFiltradas) {
+        if (cuota.id == null) continue;
+        try {
+          final monto = await _db.calcularMontoConFecha(cuota, hoy);
+          calculados[cuota.id!] = monto;
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _montoHoyPorCuota
+            ..clear()
+            ..addAll(calculados);
+        });
+      }
+
       // Cargar fotos en background sin bloquear la UI
       _loadFotosEnBackground(cuotasFiltradas, alumnoMap);
     } catch (e) {
@@ -192,11 +211,45 @@ class _CuotasScreenState extends State<CuotasScreen> {
   }
 
   String _estadoCuota(Cuota cuota) {
-    if (cuota.estaPagada) return 'pagada';
+    if (_estaPagadaHoy(cuota)) return 'pagada';
     // Parcial tiene prioridad sobre vencida para que el pago se refleje
-    if (cuota.esParcial) return 'parcial';
+    if (_esParcialHoy(cuota)) return 'parcial';
     if (cuota.estaVencida || cuota.estado == 'vencida') return 'vencida';
     return 'pendiente';
+  }
+
+  /// Monto que corresponde hoy (usa Supabase.calcularMontoConFecha si está en cache).
+  int _montoHoy(Cuota cuota) {
+    final id = cuota.id;
+    if (id != null && _montoHoyPorCuota.containsKey(id)) {
+      return _montoHoyPorCuota[id]!;
+    }
+    return cuota.montoActual;
+  }
+
+  int _deudaHoy(Cuota cuota) => _montoHoy(cuota) - cuota.montoPagado;
+
+  bool _estaPagadaHoy(Cuota cuota) {
+    return cuota.estado == 'pagada' || cuota.montoPagado >= _montoHoy(cuota);
+  }
+
+  bool _esParcialHoy(Cuota cuota) {
+    final deuda = _deudaHoy(cuota);
+    return deuda > 0 && cuota.montoPagado > 0;
+  }
+
+  /// Calcula montos al día para una lista de cuotas en la fecha indicada.
+  Future<Map<String, int>> _calcularMontosEnFecha(
+      List<Cuota> cuotas, DateTime fecha) async {
+    final resultado = <String, int>{};
+    for (final cuota in cuotas) {
+      if (cuota.id == null) continue;
+      try {
+        final monto = await _db.calcularMontoConFecha(cuota, fecha);
+        resultado[cuota.id!] = monto;
+      } catch (_) {}
+    }
+    return resultado;
   }
 
   String _formatMoney(num amount) {
@@ -230,9 +283,11 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final cuotasMesActual = _cuotas.where((c) => c.mes == mesActual && c.anio == anioActual);
 
     for (final cuota in cuotasMesActual) {
+      final montoHoy = _montoHoy(cuota);
+      final deudaHoy = _deudaHoy(cuota);
       totalCobrado += cuota.montoPagado;
-      totalPorCobrar += cuota.deuda;
-      totalFacturacion += cuota.montoActual;
+      totalPorCobrar += deudaHoy;
+      totalFacturacion += montoHoy;
 
       final estado = _estadoCuota(cuota);
       switch (estado) {
@@ -243,16 +298,16 @@ class _CuotasScreenState extends State<CuotasScreen> {
         case 'parcial':
           cantParciales++;
           montoParciales += cuota.montoPagado;
-          deudaParciales += cuota.deuda;
+          deudaParciales += deudaHoy;
           break;
         case 'vencida':
           cantVencidas++;
-          deudaVencidas += cuota.deuda;
+          deudaVencidas += deudaHoy;
           cobradoVencidas += cuota.montoPagado;
           break;
         default:
           cantPendientes++;
-          deudaPendientes += cuota.deuda;
+          deudaPendientes += deudaHoy;
       }
     }
 
@@ -262,7 +317,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
         !c.estaPagada &&
         (c.anio < anioActual || (c.anio == anioActual && c.mes < mesActual)));
     for (final cuota in cuotasVencidas) {
-      deudaAcumulada += cuota.deuda;
+      deudaAcumulada += _deudaHoy(cuota);
     }
 
     return {
@@ -1262,11 +1317,11 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text('Monto: ${_formatMoney(cuota.montoActual)}'),
+                Text('Monto: ${_formatMoney(_montoHoy(cuota))}'),
                 const SizedBox(width: 16),
                 if (cuota.montoPagado > 0) Text('Pagado: ${_formatMoney(cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor)),
                 const SizedBox(width: 16),
-                Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
+                Text('Debe: ${_formatMoney(_deudaHoy(cuota))}', style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 16),
@@ -1322,6 +1377,8 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _buildAyudaEdicionCuota(),
           ],
         ),
       ),
@@ -1377,7 +1434,14 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       return;
     }
 
-    final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
+    final fechaRef = DateTime.now();
+    final montosEnFecha = await _calcularMontosEnFecha(cuotasAlumno, fechaRef);
+    final pdfData = await PdfService.generarDetalleCuotas(
+      alumno,
+      cuotasAlumno,
+      fechaReferencia: fechaRef,
+      montoAdeudadoPorCuota: montosEnFecha,
+    );
     if (mounted) {
       final nombreSeguro = '${alumno.apellido}_${alumno.nombre}'.replaceAll(' ', '_');
       final anio = DateTime.now().year;
@@ -1408,6 +1472,43 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     );
   }
 
+  /// Ayuda rápida para distinguir los alcances de edición (para admins).
+  Widget _buildAyudaEdicionCuota() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '¿Qué editás acá?',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          SizedBox(height: 6),
+          Text(
+            '• Editar Montos: cambia SOLO esta cuota puntual. Útil si hay un valor mal cargado para un alumno.',
+            style: TextStyle(fontSize: 12),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '• Editar Mes: actualiza los 3 valores (1°, 2° y 3er vencimiento) para TODAS las cuotas pendientes/vencidas de este mes. Úsalo cuando cambia el arancel del mes.',
+            style: TextStyle(fontSize: 12),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Regla de vencimientos (para pagos y deuda): dentro del mes es 1° vto hasta el día 10, 2° vto del 11 al 20, 3er vto del 21 al fin. Si se paga en otro mes, se cobra el 3er vto del mes en que se paga.',
+            style: TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCuotaCardCompacta(Cuota cuota, Alumno? alumno) {
     final estado = _estadoCuota(cuota);
     final color = estado == 'pagada' ? AppTheme.successColor : estado == 'parcial' ? Colors.orange : estado == 'vencida' ? AppTheme.dangerColor : AppTheme.warningColor;
@@ -1434,13 +1535,13 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(_formatMoney(cuota.montoActual), style: const TextStyle(fontSize: 12)),
-              if (cuota.deuda > 0 && !cuota.estaPagada)
-                Text('Debe: ${_formatMoney(cuota.deuda)}', style: TextStyle(fontSize: 10, color: AppTheme.dangerColor)),
+              Text(_formatMoney(_montoHoy(cuota)), style: const TextStyle(fontSize: 12)),
+              if (_deudaHoy(cuota) > 0 && !_estaPagadaHoy(cuota))
+                Text('Debe: ${_formatMoney(_deudaHoy(cuota))}', style: TextStyle(fontSize: 10, color: AppTheme.dangerColor)),
             ],
           ),
           const SizedBox(width: 8),
-          if (!cuota.estaPagada)
+          if (!_estaPagadaHoy(cuota))
             IconButton(
               icon: Icon(Icons.payment, color: AppTheme.successColor, size: 20),
               onPressed: () => _registrarPagoTotal(cuota),
@@ -2476,7 +2577,14 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       }
 
       // Generar y mostrar PDF
-      final pdfData = await PdfService.generarDetalleCuotas(alumno, cuotasAlumno);
+      final fechaRef = DateTime.now();
+      final montosEnFecha = await _calcularMontosEnFecha(cuotasAlumno, fechaRef);
+      final pdfData = await PdfService.generarDetalleCuotas(
+        alumno,
+        cuotasAlumno,
+        fechaReferencia: fechaRef,
+        montoAdeudadoPorCuota: montosEnFecha,
+      );
 
       if (mounted) {
         final nombreSeguro = '${alumno.apellido}_${alumno.nombre}'.replaceAll(' ', '_');
@@ -2848,7 +2956,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
 
     // Obtener cuotas pendientes ordenadas por vencimiento
     var cuotasPendientes = _cuotas
-        .where((c) => c.alumnoId == alumnoId && !c.estaPagada)
+        .where((c) => c.alumnoId == alumnoId && !_estaPagadaHoy(c))
         .toList();
     if (cuotasIds != null && cuotasIds.isNotEmpty) {
       cuotasPendientes = cuotasPendientes.where((c) => cuotasIds.contains(c.id)).toList();
@@ -2861,7 +2969,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     for (final cuota in cuotasPendientes) {
       if (importeRestante <= 0) break;
 
-      final deudaCuota = cuota.deuda;
+      final deudaCuota = _deudaHoy(cuota);
       if (importeRestante >= deudaCuota) {
         // Pagar cuota completa
         await _db.registrarPagoTotal(
@@ -2925,7 +3033,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     for (final id in cuotasIds) {
       final cuota = _cuotas.where((c) => c.id == id).firstOrNull;
       if (cuota != null) {
-        total += cuota.deuda;
+        total += _deudaHoy(cuota);
       }
     }
     return total;

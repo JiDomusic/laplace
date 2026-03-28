@@ -272,20 +272,41 @@ class PdfService {
     return '\$$formatted';
   }
 
+  /// Obtiene el monto que corresponde a la fecha de referencia.
+  /// Si viene un mapa de montos precalculados (con config de mes de pago), se prioriza.
+  static int _montoEnFecha(Cuota cuota, DateTime fechaRef, Map<String, int>? override) {
+    if (cuota.id != null && override != null && override.containsKey(cuota.id)) {
+      return override[cuota.id]!;
+    }
+    // Fallback: usa lógica de la cuota (mismo mes vs mes posterior con 3er vto de la cuota)
+    return cuota.montoSegunFecha(fechaRef);
+  }
+
   /// Genera un PDF compacto con el detalle de cuotas de un alumno (1 hoja)
   static Future<Uint8List> generarDetalleCuotas(
     Alumno alumno,
     List<Cuota> cuotas, {
+    DateTime? fechaReferencia,
+    Map<String, int>? montoAdeudadoPorCuota,
     int diaFinA = 10,
     int diaFinB = 20,
   }) async {
     final pdf = pw.Document();
+    final fechaRef = fechaReferencia ?? DateTime.now();
 
-    // Mostrar solo cuotas con pago (total o parcial) para no listar deudas
+    // Mostrar pagos y cuotas impagas (con deuda al día de impresión)
     final cuotasPagadas = cuotas.where((c) => c.montoPagado > 0 || c.estaPagada || c.esParcial).toList();
+    final cuotasImpagas = cuotas.where((c) {
+      final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
+      return c.montoPagado < montoRef;
+    }).toList();
 
-    // Calcular total pagado (enteros)
+    // Calcular totales
     final totalPagado = cuotasPagadas.fold<int>(0, (sum, c) => sum + c.montoPagado);
+    final totalAdeudado = cuotasImpagas.fold<int>(0, (sum, c) {
+      final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
+      return sum + (montoRef - c.montoPagado);
+    });
 
     // Ordenar cuotas por fecha de vencimiento
     final cuotasOrdenadas = List<Cuota>.from(cuotasPagadas)
@@ -362,6 +383,29 @@ class PdfService {
                     ],
                   ),
                 ),
+                pw.SizedBox(width: 8),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.red50,
+                    borderRadius: pw.BorderRadius.circular(4),
+                    border: pw.Border.all(color: PdfColors.red200),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('ADEUDA al ${DateFormat('dd/MM/yyyy').format(fechaRef)}', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
+                      pw.Text(
+                        _formatMoney(totalAdeudado),
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.red700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             pw.SizedBox(height: 6),
@@ -378,9 +422,51 @@ class PdfService {
                 children: [
                   pw.Text('Pagado: ${_formatMoney(totalPagado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
                   pw.Text('Cuotas con pago: ${cuotasPagadas.length}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('Adeuda: ${_formatMoney(totalAdeudado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
                 ],
               ),
             ),
+            pw.SizedBox(height: 10),
+
+            // Adeudado al día de impresión
+            pw.Text('ADEUDADO AL ${DateFormat('dd/MM/yyyy').format(fechaRef)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.red800)),
+            pw.SizedBox(height: 4),
+            if (cuotasImpagas.isNotEmpty)
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1.4), // Mes/Año
+                  1: const pw.FlexColumnWidth(1),   // Importe a la fecha
+                  2: const pw.FlexColumnWidth(1),   // Pagado
+                  3: const pw.FlexColumnWidth(1),   // Saldo
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildTableHeaderCompact('Cuota', dark: false),
+                      _buildTableHeaderCompact('Importe al día', dark: false),
+                      _buildTableHeaderCompact('Pagado', dark: false),
+                      _buildTableHeaderCompact('Saldo', dark: false),
+                    ],
+                  ),
+                  ...cuotasImpagas.map((c) {
+                    final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
+                    final saldo = (montoRef - c.montoPagado).clamp(0, montoRef);
+                    final concepto = '${Cuota.nombreMes(c.mes)} ${c.anio}';
+                    return pw.TableRow(
+                      children: [
+                        _buildTableCellCompact(concepto),
+                        _buildTableCellCompact(_formatMoney(montoRef)),
+                        _buildTableCellCompact(_formatMoney(c.montoPagado), color: PdfColors.green700),
+                        _buildTableCellCompact(_formatMoney(saldo), color: PdfColors.red700),
+                      ],
+                    );
+                  }),
+                ],
+              )
+            else
+              pw.Text('Sin deuda al día de hoy.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.green800)),
             pw.SizedBox(height: 10),
 
             // Resumen del último pago como comprobante
