@@ -296,9 +296,12 @@ class PdfService {
 
     // Mostrar pagos y cuotas impagas (con deuda al día de impresión)
     final cuotasPagadas = cuotas.where((c) => c.montoPagado > 0 || c.estaPagada || c.esParcial).toList();
+    // Solo mostrar deuda de cuotas cuyo vencimiento es hasta el mes de la fecha de impresión.
+    final limiteMes = DateTime(fechaRef.year, fechaRef.month + 1, 1); // primer día del mes siguiente
     final cuotasImpagas = cuotas.where((c) {
       final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
-      return c.montoPagado < montoRef;
+      final venceAntesOLimite = c.fechaVencimiento.isBefore(limiteMes);
+      return venceAntesOLimite && c.montoPagado < montoRef;
     }).toList();
 
     // Calcular totales
