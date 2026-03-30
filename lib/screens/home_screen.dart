@@ -3,6 +3,75 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_theme.dart';
 
+/// Borde con forma de corazón para resaltar el CTA Admin.
+class _HeartBorder extends OutlinedBorder {
+  const _HeartBorder({this.side = BorderSide.none});
+
+  @override
+  final BorderSide side;
+
+  Path _heartPath(Rect rect) {
+    final w = rect.width;
+    final h = rect.height;
+    final x = rect.left;
+    final y = rect.top;
+    final Path path = Path();
+    path.moveTo(x + w * 0.5, y + h * 0.28);
+    path.cubicTo(
+      x + w * 0.1,
+      y - h * 0.12,
+      x - w * 0.18,
+      y + h * 0.42,
+      x + w * 0.5,
+      y + h,
+    );
+    path.cubicTo(
+      x + w * 1.18,
+      y + h * 0.42,
+      x + w * 0.9,
+      y - h * 0.12,
+      x + w * 0.5,
+      y + h * 0.28,
+    );
+    path.close();
+    return path;
+  }
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
+    return _heartPath(rect);
+  }
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
+    return _heartPath(rect.deflate(side.width));
+  }
+
+  @override
+  _HeartBorder copyWith({BorderSide? side}) {
+    return _HeartBorder(side: side ?? this.side);
+  }
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.all(side.width);
+
+  @override
+  ShapeBorder scale(double t) => _HeartBorder(side: side.scale(t));
+
+  @override
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) => this;
+
+  @override
+  ShapeBorder? lerpTo(ShapeBorder? b, double t) => this;
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    if (side.style == BorderStyle.none) return;
+    final paint = side.toPaint()..style = PaintingStyle.stroke;
+    canvas.drawPath(getOuterPath(rect), paint);
+  }
+}
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -57,6 +126,37 @@ class HomeScreen extends StatelessWidget {
         final curved = Curves.elasticOut.transform(progress);
         final scale = 0.9 + (1.0 - 0.9) * curved;
         return Transform.scale(scale: scale, child: child);
+      },
+    );
+  }
+
+  /// Caída suave desde arriba con rebote ligero (para el botón Admin)
+  Widget _dropIn({required Widget child, int delayMs = 0}) {
+    const animMs = 950;
+    final totalMs = animMs + delayMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.linear,
+      builder: (context, value, _) {
+        final elapsedMs = value * totalMs;
+        final progress = ((elapsedMs - delayMs) / animMs).clamp(0.0, 1.0);
+        final curved = Curves.easeOutBack.transform(progress);
+        final startOffset = -220.0; // arranca alto y “vuela” hacia su lugar
+        final dy = startOffset * (1 - curved);
+        final scale = 0.9 + 0.1 * curved;
+        final opacity = progress;
+        final rotation = (1 - curved) * 0.08; // ligera inclinación al caer
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, dy),
+            child: Transform.rotate(
+              angle: rotation,
+              child: Transform.scale(scale: scale, child: child),
+            ),
+          ),
+        );
       },
     );
   }
@@ -193,13 +293,13 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 32),
 
                   // Botón destacado de Admin (único)
-                  _scaleIn(
+                  _dropIn(
                     delayMs: 480,
                     child: SizedBox(
                       width: isWide ? 280 : double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => Navigator.pushNamed(context, '/admin'),
-                        icon: const Icon(Icons.admin_panel_settings_outlined, color: Colors.black87),
+                        icon: const Icon(Icons.favorite, color: Colors.black87),
                         label: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           child: Text(
@@ -213,14 +313,15 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF2C94C), // dorado claro y visible
+                          backgroundColor: const Color(0xFFE4D7FF), // lila claro
                           foregroundColor: Colors.black87,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.black.withOpacity(0.08)),
+                          minimumSize: const Size.fromHeight(64),
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          shape: const _HeartBorder(
+                            side: BorderSide(color: Colors.black87, width: 1.2),
                           ),
-                          elevation: 10,
-                          shadowColor: Colors.black.withOpacity(0.4),
+                          elevation: 16,
+                          shadowColor: Colors.black.withOpacity(0.5),
                         ),
                       ),
                     ),
