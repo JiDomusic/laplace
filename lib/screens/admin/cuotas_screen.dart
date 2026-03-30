@@ -314,7 +314,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
     // Deuda acumulada: cuotas de meses anteriores no pagadas
     int deudaAcumulada = 0;
     final cuotasVencidas = _cuotas.where((c) =>
-        !c.estaPagada &&
+        !_estaPagadaHoy(c) &&
         (c.anio < anioActual || (c.anio == anioActual && c.mes < mesActual)));
     for (final cuota in cuotasVencidas) {
       deudaAcumulada += _deudaHoy(cuota);
@@ -1011,8 +1011,8 @@ class _CuotasScreenState extends State<CuotasScreen> {
     final cuotasAlumno = _cuotas.where((c) => c.alumnoId == alumno.id).toList();
     final ahora = DateTime.now();
     int deudaTotal = cuotasAlumno
-        .where((c) => !c.estaPagada && (c.anio < ahora.year || (c.anio == ahora.year && c.mes <= ahora.month)))
-        .fold(0, (sum, c) => sum + c.deuda);
+        .where((c) => !_estaPagadaHoy(c) && (c.anio < ahora.year || (c.anio == ahora.year && c.mes <= ahora.month)))
+        .fold(0, (sum, c) => sum + _deudaHoy(c));
 
     // Filtrar por estado si hay filtro
     if (_filtroEstado.isNotEmpty) {
@@ -1831,21 +1831,29 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
   }
 
   Future<void> _abrirAjustarMes({int? mesInicial, int? anioInicial}) async {
-    final montoAlDiaController = TextEditingController();
-    final monto1erVtoController = TextEditingController();
-    final monto2doVtoController = TextEditingController();
+    final niveles = ['Segundo Año', 'Tercer Año'];
+    final controllers = <String, List<TextEditingController>>{};
+    for (final nivel in niveles) {
+      controllers[nivel] = [
+        TextEditingController(),
+        TextEditingController(),
+        TextEditingController(),
+      ];
+    }
     final anioController = TextEditingController(text: (anioInicial ?? DateTime.now().year).toString());
     final mesController = ValueNotifier<int>(mesInicial ?? DateTime.now().month);
     final soloPendientes = ValueNotifier<bool>(true);
     final incluirVencidas = ValueNotifier<bool>(true);
 
-    Future<void> _cargarConfig(int mes, int anio, void Function(void Function()) setStateDialog) async {
-      final cfg = await _db.getConfigCuotasPeriodo(nivel: 'Primer Año', mes: mes, anio: anio);
-      setStateDialog(() {
-        montoAlDiaController.text = cfg?.montoAlDia.toString() ?? '';
-        monto1erVtoController.text = cfg?.monto1erVto.toString() ?? '';
-        monto2doVtoController.text = cfg?.monto2doVto.toString() ?? '';
-      });
+    Future<void> cargarConfigs(int mes, int anio, void Function(void Function()) setStateDialog) async {
+      for (final nivel in niveles) {
+        final cfg = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: mes, anio: anio);
+        setStateDialog(() {
+          controllers[nivel]![0].text = cfg?.montoAlDia.toString() ?? '';
+          controllers[nivel]![1].text = cfg?.monto1erVto.toString() ?? '';
+          controllers[nivel]![2].text = cfg?.monto2doVto.toString() ?? '';
+        });
+      }
     }
 
     bool configCargada = false;
@@ -1854,10 +1862,9 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setStateDialog) {
-          // Cargar config solo la primera vez
           if (!configCargada) {
             configCargada = true;
-            _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+            cargarConfigs(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
           }
           return AlertDialog(
             title: const Text('Ajustar montos del mes'),
@@ -1866,7 +1873,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Actualiza los montos de las cuotas de un mes.'),
+                  const Text('Actualiza los montos de las cuotas de un mes por nivel.'),
                   const SizedBox(height: 12),
                   ValueListenableBuilder<int>(
                     valueListenable: mesController,
@@ -1879,39 +1886,54 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                             .toList(),
                         onChanged: (v) {
                           mesController.value = v ?? DateTime.now().month;
-                          _cargarConfig(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
+                          cargarConfigs(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
                         },
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
-                  const Text('Montos de vencimiento (enteros):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: montoAlDiaController,
-                    decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: monto1erVtoController,
-                    decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: monto2doVtoController,
-                    decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     controller: anioController,
                     decoration: const InputDecoration(labelText: 'Año'),
                     keyboardType: TextInputType.number,
-                    onChanged: (v) => _cargarConfig(mesController.value, int.tryParse(v) ?? DateTime.now().year, setStateDialog),
+                    onChanged: (v) => cargarConfigs(mesController.value, int.tryParse(v) ?? DateTime.now().year, setStateDialog),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  for (final nivel in niveles) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(nivel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: controllers[nivel]![0],
+                            decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ ', isDense: true),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: controllers[nivel]![1],
+                            decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ ', isDense: true),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: controllers[nivel]![2],
+                            decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ ', isDense: true),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   ValueListenableBuilder<bool>(
                     valueListenable: soloPendientes,
                     builder: (_, value, __) {
@@ -1947,40 +1969,39 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     );
 
     if (confirmar == true) {
-      final montoAlDia = int.tryParse(montoAlDiaController.text) ?? 0;
-      final monto1erVto = int.tryParse(monto1erVtoController.text) ?? montoAlDia;
-      final monto2doVto = int.tryParse(monto2doVtoController.text) ?? monto1erVto;
       final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
-      if (montoAlDia <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      await _db.updateMontoCuotasMes(
-        anio: anio,
-        mes: mesController.value,
-        montoAlDia: montoAlDia,
-        monto1erVto: monto1erVto,
-        monto2doVto: monto2doVto,
-        soloPendientes: soloPendientes.value,
-        incluirVencidas: incluirVencidas.value,
-      );
-      // Guardar config del mes para todos los niveles
-      for (final nivel in ['Primer Año', 'Segundo Año', 'Tercer Año']) {
+      final mes = mesController.value;
+
+      for (final nivel in niveles) {
+        final ctrls = controllers[nivel]!;
+        final montoAlDia = int.tryParse(ctrls[0].text) ?? 0;
+        final monto1erVto = int.tryParse(ctrls[1].text) ?? montoAlDia;
+        final monto2doVto = int.tryParse(ctrls[2].text) ?? monto1erVto;
+        if (montoAlDia <= 0) continue;
+
+        // Guardar config por nivel
         await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
           nivel: nivel,
-          mes: mesController.value,
+          mes: mes,
           anio: anio,
           montoAlDia: montoAlDia,
           monto1erVto: monto1erVto,
           monto2doVto: monto2doVto,
         ));
+
+        // Actualizar cuotas del nivel
+        await _db.actualizarCuotasConConfigPeriodo(
+          nivel: nivel,
+          mes: mes,
+          anio: anio,
+          soloPendientes: soloPendientes.value,
+          incluirVencidas: incluirVencidas.value,
+        );
       }
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Montos actualizados'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Montos actualizados por nivel'), backgroundColor: Colors.green),
         );
       }
     }
@@ -2339,6 +2360,15 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final monto1erVtoController = TextEditingController(text: cuota.monto1erVto.toString());
     final monto2doVtoController = TextEditingController(text: cuota.monto2doVto.toString());
 
+    // Verificar si hay config general y si difiere
+    final alumno = _alumnos[cuota.alumnoId];
+    final nivel = alumno?.nivelInscripcion ?? '';
+    final config = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: cuota.mes, anio: cuota.anio);
+    final hayInconsistencia = config != null && (
+        config.montoAlDia != cuota.montoAlDia ||
+        config.monto1erVto != cuota.monto1erVto ||
+        config.monto2doVto != cuota.monto2doVto);
+
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -2349,6 +2379,30 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+              if (hayInconsistencia) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Los montos de esta cuota difieren de la configuración general.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange)),
+                      const SizedBox(height: 4),
+                      Text('Config general ($nivel): ${_formatMoney(config!.montoAlDia)} / ${_formatMoney(config.monto1erVto)} / ${_formatMoney(config.monto2doVto)}',
+                        style: const TextStyle(fontSize: 11)),
+                      const SizedBox(height: 4),
+                      const Text('Para cambiar los montos de todos los alumnos, usá "Ajustar montos" o el ícono de calendario en el panel de administración.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               const Text('Montos de vencimiento:', style: TextStyle(fontSize: 13)),
               const SizedBox(height: 8),
@@ -2380,7 +2434,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
               ),
               const SizedBox(height: 8),
               Text(
-                'Este cambio afectará solo a esta cuota',
+                'Este cambio afectará solo a esta cuota de este alumno',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
             ],
@@ -2412,7 +2466,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Montos actualizados')),
+          const SnackBar(content: Text('Montos actualizados para esta cuota')),
         );
       }
     }
@@ -2480,10 +2534,21 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         monto1erVto: monto1erVto,
         monto2doVto: monto2doVto,
       );
+      // Sincronizar config general para todos los niveles
+      for (final nivel in ['Segundo Año', 'Tercer Año']) {
+        await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
+          nivel: nivel,
+          mes: cuota.mes,
+          anio: cuota.anio,
+          montoAlDia: montoAlDia,
+          monto1erVto: monto1erVto,
+          monto2doVto: monto2doVto,
+        ));
+      }
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Montos actualizados para $mesNombre')),
+          SnackBar(content: Text('Montos y configuración actualizados para $mesNombre')),
         );
       }
     }
@@ -2723,7 +2788,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                             ...cuotasAlumno.map((c) => CheckboxListTile(
                                   dense: true,
                                   title: Text(c.concepto),
-                                  subtitle: Text('Debe: ${_formatMoney(c.deuda)}'),
+                                  subtitle: Text('Debe: ${_formatMoney(_deudaHoy(c))}'),
                                   value: cuotasSeleccionadas.contains(c.id),
                                   onChanged: (checked) {
                                     if (checked == true) {

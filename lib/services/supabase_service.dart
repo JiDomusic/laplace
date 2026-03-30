@@ -647,12 +647,20 @@ class SupabaseService {
 
   /// Calcula el monto correcto según la fecha real de pago.
   /// Si se paga en un mes posterior al de la cuota, usa tier C del mes de pago.
+  /// Prioridad: cuota real del alumno en el mes de pago > config > fallback.
   Future<int> calcularMontoConFecha(Cuota cuota, DateTime fechaPago) async {
     // Mismo mes → usar montos de la propia cuota
     if (fechaPago.year == cuota.anio && fechaPago.month == cuota.mes) {
       return cuota.montoSegunFecha(fechaPago);
     }
-    // Mes posterior → buscar config del mes de pago para tier C
+    // Mes posterior → buscar primero la cuota REAL del alumno en el mes de pago
+    final cuotaMesPago = await _getCuotaAlumnoEnMes(
+        cuota.alumnoId, fechaPago.month, fechaPago.year);
+    if (cuotaMesPago != null) {
+      return cuota.montoSegunFecha(fechaPago,
+          monto2doVtoMesPago: cuotaMesPago.monto2doVto);
+    }
+    // Fallback → config del mes de pago
     final nivel = await _getNivelAlumno(cuota.alumnoId);
     if (nivel != null) {
       final config = await getConfigCuotasPeriodo(
@@ -662,6 +670,20 @@ class SupabaseService {
       }
     }
     return cuota.montoSegunFecha(fechaPago); // fallback
+  }
+
+  /// Busca la cuota (no inscripción) del alumno en un mes/año específico.
+  Future<Cuota?> _getCuotaAlumnoEnMes(String alumnoId, int mes, int anio) async {
+    final response = await client
+        .from('cuotas')
+        .select()
+        .eq('alumno_id', alumnoId)
+        .eq('mes', mes)
+        .eq('anio', anio)
+        .not('concepto', 'ilike', '%Inscripción%')
+        .maybeSingle();
+    if (response == null) return null;
+    return _cuotaFromSupabase(response);
   }
 
   /// Registra pago total. Devuelve el nombre del siguiente período si es pago adelantado, o null.
