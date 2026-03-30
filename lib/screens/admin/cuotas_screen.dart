@@ -1486,22 +1486,27 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '¿Qué editás acá?',
+            '¿Cómo cargo los montos de cuotas?',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
-          SizedBox(height: 6),
+          SizedBox(height: 8),
           Text(
-            '• Editar Montos: cambia SOLO esta cuota puntual. Útil si hay un valor mal cargado para un alumno.',
+            '1° SIEMPRE primero: cargar los montos generales del mes desde el ícono de calendario (en el panel de administración) o desde "Ajustar montos". Ahí se configuran los valores por nivel (Segundo Año, Tercer Año).',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '• Editar Montos: cambia solo esta cuota de este alumno. No cambia nada más. Usalo solo para excepciones (ej: descuento a un alumno particular).',
             style: TextStyle(fontSize: 12),
           ),
           SizedBox(height: 4),
           Text(
-            '• Editar Mes: actualiza los 3 valores (1°, 2° y 3er vencimiento) para TODAS las cuotas pendientes/vencidas de este mes. Úsalo cuando cambia el arancel del mes.',
+            '• Editar Mes: cambia TODAS las cuotas del mes al mismo valor (todos los alumnos, todos los niveles). Si los niveles tienen montos distintos, usar "Ajustar montos" en su lugar.',
             style: TextStyle(fontSize: 12),
           ),
           SizedBox(height: 8),
           Text(
-            'Regla de vencimientos (para pagos y deuda): dentro del mes es 1° vto hasta el día 10, 2° vto del 11 al 20, 3er vto del 21 al fin. Si se paga en otro mes, se cobra el 3er vto del mes en que se paga.',
+            'Cuotas atrasadas: si un alumno paga una cuota de un mes anterior, se cobra el 3er vencimiento del mes en que paga.',
             style: TextStyle(fontSize: 12, color: Colors.black87),
           ),
         ],
@@ -2379,6 +2384,21 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(cuota.concepto, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Text(
+                  'Config inicial de montos: menú Admin > Ajustar montos (ícono calendario). '
+                  'Lo que cargues allí se usa para generar cuotas nuevas y para calcular el monto correcto si se paga en otro mes.',
+                  style: TextStyle(fontSize: 11, color: Colors.black87),
+                ),
+              ),
               if (hayInconsistencia) ...[
                 const SizedBox(height: 8),
                 Container(
@@ -2473,42 +2493,97 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
   }
 
   Future<void> _editarMontoMes(Cuota cuota) async {
-    final montoAlDiaController = TextEditingController(text: cuota.montoAlDia.toString());
-    final monto1erVtoController = TextEditingController(text: cuota.monto1erVto.toString());
-    final monto2doVtoController = TextEditingController(text: cuota.monto2doVto.toString());
     final mesNombre = Cuota.nombreMes(cuota.mes);
+    final alumno = _alumnos[cuota.alumnoId];
+    final nivelOrigen = alumno?.nivelInscripcion ?? 'Segundo Año';
+    final niveles = ['Segundo Año', 'Tercer Año'];
+
+    // Cargar configs actuales por nivel
+    final controllers = <String, List<TextEditingController>>{};
+    for (final nivel in niveles) {
+      final config = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: cuota.mes, anio: cuota.anio);
+      // Para el nivel del alumno actual, pre-cargar los valores de la cuota (pueden estar editados)
+      if (nivel == nivelOrigen) {
+        controllers[nivel] = [
+          TextEditingController(text: cuota.montoAlDia.toString()),
+          TextEditingController(text: cuota.monto1erVto.toString()),
+          TextEditingController(text: cuota.monto2doVto.toString()),
+        ];
+      } else {
+        controllers[nivel] = [
+          TextEditingController(text: config?.montoAlDia.toString() ?? ''),
+          TextEditingController(text: config?.monto1erVto.toString() ?? ''),
+          TextEditingController(text: config?.monto2doVto.toString() ?? ''),
+        ];
+      }
+    }
 
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+        builder: (context) => AlertDialog(
         title: Text('Editar Montos - $mesNombre ${cuota.anio}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Text(
+                  'Estos valores alimentan la configuración general (config_cuotas_periodo). '
+                  'Se usan para generar cuotas nuevas y para calcular montos si un pago se hace en otro mes (3er vto del mes de pago).',
+                  style: TextStyle(fontSize: 11, color: Colors.black87),
+                ),
+              ),
               Text(
-                'Esto cambiará los montos de TODAS las cuotas pendientes/vencidas de $mesNombre.',
+                'Esto cambiará los montos de TODAS las cuotas pendientes/vencidas de $mesNombre, por nivel.',
                 style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: montoAlDiaController,
-                decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto1erVtoController,
-                decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto2doVtoController,
-                decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ '),
-                keyboardType: TextInputType.number,
-              ),
+              const SizedBox(height: 12),
+              for (final nivel in niveles) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: nivel == nivelOrigen ? Colors.blue.shade50 : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: nivel == nivelOrigen ? Colors.blue.shade300 : Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(nivel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      if (nivel == nivelOrigen)
+                        Text('(nivel del alumno actual)', style: TextStyle(fontSize: 11, color: Colors.blue.shade600)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: controllers[nivel]![0],
+                        decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ ', isDense: true),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: controllers[nivel]![1],
+                        decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ ', isDense: true),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: controllers[nivel]![2],
+                        decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ ', isDense: true),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -2517,25 +2592,20 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Aplicar a Todos'),
+            child: const Text('Aplicar'),
           ),
         ],
       ),
     );
 
     if (confirmar == true) {
-      final montoAlDia = int.tryParse(montoAlDiaController.text) ?? cuota.montoAlDia;
-      final monto1erVto = int.tryParse(monto1erVtoController.text) ?? cuota.monto1erVto;
-      final monto2doVto = int.tryParse(monto2doVtoController.text) ?? cuota.monto2doVto;
-      await _db.updateMontoCuotasMes(
-        anio: cuota.anio,
-        mes: cuota.mes,
-        montoAlDia: montoAlDia,
-        monto1erVto: monto1erVto,
-        monto2doVto: monto2doVto,
-      );
-      // Sincronizar config general para todos los niveles
-      for (final nivel in ['Segundo Año', 'Tercer Año']) {
+      for (final nivel in niveles) {
+        final ctrls = controllers[nivel]!;
+        final montoAlDia = int.tryParse(ctrls[0].text) ?? 0;
+        final monto1erVto = int.tryParse(ctrls[1].text) ?? montoAlDia;
+        final monto2doVto = int.tryParse(ctrls[2].text) ?? monto1erVto;
+        if (montoAlDia <= 0) continue;
+
         await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
           nivel: nivel,
           mes: cuota.mes,
@@ -2544,11 +2614,18 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           monto1erVto: monto1erVto,
           monto2doVto: monto2doVto,
         ));
+        await _db.actualizarCuotasConConfigPeriodo(
+          nivel: nivel,
+          mes: cuota.mes,
+          anio: cuota.anio,
+          soloPendientes: true,
+          incluirVencidas: true,
+        );
       }
       await _loadCuotas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Montos y configuración actualizados para $mesNombre')),
+          SnackBar(content: Text('Montos actualizados por nivel para $mesNombre')),
         );
       }
     }

@@ -772,23 +772,24 @@ class SupabaseService {
 
     final alumnoId = cuotaData['alumno_id'];
     final cuota = _cuotaFromSupabase(cuotaData);
-    final montoActual = cuota.montoActual; // Monto según vencimiento actual
     final montoPagadoActual = cuota.montoPagado;
 
     int excedente = 0;
     int pagaActual = monto;
 
+    final fecha = fechaPago ?? DateTime.now();
+    // Monto objetivo según la fecha real de pago (respeta mes de pago y 3er vto si es fuera de mes)
+    final montoObjetivo = await calcularMontoConFecha(cuota, fecha);
     // Si el pago supera la deuda de la cuota actual, distribuir excedente
-    final deudaActual = montoActual - montoPagadoActual;
+    final deudaActual = montoObjetivo - montoPagadoActual;
     if (monto > deudaActual) {
       pagaActual = deudaActual;
       excedente = monto - deudaActual;
     }
 
     final nuevoMontoPagado = montoPagadoActual + pagaActual;
-    final estaPagada = nuevoMontoPagado >= montoActual;
+    final estaPagada = nuevoMontoPagado >= montoObjetivo;
 
-    final fecha = fechaPago ?? DateTime.now();
     final hoy = DateFormat('dd/MM/yyyy').format(fecha);
     final detalleConExcedente = excedente > 0
         ? 'Pago parcial \$$monto el $hoy - excedente \$$excedente distribuido a sig. cuota'
@@ -817,12 +818,13 @@ class SupabaseService {
       int restante = excedente;
       for (final c in siguientes) {
         final cuotaSig = _cuotaFromSupabase(c);
-        final deuda = cuotaSig.montoActual - cuotaSig.montoPagado;
+        final montoObjetivoSig = await calcularMontoConFecha(cuotaSig, fecha);
+        final deuda = montoObjetivoSig - cuotaSig.montoPagado;
         if (deuda <= 0) continue;
         final paga = restante >= deuda ? deuda : restante;
 
         final nuevoPagado = cuotaSig.montoPagado + paga;
-        final pagada = nuevoPagado >= cuotaSig.montoActual;
+        final pagada = nuevoPagado >= montoObjetivoSig;
         final fechaHoy = DateFormat('dd/MM/yyyy').format(fecha);
         final detalleSig = 'Excedente de ${cuota.concepto} - \$$paga aplicado el $fechaHoy (pago original: \$$monto)';
         await client.from('cuotas').update({

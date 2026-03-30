@@ -599,7 +599,7 @@ class PdfService {
                     } else if (cuota.estaPagada) {
                       detalle = 'Pago total - ${cuota.concepto}';
                     } else if (cuota.esParcial) {
-                      detalle = 'Pago parcial - ${cuota.concepto} (${_formatMoney(cuota.montoPagado)} de ${_formatMoney(cuota.montoActual)})';
+                      detalle = 'Pago parcial - ${cuota.concepto} (${_formatMoney(cuota.montoPagado)} de ${_formatMoney(_montoEnFecha(cuota, fechaRef, montoAdeudadoPorCuota))})';
                     } else {
                       detalle = cuota.concepto;
                     }
