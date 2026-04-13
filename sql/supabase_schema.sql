@@ -183,7 +183,7 @@ CREATE TABLE administradores (
 
 -- Insertar administradores por defecto
 INSERT INTO administradores (email, password, nombre, rol) VALUES
-('programcionjjj@gmail.com', '123456', 'Programador', 'superadmin'),
+('programacionjjj@gmail.com', '123456', 'Programador', 'superadmin'),
 ('mirisarac@gmail.com', '987654', 'Miri', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
