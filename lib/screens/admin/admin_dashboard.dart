@@ -564,6 +564,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: Icons.looks_one,
           ),
           const SizedBox(height: 8),
+          // Primer Año - Sin asignar
+          _buildDivisionExpansion(
+            nivel: 'Primer Año',
+            division: 'sin_asignar',
+            color: Colors.orange,
+            icon: Icons.looks_one,
+          ),
+          const SizedBox(height: 8),
           // Segundo Año
           _buildDivisionExpansion(
             nivel: 'Segundo Año',
@@ -588,6 +596,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return _alumnos.where((a) {
       if (a.nivelInscripcion != nivel) return false;
       if (division != null) {
+        if (division == 'sin_asignar') {
+          return a.division == null || a.division!.isEmpty;
+        }
         return a.division == division;
       }
       return true;
