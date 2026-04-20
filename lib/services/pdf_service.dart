@@ -299,6 +299,7 @@ class PdfService {
     // Solo mostrar deuda de cuotas cuyo vencimiento es hasta el mes de la fecha de impresión.
     final limiteMes = DateTime(fechaRef.year, fechaRef.month + 1, 1); // primer día del mes siguiente
     final cuotasImpagas = cuotas.where((c) {
+      if (c.estaPagada) return false;
       final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
       final venceAntesOLimite = c.fechaVencimiento.isBefore(limiteMes);
       return venceAntesOLimite && c.montoPagado < montoRef;
