@@ -77,13 +77,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final nombreMes = ConfigCuotasPeriodo.nombreMes(mesActual);
 
     // Controllers por nivel: {nivel: [alDia, 1erVto, 2doVto]}
+    // IMPORTANTE: dejamos los campos VACIOS para que la admin ingrese los montos reales.
+    // Los valores previos (si existen) se muestran como helperText solo de referencia.
     final controllers = <String, List<TextEditingController>>{};
+    final previos = <String, List<String?>>{};
     for (final nivel in nivelesFaltantes) {
       final config = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: mesActual, anio: anioActual);
       controllers[nivel] = [
-        TextEditingController(text: config?.montoAlDia.toString() ?? ''),
-        TextEditingController(text: config?.monto1erVto.toString() ?? ''),
-        TextEditingController(text: config?.monto2doVto.toString() ?? ''),
+        TextEditingController(),
+        TextEditingController(),
+        TextEditingController(),
+      ];
+      previos[nivel] = [
+        config?.montoAlDia.toString(),
+        config?.monto1erVto.toString(),
+        config?.monto2doVto.toString(),
       ];
     }
     // Solo mensual; sin replicar otro mes
@@ -113,11 +121,110 @@ class _AdminDashboardState extends State<AdminDashboard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 28),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'ATENCIÓN: Los montos que pongas acá se usan para TODO el sistema: cuotas nuevas, PDFs y recargos. Revisalos bien antes de guardar.',
+                        style: TextStyle(
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 forcePrompt
                     ? 'Define los valores para cada vencimiento de este mes. Si ya estaban configurados, puedes ajustarlos ahora.'
                     : 'Falta configurar los montos de cuotas para $nombreMes.',
                 style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF1976D2)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tres vencimientos por mes:',
+                        style: TextStyle(color: Color(0xFF1976D2), fontWeight: FontWeight.bold, fontSize: 12)),
+                    SizedBox(height: 4),
+                    Text('• 1° Vencimiento: lo paga del 1 al 10 (monto más bajo)', style: TextStyle(fontSize: 12, height: 1.4)),
+                    Text('• 2° Vencimiento: lo paga del 11 al 20 (monto medio)', style: TextStyle(fontSize: 12, height: 1.4)),
+                    Text('• 3° Vencimiento: lo paga del 21 en adelante (monto más alto)', style: TextStyle(fontSize: 12, height: 1.4)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFF6F00)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Color(0xFFE65100), size: 18),
+                        SizedBox(width: 6),
+                        Text('REGLA IMPORTANTE',
+                            style: TextStyle(color: Color(0xFFE65100), fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Si un alumno paga una cuota atrasada en otro mes, siempre se cobra con el 3° VENCIMIENTO del mes en el que está pagando (no del mes original).',
+                      style: TextStyle(fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEBEE),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.edit_note, color: Color(0xFFD32F2F), size: 22),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Los campos están VACÍOS a propósito. Vos tenés que escribir los montos de este mes. Si abajo aparece "Anterior: \$...", es solo de referencia del mes pasado.',
+                        style: TextStyle(
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               for (final nivel in nivelesFaltantes) ...[
@@ -139,30 +246,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: controllers[nivel]![0],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '1° Vencimiento (1-10)',
                           prefixText: '\$ ',
                           isDense: true,
+                          hintText: 'Escribí el monto',
+                          helperText: previos[nivel]![0] != null
+                              ? 'Anterior: \$${previos[nivel]![0]} (ingresá el monto actualizado)'
+                              : null,
+                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: controllers[nivel]![1],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '2° Vencimiento (11-20)',
                           prefixText: '\$ ',
                           isDense: true,
+                          hintText: 'Escribí el monto',
+                          helperText: previos[nivel]![1] != null
+                              ? 'Anterior: \$${previos[nivel]![1]} (ingresá el monto actualizado)'
+                              : null,
+                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: controllers[nivel]![2],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '3° Vencimiento (21-31)',
                           prefixText: '\$ ',
                           isDense: true,
+                          hintText: 'Escribí el monto',
+                          helperText: previos[nivel]![2] != null
+                              ? 'Anterior: \$${previos[nivel]![2]} (ingresá el monto actualizado)'
+                              : null,
+                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -199,12 +321,53 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Omitir'),
+            onPressed: () async {
+              final confirmar = await showDialog<bool>(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => AlertDialog(
+                  icon: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 48),
+                  title: const Text('¿Seguro que querés omitir?', textAlign: TextAlign.center),
+                  content: const Text(
+                    'Si omitís, el sistema va a seguir usando los montos del mes anterior. '
+                    'Esto puede hacer que las cuotas nuevas y los recargos salgan MAL.\n\n'
+                    'Solo omitas si ya los configuraste antes.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, height: 1.4),
+                  ),
+                  actionsAlignment: MainAxisAlignment.center,
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD32F2F),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('NO, volver a configurar'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Sí, omitir', style: TextStyle(color: Colors.grey)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmar == true && context.mounted) {
+                Navigator.pop(context, false);
+              }
+            },
+            child: const Text('Omitir', style: TextStyle(color: Colors.grey)),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Guardar'),
+            icon: const Icon(Icons.check_circle),
+            label: const Text('GUARDAR'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -472,12 +635,159 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Widget _buildBannerConfigMontos() {
+    final ahora = DateTime.now();
+    final nombreMes = ConfigCuotasPeriodo.nombreMes(ahora.month);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD32F2F), Color(0xFFFF6F00)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'IMPORTANTE — LEER CADA MES',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Cada 1° de mes tenés que CONFIGURAR los montos de cuotas de $nombreMes ${ahora.year}.',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('PASO A PASO:',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)),
+                SizedBox(height: 6),
+                Text('1. Tocá el botón del calendario 📅 arriba a la derecha.',
+                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
+                Text('2. Poné los 3 montos REALES (1°, 2° y 3° vencimiento) para CADA año.',
+                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
+                Text('3. Confirmá que los montos son los correctos de ESTE mes.',
+                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
+                Text('4. Tocá GUARDAR (NO toques "Omitir").',
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, height: 1.4)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.yellowAccent, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Si los montos están mal, TODO el sistema cobra mal: cuotas nuevas, PDFs y recargos.',
+                    style: TextStyle(color: Colors.yellowAccent, fontSize: 12, fontWeight: FontWeight.w700, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.rule, color: Color(0xFFD32F2F), size: 18),
+                    SizedBox(width: 6),
+                    Text('REGLA DE PAGO EN OTRO MES',
+                        style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Si un alumno paga una cuota atrasada en otro mes, se cobra con el 3° VENCIMIENTO del mes en el que está pagando.',
+                  style: TextStyle(color: Colors.black87, fontSize: 12, height: 1.35, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await _showMonthlyConfigPopup(['Primer Año', 'Segundo Año', 'Tercer Año'], forcePrompt: true);
+              },
+              icon: const Icon(Icons.edit_calendar),
+              label: Text('CONFIGURAR MONTOS DE ${nombreMes.toUpperCase()}'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFFD32F2F),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSeccionCuotasInscripciones() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildBannerConfigMontos(),
+          const SizedBox(height: 16),
           // Acciones principales directas
           _buildAccionGrande(
             titulo: 'Alumnos Inscriptos',

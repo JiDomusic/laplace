@@ -532,6 +532,39 @@ class _CuotasScreenState extends State<CuotasScreen> {
       margin: const EdgeInsets.all(8),
       child: Column(
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 24),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ANTES DE INGRESAR PAGOS O GENERAR CUOTAS',
+                        style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.3),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Verificá que los montos del mes estén bien configurados. Si están mal, el sistema va a calcular mal las deudas y los recargos.',
+                        style: TextStyle(color: Color(0xFFD32F2F), fontSize: 12, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           // === GESTIÓN DE PAGOS ===
           Container(
             decoration: BoxDecoration(
@@ -1878,6 +1911,27 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD32F2F), width: 2),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 22),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Esto actualiza los montos de TODAS las cuotas pendientes del mes/nivel elegido. Revisá bien los 3 vencimientos antes de guardar.',
+                            style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   const Text('Actualiza los montos de las cuotas de un mes por nivel.'),
                   const SizedBox(height: 12),
                   ValueListenableBuilder<int>(
