@@ -128,7 +128,40 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _fadeSlide(
-            delayMs: 40,
+            delayMs: 0,
+            child: Container(
+              width: isWide ? 124 : 96,
+              height: isWide ? 124 : 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _bg,
+                border: Border.all(color: _ink, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: _ink.withOpacity(0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(4),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/logo.jpg',
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.school_rounded,
+                    color: _ink,
+                    size: 40,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 36),
+          _fadeSlide(
+            delayMs: 80,
             child: Row(
               children: [
                 Container(width: 22, height: 1, color: _ink),
@@ -214,6 +247,8 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
+          SizedBox(height: isWide ? 64 : 44),
+          _fadeSlide(delayMs: 520, child: const _ScrollHint()),
         ],
       ),
     );
@@ -529,6 +564,79 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ScrollHint extends StatefulWidget {
+  const _ScrollHint();
+  @override
+  State<_ScrollHint> createState() => _ScrollHintState();
+}
+
+class _ScrollHintState extends State<_ScrollHint>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_c.value);
+        final dy = t * 10.0;
+        final opacity = 0.5 + 0.45 * t;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'CONTINUAR',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    color: HomeScreen._mute,
+                    letterSpacing: 2.6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(width: 22, height: 1, color: HomeScreen._hair),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Transform.translate(
+              offset: Offset(0, dy),
+              child: Opacity(
+                opacity: opacity,
+                child: Text(
+                  '↓',
+                  style: GoogleFonts.fraunces(
+                    fontSize: 30,
+                    color: HomeScreen._accent,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
