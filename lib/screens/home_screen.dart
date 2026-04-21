@@ -147,7 +147,7 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               child: ClipOval(
                 child: Image.asset(
-                  'assets/images/logo.jpg',
+                  'assets/images/logo_laplace.jpg',
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
                   errorBuilder: (_, __, ___) => const Icon(
@@ -515,7 +515,7 @@ class HomeScreen extends StatelessWidget {
                 decoration: const BoxDecoration(shape: BoxShape.circle, color: _bg),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/images/logo.jpg',
+                    'assets/images/logo_laplace.jpg',
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) =>
                         const Icon(Icons.school_rounded, color: _ink, size: 22),
