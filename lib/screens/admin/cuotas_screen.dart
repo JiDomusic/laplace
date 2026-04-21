@@ -1017,18 +1017,18 @@ class _CuotasScreenState extends State<CuotasScreen> {
         ),
         // Contenido colapsable
         if (expandido) ...[
-          // Header de meses
+          // Header de meses (anchos coinciden con la fila de celdas)
           Container(
             color: Colors.grey.shade100,
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
-                const SizedBox(width: 130, child: Padding(padding: EdgeInsets.only(left: 8), child: Text('ALUMNO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)))),
+                const SizedBox(width: 120, child: Padding(padding: EdgeInsets.only(left: 8), child: Text('ALUMNO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)))),
                 ...meses.map((b) => SizedBox(
-                  width: 38,
+                  width: 46,
                   child: Center(child: Text(b['label'] as String, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                 )),
-                const SizedBox(width: 55, child: Center(child: Text('DEUDA', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red)))),
+                const SizedBox(width: 70, child: Center(child: Text('DEUDA', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red)))),
               ],
             ),
           ),
@@ -2121,7 +2121,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: fechaPagoSeleccionada,
-                          firstDate: DateTime(cuota.anio, cuota.mes, 1),
+                          firstDate: DateTime(cuota.anio, 1, 1),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
@@ -2258,7 +2258,7 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: fechaPagoSeleccionada,
-                          firstDate: DateTime(cuota.anio, cuota.mes, 1),
+                          firstDate: DateTime(cuota.anio, 1, 1),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
@@ -3477,17 +3477,21 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final efectivoPorMes = <int, int>{};
     final transferenciaPorMes = <int, int>{};
 
+    // Agrupamos por el mes en que se COBRÓ la plata (fechaPago),
+    // no por el mes al que pertenece la cuota. Así "Enero" = lo que entró en enero.
     for (final cuota in _cuotas) {
-      if (cuota.anio == anio && cuota.montoPagado > 0) {
-        final mes = cuota.mes;
-        totalesPorMes[mes] = (totalesPorMes[mes] ?? 0) + cuota.montoPagado;
+      if (cuota.montoPagado <= 0) continue;
+      final fp = cuota.fechaPago;
+      if (fp == null || fp.year != anio) continue;
 
-        final metodo = cuota.metodoPago?.toLowerCase() ?? '';
-        if (metodo.contains('transf')) {
-          transferenciaPorMes[mes] = (transferenciaPorMes[mes] ?? 0) + cuota.montoPagado;
-        } else {
-          efectivoPorMes[mes] = (efectivoPorMes[mes] ?? 0) + cuota.montoPagado;
-        }
+      final mes = fp.month;
+      totalesPorMes[mes] = (totalesPorMes[mes] ?? 0) + cuota.montoPagado;
+
+      final metodo = cuota.metodoPago?.toLowerCase() ?? '';
+      if (metodo.contains('transf')) {
+        transferenciaPorMes[mes] = (transferenciaPorMes[mes] ?? 0) + cuota.montoPagado;
+      } else {
+        efectivoPorMes[mes] = (efectivoPorMes[mes] ?? 0) + cuota.montoPagado;
       }
     }
 

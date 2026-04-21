@@ -17,6 +17,16 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    // Reset al entrar: evita que queden datos del alumno inscripto previamente.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<InscripcionProvider>().reset();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -722,11 +732,23 @@ class _InscripcionScreenState extends State<InscripcionScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () async {
                         final success = await provider.guardarInscripcion();
-                        if (success && mounted) {
+                        if (!mounted) return;
+                        if (success) {
                           Navigator.pushReplacementNamed(context, '/exito');
-                        } else if (provider.error != null && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(provider.error!)),
+                        } else {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              icon: const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                              title: const Text('No se pudo registrar'),
+                              content: Text(provider.error ?? 'Error desconocido. Intentá de nuevo.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Entendido'),
+                                ),
+                              ],
+                            ),
                           );
                         }
                       },

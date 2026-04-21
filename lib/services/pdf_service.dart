@@ -306,7 +306,6 @@ class PdfService {
     }).toList();
 
     // Calcular totales
-    final totalPagado = cuotasPagadas.fold<int>(0, (sum, c) => sum + c.montoPagado);
     final totalAdeudado = cuotasImpagas.fold<int>(0, (sum, c) {
       final montoRef = _montoEnFecha(c, fechaRef, montoAdeudadoPorCuota);
       return sum + (montoRef - c.montoPagado);
@@ -388,24 +387,6 @@ class PdfService {
                   ),
                 ),
               ],
-            ),
-            pw.SizedBox(height: 6),
-
-            // Resumen compacto
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                children: [
-                  pw.Text('Pagado: ${_formatMoney(totalPagado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
-                  pw.Text('Cuotas con pago: ${cuotasPagadas.length}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Adeuda: ${_formatMoney(totalAdeudado)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
-                ],
-              ),
             ),
             pw.SizedBox(height: 10),
 

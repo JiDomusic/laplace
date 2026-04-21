@@ -69,10 +69,15 @@ class Cuota {
   }
 
   /// Calcula el monto según una fecha de pago específica.
-  /// Si se paga en un mes posterior, usa [monto2doVtoMesPago] (tier C del mes de pago).
+  /// - Mes posterior al de la cuota → 3° venc del mes de pago (o fallback).
+  /// - Mismo mes → tier A/B/C según el día.
+  /// - Mes anterior (prepago) → montoAlDia.
   int montoSegunFecha(DateTime fechaPago, {int? monto2doVtoMesPago}) {
     if (fechaPago.year > anio || (fechaPago.year == anio && fechaPago.month > mes)) {
       return monto2doVtoMesPago ?? monto2doVto;
+    }
+    if (fechaPago.year < anio || (fechaPago.year == anio && fechaPago.month < mes)) {
+      return montoAlDia;
     }
     if (fechaPago.day <= diaFinRangoA) return montoAlDia;
     if (fechaPago.day <= diaFinRangoB) return monto1erVto;
