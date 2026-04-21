@@ -382,7 +382,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
                         children: [
                           _buildMiniStat('Cobrado en ${Cuota.nombreMes(DateTime.now().month)}', stats['totalCobrado'], AppTheme.successColor),
                           _buildMiniStat('Por cobrar ${Cuota.nombreMes(DateTime.now().month)}', stats['totalPorCobrar'], AppTheme.dangerColor),
-                          _buildMiniStat('Deuda acumulada', stats['deudaAcumulada'], AppTheme.primaryColor),
+                          _buildMiniStat('Deuda meses anteriores', stats['deudaAcumulada'], AppTheme.primaryColor),
                         ],
                       ),
                     ),
