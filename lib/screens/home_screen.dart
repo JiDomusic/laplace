@@ -173,42 +173,45 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 28),
           _fadeSlide(
             delayMs: 140,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Lap',
-                      style: _serif(
-                        size: isWide ? 176 : 96,
-                        w: FontWeight.w400,
-                        ls: -4,
-                        height: 0.95,
+            child: SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Lap',
+                        style: _serif(
+                          size: isWide ? 176 : 88,
+                          w: FontWeight.w400,
+                          ls: -4,
+                          height: 0.95,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: 'l',
-                      style: _serif(
-                        size: isWide ? 176 : 96,
-                        w: FontWeight.w400,
-                        style: FontStyle.italic,
-                        c: _accent,
-                        ls: -4,
-                        height: 0.95,
+                      TextSpan(
+                        text: 'l',
+                        style: _serif(
+                          size: isWide ? 176 : 88,
+                          w: FontWeight.w400,
+                          style: FontStyle.italic,
+                          c: _accent,
+                          ls: -4,
+                          height: 0.95,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: 'ace',
-                      style: _serif(
-                        size: isWide ? 176 : 96,
-                        w: FontWeight.w400,
-                        ls: -4,
-                        height: 0.95,
+                      TextSpan(
+                        text: 'ace',
+                        style: _serif(
+                          size: isWide ? 176 : 88,
+                          w: FontWeight.w400,
+                          ls: -4,
+                          height: 0.95,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

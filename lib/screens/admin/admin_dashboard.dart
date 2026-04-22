@@ -48,26 +48,103 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _checkMonthlyConfig() async {
     final ahora = DateTime.now();
-    final mesKey = 'config_mes_${ahora.year}_${ahora.month}';
-    final isFirstDay = ahora.day == 1;
-
     final prefs = await SharedPreferences.getInstance();
-    if (!isFirstDay && prefs.getBool(mesKey) == true) return;
 
-    final nivelesObjetivo = isFirstDay
-        ? ['Primer Año', 'Segundo Año', 'Tercer Año']
-        : await _db.verificarConfigMesActual();
-
-    if (nivelesObjetivo.isEmpty && !isFirstDay) {
-      await prefs.setBool(mesKey, true);
+    // 1) Si faltan montos del MES ACTUAL: popup soft (la admin puede cerrar)
+    final nivelesFaltantes = await _db.verificarConfigMesActual();
+    if (nivelesFaltantes.isNotEmpty) {
+      final mesKey = 'config_mes_${ahora.year}_${ahora.month}';
+      if (prefs.getBool(mesKey) != true) {
+        if (!mounted) return;
+        final confirmo = await _showMonthlyConfigPopup(nivelesFaltantes);
+        if (confirmo == true) {
+          await prefs.setBool(mesKey, true);
+        }
+      }
       return;
     }
 
-    if (!mounted) return;
-    final confirmo = await _showMonthlyConfigPopup(nivelesObjetivo, forcePrompt: isFirstDay);
-    if (confirmo == true) {
-      await prefs.setBool(mesKey, true);
+    // 2) Recordatorio día 28+: si el MES PRÓXIMO no tiene montos, avisar suavemente
+    if (ahora.day >= 28) {
+      final proxMes = ahora.month == 12 ? 1 : ahora.month + 1;
+      final proxAnio = ahora.month == 12 ? ahora.year + 1 : ahora.year;
+      final recordatorioKey = 'recordatorio_${proxAnio}_$proxMes';
+      if (prefs.getBool(recordatorioKey) == true) return;
+
+      final faltanProxMes = await _db.verificarConfigMes(proxMes, proxAnio);
+      if (faltanProxMes.isNotEmpty) {
+        if (!mounted) return;
+        await _mostrarRecordatorioProximoMes(proxMes, proxAnio);
+        await prefs.setBool(recordatorioKey, true);
+      }
     }
+  }
+
+  Future<void> _mostrarRecordatorioProximoMes(int mesProximo, int anioProximo) async {
+    final nombreMes = ConfigCuotasPeriodo.nombreMes(mesProximo);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.notifications_active, color: Color(0xFFE65100)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Recordatorio: montos de $nombreMes $anioProximo', style: const TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFF6F00)),
+                ),
+                child: Text(
+                  'Se acerca el mes de $nombreMes. Si los valores de las cuotas van a cambiar, cargalos ahora para que queden listos el 1° del mes.',
+                  style: const TextStyle(fontSize: 13, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '¿Cómo hacerlo?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '1. Tocá el ícono del calendario 📅 arriba a la derecha del panel.\n'
+                '2. Seleccioná el mes nuevo.\n'
+                '3. Escribí los 3 vencimientos (1-10, 11-20, 21-31) para cada año.\n'
+                '4. Guardá.',
+                style: TextStyle(fontSize: 12, height: 1.5),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Si los montos se mantienen igual que este mes, podés cargarlos tal cual, o dejarlo para después.',
+                style: TextStyle(fontSize: 12, color: Colors.black54, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido')),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showMonthlyConfigPopup(['Primer Año', 'Segundo Año', 'Tercer Año'], forcePrompt: true);
+            },
+            icon: const Icon(Icons.calendar_month),
+            label: const Text('Cargar ahora'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool?> _showMonthlyConfigPopup(List<String> nivelesFaltantes, {bool forcePrompt = false}) async {
@@ -77,21 +154,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final nombreMes = ConfigCuotasPeriodo.nombreMes(mesActual);
 
     // Controllers por nivel: {nivel: [alDia, 1erVto, 2doVto]}
-    // IMPORTANTE: dejamos los campos VACIOS para que la admin ingrese los montos reales.
-    // Los valores previos (si existen) se muestran como helperText solo de referencia.
+    // Pre-cargamos con los valores actuales. Si ya están bien, guarda sin cambios.
     final controllers = <String, List<TextEditingController>>{};
-    final previos = <String, List<String?>>{};
     for (final nivel in nivelesFaltantes) {
       final config = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: mesActual, anio: anioActual);
       controllers[nivel] = [
-        TextEditingController(),
-        TextEditingController(),
-        TextEditingController(),
-      ];
-      previos[nivel] = [
-        config?.montoAlDia.toString(),
-        config?.monto1erVto.toString(),
-        config?.monto2doVto.toString(),
+        TextEditingController(text: config?.montoAlDia.toString() ?? ''),
+        TextEditingController(text: config?.monto1erVto.toString() ?? ''),
+        TextEditingController(text: config?.monto2doVto.toString() ?? ''),
       ];
     }
     // Solo mensual; sin replicar otro mes
@@ -200,32 +270,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEBEE),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFD32F2F), width: 2),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.edit_note, color: Color(0xFFD32F2F), size: 22),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Los campos están VACÍOS a propósito. Vos tenés que escribir los montos de este mes. Si abajo aparece "Anterior: \$...", es solo de referencia del mes pasado.',
-                        style: TextStyle(
-                          color: Color(0xFFD32F2F),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 16),
               for (final nivel in nivelesFaltantes) ...[
                 Container(
@@ -246,45 +290,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: controllers[nivel]![0],
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: '1° Vencimiento (1-10)',
                           prefixText: '\$ ',
                           isDense: true,
-                          hintText: 'Escribí el monto',
-                          helperText: previos[nivel]![0] != null
-                              ? 'Anterior: \$${previos[nivel]![0]} (ingresá el monto actualizado)'
-                              : null,
-                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: controllers[nivel]![1],
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: '2° Vencimiento (11-20)',
                           prefixText: '\$ ',
                           isDense: true,
-                          hintText: 'Escribí el monto',
-                          helperText: previos[nivel]![1] != null
-                              ? 'Anterior: \$${previos[nivel]![1]} (ingresá el monto actualizado)'
-                              : null,
-                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: controllers[nivel]![2],
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: '3° Vencimiento (21-31)',
                           prefixText: '\$ ',
                           isDense: true,
-                          hintText: 'Escribí el monto',
-                          helperText: previos[nivel]![2] != null
-                              ? 'Anterior: \$${previos[nivel]![2]} (ingresá el monto actualizado)'
-                              : null,
-                          helperStyle: const TextStyle(color: Color(0xFF757575), fontSize: 11),
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -636,6 +665,109 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildBannerConfigMontos() {
+    return FutureBuilder<List<String>>(
+      future: _db.verificarConfigMesActual(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        final faltantes = snapshot.data!;
+        if (faltantes.isEmpty) {
+          return _buildBannerMontosOk();
+        }
+        return _buildBannerMontosFaltan(faltantes);
+      },
+    );
+  }
+
+  /// Banner VERDE: todo OK. Explica el estado y cómo editar.
+  Widget _buildBannerMontosOk() {
+    final ahora = DateTime.now();
+    final nombreMes = ConfigCuotasPeriodo.nombreMes(ahora.month);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2E7D32), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Montos de $nombreMes ${ahora.year} configurados',
+                  style: const TextStyle(
+                    color: Color(0xFF1B5E20),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'El sistema está usando estos valores para cobrar. Si llega un mes nuevo o cambian los precios, editalos acá:',
+            style: TextStyle(color: Colors.black87, fontSize: 12.5, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF81C784)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cómo editar los montos:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF2E7D32))),
+                SizedBox(height: 4),
+                Text('📅 Tocá el ícono del calendario arriba a la derecha.', style: TextStyle(fontSize: 12, height: 1.4)),
+                Text('•  Seleccioná el mes que querés configurar.', style: TextStyle(fontSize: 12, height: 1.4)),
+                Text('•  Los valores actuales aparecen cargados — editá solo si cambian.', style: TextStyle(fontSize: 12, height: 1.4)),
+                Text('•  Guardá.', style: TextStyle(fontSize: 12, height: 1.4)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '💡 El día 28 de cada mes te recuerdo por si cambian los montos del mes siguiente.',
+            style: TextStyle(color: Colors.black54, fontSize: 11.5, fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await _showMonthlyConfigPopup(['Primer Año', 'Segundo Año', 'Tercer Año'], forcePrompt: true);
+                  },
+                  icon: const Icon(Icons.edit_calendar, size: 18),
+                  label: const Text('Editar montos'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2E7D32),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Banner ROJO: faltan montos del mes actual. Requiere acción.
+  Widget _buildBannerMontosFaltan(List<String> faltantes) {
     final ahora = DateTime.now();
     final nombreMes = ConfigCuotasPeriodo.nombreMes(ahora.month);
     return Container(
@@ -659,57 +791,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
-              const SizedBox(width: 10),
+              Icon(Icons.warning_amber_rounded, color: Colors.white, size: 26),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'IMPORTANTE — LEER CADA MES',
-                  style: const TextStyle(
+                  'FALTA CONFIGURAR MONTOS',
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 16,
+                    fontSize: 15,
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Cada 1° de mes tenés que CONFIGURAR los montos de cuotas de $nombreMes ${ahora.year}.',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('PASO A PASO:',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)),
-                SizedBox(height: 6),
-                Text('1. Tocá el botón del calendario 📅 arriba a la derecha.',
-                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
-                Text('2. Poné los 3 montos REALES (1°, 2° y 3° vencimiento) para CADA año.',
-                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
-                Text('3. Confirmá que los montos son los correctos de ESTE mes.',
-                    style: TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
-                Text('4. Tocá GUARDAR (NO toques "Omitir").',
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, height: 1.4)),
-              ],
-            ),
+          Text(
+            'Te faltan los montos de $nombreMes ${ahora.year} para: ${faltantes.join(', ')}.',
+            style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.35),
           ),
           const SizedBox(height: 10),
           Container(
@@ -718,43 +820,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               color: Colors.black.withValues(alpha: 0.25),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.yellowAccent, size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Si los montos están mal, TODO el sistema cobra mal: cuotas nuevas, PDFs y recargos.',
-                    style: TextStyle(color: Colors.yellowAccent, fontSize: 12, fontWeight: FontWeight.w700, height: 1.3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.rule, color: Color(0xFFD32F2F), size: 18),
-                    SizedBox(width: 6),
-                    Text('REGLA DE PAGO EN OTRO MES',
-                        style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.bold, fontSize: 12)),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Si un alumno paga una cuota atrasada en otro mes, se cobra con el 3° VENCIMIENTO del mes en el que está pagando.',
-                  style: TextStyle(color: Colors.black87, fontSize: 12, height: 1.35, fontWeight: FontWeight.w600),
-                ),
-              ],
+            child: const Text(
+              'Sin estos montos, el sistema no puede cobrar correctamente cuotas nuevas ni calcular atrasos.',
+              style: TextStyle(color: Colors.yellowAccent, fontSize: 12, fontWeight: FontWeight.w700, height: 1.3),
             ),
           ),
           const SizedBox(height: 12),
@@ -762,15 +830,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () async {
-                await _showMonthlyConfigPopup(['Primer Año', 'Segundo Año', 'Tercer Año'], forcePrompt: true);
+                await _showMonthlyConfigPopup(faltantes, forcePrompt: true);
+                if (mounted) setState(() {});
               },
               icon: const Icon(Icons.edit_calendar),
-              label: Text('CONFIGURAR MONTOS DE ${nombreMes.toUpperCase()}'),
+              label: Text('CARGAR MONTOS DE ${nombreMes.toUpperCase()}'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFFD32F2F),
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
@@ -871,14 +940,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             nivel: 'Primer Año',
             division: 'B',
             color: Colors.blue,
-            icon: Icons.looks_one,
-          ),
-          const SizedBox(height: 8),
-          // Primer Año - Sin asignar
-          _buildDivisionExpansion(
-            nivel: 'Primer Año',
-            division: 'sin_asignar',
-            color: Colors.orange,
             icon: Icons.looks_one,
           ),
           const SizedBox(height: 8),

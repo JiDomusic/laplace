@@ -13,6 +13,15 @@ class SupabaseService {
   static final SupabaseService instance = SupabaseService._init();
   SupabaseService._init();
 
+  /// Formatea un monto entero como "$850.000" (con puntos de miles, sin decimales)
+  static String _fmt(int value) {
+    final formatted = value.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+    return '\$$formatted';
+  }
+
   SupabaseClient get client => Supabase.instance.client;
 
   // ==================== INICIALIZACIÓN ====================
@@ -454,7 +463,7 @@ class SupabaseService {
   Future<void> generarCuotasDesdeConfig(
     String alumnoId,
     int anio, {
-    bool generarInscripcion = true,
+    bool generarInscripcion = false,
   }) async {
     final alumno = await getAlumnoById(alumnoId);
     if (alumno == null) {
@@ -630,6 +639,25 @@ class SupabaseService {
     return (response as List).map((map) => _cuotaFromSupabase(map)).toList();
   }
 
+  /// Lee el saldo a favor del alumno
+  Future<int> getSaldoFavor(String alumnoId) async {
+    final data = await client
+        .from('alumnos')
+        .select('saldo_favor')
+        .eq('id', alumnoId)
+        .maybeSingle();
+    if (data == null) return 0;
+    return (data['saldo_favor'] as int?) ?? 0;
+  }
+
+  /// Actualiza el saldo a favor del alumno (valor absoluto, no delta)
+  Future<void> setSaldoFavor(String alumnoId, int nuevoSaldo) async {
+    await client
+        .from('alumnos')
+        .update({'saldo_favor': nuevoSaldo < 0 ? 0 : nuevoSaldo})
+        .eq('id', alumnoId);
+  }
+
   Future<void> registrarPago(String cuotaId, String metodoPago, {String? observaciones}) async {
     await client.from('cuotas').update({
       'estado': 'pagada',
@@ -792,8 +820,8 @@ class SupabaseService {
 
     final hoy = DateFormat('dd/MM/yyyy').format(fecha);
     final detalleConExcedente = excedente > 0
-        ? 'Pago parcial \$$monto el $hoy - excedente \$$excedente distribuido a sig. cuota'
-        : detallePago ?? 'Pago parcial \$$monto el $hoy';
+        ? 'Pago parcial ${_fmt(monto)} el $hoy — aplicado ${_fmt(pagaActual)} a esta cuota, excedente ${_fmt(excedente)} distribuido'
+        : (detallePago ?? 'Pago parcial ${_fmt(monto)} el $hoy');
 
     await client.from('cuotas').update({
       'monto_pagado': nuevoMontoPagado,
@@ -826,7 +854,7 @@ class SupabaseService {
         final nuevoPagado = cuotaSig.montoPagado + paga;
         final pagada = nuevoPagado >= montoObjetivoSig;
         final fechaHoy = DateFormat('dd/MM/yyyy').format(fecha);
-        final detalleSig = 'Excedente de ${cuota.concepto} - \$$paga aplicado el $fechaHoy (pago original: \$$monto)';
+        final detalleSig = 'Aplicado ${_fmt(paga)} del excedente del pago ${_fmt(monto)} (origen: ${cuota.concepto}, el $fechaHoy)';
         await client.from('cuotas').update({
           'monto_pagado': nuevoPagado,
           'estado': pagada ? 'pagada' : 'parcial',
@@ -839,7 +867,62 @@ class SupabaseService {
         restante -= paga;
         if (restante <= 0) break;
       }
+
+      // Si todavía queda excedente después de cubrir todas las cuotas pendientes,
+      // lo guardamos como saldo a favor del alumno.
+      if (restante > 0) {
+        final saldoActual = await getSaldoFavor(alumnoId);
+        await setSaldoFavor(alumnoId, saldoActual + restante);
+
+        // Anexar el saldo a favor al detalle de la cuota original
+        final detalleConSaldo = '$detalleConExcedente — saldo a favor: ${_fmt(restante)}';
+        await client.from('cuotas').update({'detalle_pago': detalleConSaldo}).eq('id', cuotaId);
+      }
     }
+  }
+
+  /// Aplica el saldo a favor del alumno a una cuota específica.
+  /// Retorna cuánto se aplicó efectivamente. 0 si no había saldo o la cuota ya estaba pagada.
+  Future<int> aplicarSaldoFavorACuota(String cuotaId, {DateTime? fechaPago, String? numRecibo}) async {
+    final cuotaData = await client.from('cuotas').select().eq('id', cuotaId).maybeSingle();
+    if (cuotaData == null) return 0;
+
+    final cuota = _cuotaFromSupabase(cuotaData);
+    final alumnoId = cuota.alumnoId;
+    final saldo = await getSaldoFavor(alumnoId);
+    if (saldo <= 0) return 0;
+
+    final fecha = fechaPago ?? DateTime.now();
+    final montoObjetivo = await calcularMontoConFecha(cuota, fecha);
+    final deuda = montoObjetivo - cuota.montoPagado;
+    if (deuda <= 0) return 0;
+
+    final aplica = saldo >= deuda ? deuda : saldo;
+    final nuevoPagado = cuota.montoPagado + aplica;
+    final pagada = nuevoPagado >= montoObjetivo;
+    final fechaTxt = DateFormat('dd/MM/yyyy').format(fecha);
+    final detalle = 'Aplicado saldo a favor: \$$aplica el $fechaTxt';
+
+    await client.from('cuotas').update({
+      'monto_pagado': nuevoPagado,
+      'estado': pagada ? 'pagada' : 'parcial',
+      'fecha_pago': fecha.toIso8601String(),
+      'detalle_pago': detalle,
+      if (numRecibo != null) 'num_recibo': numRecibo,
+    }).eq('id', cuotaId);
+
+    await setSaldoFavor(alumnoId, saldo - aplica);
+
+    await registrarHistorial(
+      tabla: 'cuotas',
+      registroId: cuotaId,
+      accion: 'aplicar_saldo_favor',
+      datosAnteriores: cuotaData,
+      datosNuevos: {'monto_pagado': nuevoPagado, 'saldo_aplicado': aplica},
+      descripcion: 'Aplicado saldo a favor \$$aplica a ${cuota.concepto}',
+    );
+
+    return aplica;
   }
 
   /// Actualiza los 3 montos de una cuota específica
@@ -1099,8 +1182,12 @@ class SupabaseService {
   /// Retorna lista de niveles que faltan configurar
   Future<List<String>> verificarConfigMesActual() async {
     final ahora = DateTime.now();
-    final mes = ahora.month;
-    final anio = ahora.year;
+    return verificarConfigMes(ahora.month, ahora.year);
+  }
+
+  /// Verifica si un mes cualquiera tiene config para todos los niveles
+  /// Retorna lista de niveles que faltan configurar
+  Future<List<String>> verificarConfigMes(int mes, int anio) async {
     final niveles = ['Primer Año', 'Segundo Año', 'Tercer Año'];
     final faltantes = <String>[];
 

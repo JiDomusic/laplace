@@ -380,9 +380,9 @@ class _CuotasScreenState extends State<CuotasScreen> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.05),
                       child: Row(
                         children: [
-                          _buildMiniStat('Cobrado en ${Cuota.nombreMes(DateTime.now().month)}', stats['totalCobrado'], AppTheme.successColor),
-                          _buildMiniStat('Por cobrar ${Cuota.nombreMes(DateTime.now().month)}', stats['totalPorCobrar'], AppTheme.dangerColor),
-                          _buildMiniStat('Deuda meses anteriores', stats['deudaAcumulada'], AppTheme.primaryColor),
+                          _buildMiniStat('Cobrado en ${Cuota.nombreMes(DateTime.now().month)}', stats['totalCobrado'], AppTheme.successColor, onTap: _mostrarDetalleCobrado),
+                          _buildMiniStat('Por cobrar ${Cuota.nombreMes(DateTime.now().month)}', stats['totalPorCobrar'], AppTheme.dangerColor, onTap: _mostrarDetallePorCobrar),
+                          _buildMiniStat('Deuda meses anteriores', stats['deudaAcumulada'], AppTheme.primaryColor, onTap: _mostrarDetalleDeudaAcumulada),
                         ],
                       ),
                     ),
@@ -490,11 +490,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
                             child: Wrap(
                               spacing: 8,
                               children: [
-                                TextButton.icon(
-                                  onPressed: _abrirGenerarMensuales,
-                                  icon: const Icon(Icons.playlist_add),
-                                  label: const Text('Generar/Completar cuotas del año'),
-                                ),
                                 TextButton.icon(
                                   onPressed: _generandoTodos ? null : _generarCuotasParaTodos,
                                   icon: _generandoTodos
@@ -676,20 +671,6 @@ class _CuotasScreenState extends State<CuotasScreen> {
                           onTap: _abrirGenerarCuotas,
                         ),
                         const SizedBox(height: 10),
-                        _buildAccionCard(
-                          icon: Icons.calendar_month,
-                          color: Colors.blue,
-                          titulo: 'Cuotas Mensuales',
-                          subtitulo: '1° año: Mar-Dic  •  2°/3° año: Ene-Dic',
-                          onTap: _abrirGenerarMensuales,
-                        ),
-                        const SizedBox(height: 10),
-                        _buildAccionMini(
-                          icon: Icons.tune,
-                          label: 'Ajustar montos',
-                          onTap: _abrirAjustarMes,
-                        ),
-                        const SizedBox(height: 10),
                         _buildAccionMini(
                           icon: Icons.cleaning_services,
                           label: 'Limpiar cuotas duplicadas',
@@ -827,22 +808,521 @@ class _CuotasScreenState extends State<CuotasScreen> {
     );
   }
 
-  Widget _buildMiniStat(String label, num value, Color color) {
+  Widget _buildMiniStat(String label, num value, Color color, {VoidCallback? onTap}) {
+    final content = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 4),
+                Icon(Icons.info_outline, size: 12, color: Colors.grey.shade500),
+              ],
+            ],
+          ),
+          Text(_formatMoney(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: content,
+            ),
+    );
+  }
+
+  Future<void> _mostrarDetalleDeudaAcumulada() async {
+    final ahora = DateTime.now();
+    final anioActual = ahora.year;
+    final mesActual = ahora.month;
+    final nombreMesActual = Cuota.nombreMes(mesActual);
+
+    // Cuotas impagas de meses anteriores
+    final cuotasAtrasadas = _cuotas.where((c) =>
+        !_estaPagadaHoy(c) &&
+        (c.anio < anioActual || (c.anio == anioActual && c.mes < mesActual))).toList();
+
+    // Agrupar por alumno
+    final porAlumno = <String, List<Cuota>>{};
+    for (final c in cuotasAtrasadas) {
+      porAlumno.putIfAbsent(c.alumnoId, () => []).add(c);
+    }
+
+    // Ordenar: alumnos por apellido
+    final entries = porAlumno.entries.toList()
+      ..sort((a, b) {
+        final aAlumno = _alumnos[a.key];
+        final bAlumno = _alumnos[b.key];
+        return (aAlumno?.apellido ?? '').compareTo(bAlumno?.apellido ?? '');
+      });
+
+    int total = 0;
+    for (final c in cuotasAtrasadas) {
+      total += _deudaHoy(c);
+    }
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-            Text(_formatMoney(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+            Icon(Icons.account_balance_wallet, color: AppTheme.primaryColor),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Deuda meses anteriores')),
           ],
         ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF1976D2)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('¿Qué cuenta este número?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1976D2))),
+                      SizedBox(height: 4),
+                      Text(
+                        'Son todas las cuotas SIN PAGAR de meses anteriores al mes actual.',
+                        style: TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Cada cuota atrasada se cobra con el 3° vencimiento del mes en que se paga (regla).',
+                        style: TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Hoy es $nombreMesActual $anioActual → cada cuota atrasada se valoriza con el 3° venc de $nombreMesActual.',
+                  style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total deuda acumulada:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      Text(_formatMoney(total), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (entries.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No hay cuotas atrasadas 🎉', textAlign: TextAlign.center),
+                  )
+                else ...[
+                  const Text('Detalle por alumno:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  for (final entry in entries) ...[
+                    Builder(builder: (_) {
+                      final alumno = _alumnos[entry.key];
+                      final cuotas = entry.value..sort((a, b) => (a.anio * 100 + a.mes).compareTo(b.anio * 100 + b.mes));
+                      int subtotal = 0;
+                      for (final c in cuotas) {
+                        subtotal += _deudaHoy(c);
+                      }
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    alumno?.nombreCompleto ?? 'Alumno desconocido',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                                Text(_formatMoney(subtotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            if (alumno?.nivelInscripcion != null)
+                              Text(alumno!.nivelInscripcion!, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                            const SizedBox(height: 4),
+                            for (final c in cuotas)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('  • ${Cuota.nombreMes(c.mes)} ${c.anio}', style: const TextStyle(fontSize: 12)),
+                                    Text(_formatMoney(_deudaHoy(c)), style: const TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _mostrarDetalleCobrado() async {
+    final ahora = DateTime.now();
+    final mesActual = ahora.month;
+    final anioActual = ahora.year;
+    final nombreMes = Cuota.nombreMes(mesActual);
+
+    // Misma lógica que _estadisticas: cuotas del mes actual con monto pagado > 0
+    final cuotasConPago = _cuotas.where((c) =>
+        c.mes == mesActual &&
+        c.anio == anioActual &&
+        c.montoPagado > 0).toList();
+
+    final porAlumno = <String, List<Cuota>>{};
+    for (final c in cuotasConPago) {
+      porAlumno.putIfAbsent(c.alumnoId, () => []).add(c);
+    }
+    final entries = porAlumno.entries.toList()
+      ..sort((a, b) {
+        final aAlumno = _alumnos[a.key];
+        final bAlumno = _alumnos[b.key];
+        return (aAlumno?.apellido ?? '').compareTo(bAlumno?.apellido ?? '');
+      });
+
+    int total = 0;
+    for (final c in cuotasConPago) {
+      total += c.montoPagado;
+    }
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.payments, color: AppTheme.successColor),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Cobrado en $nombreMes')),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.successColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('¿Qué cuenta este número?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.successColor)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Es el dinero ya cobrado de las cuotas de $nombreMes $anioActual (la cuota del mes actual).',
+                        style: const TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'No cuenta pagos de cuotas atrasadas: esos están en "Totales por Mes".',
+                        style: TextStyle(fontSize: 12, height: 1.4, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total cobrado en $nombreMes:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.successColor)),
+                      Text(_formatMoney(total), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.successColor)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (entries.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Todavía no se cobró nada este mes', textAlign: TextAlign.center),
+                  )
+                else ...[
+                  const Text('Detalle por alumno:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  for (final entry in entries) ...[
+                    Builder(builder: (_) {
+                      final alumno = _alumnos[entry.key];
+                      final cuotas = entry.value;
+                      int subtotal = 0;
+                      for (final c in cuotas) {
+                        subtotal += c.montoPagado;
+                      }
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    alumno?.nombreCompleto ?? 'Alumno desconocido',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                                Text(_formatMoney(subtotal), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.successColor)),
+                              ],
+                            ),
+                            if (alumno?.nivelInscripcion != null)
+                              Text(alumno!.nivelInscripcion!, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                            for (final c in cuotas)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '  • ${c.concepto}${c.fechaPago != null ? "  (pagada ${c.fechaPago!.day}/${c.fechaPago!.month})" : ""}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    Text(_formatMoney(c.montoPagado), style: const TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _mostrarDetallePorCobrar() async {
+    final ahora = DateTime.now();
+    final mesActual = ahora.month;
+    final anioActual = ahora.year;
+    final nombreMes = Cuota.nombreMes(mesActual);
+
+    // Cuotas del mes actual NO pagadas completamente (mismo cálculo que _estadisticas)
+    final cuotasDeuda = _cuotas.where((c) =>
+        c.mes == mesActual &&
+        c.anio == anioActual &&
+        !_estaPagadaHoy(c)).toList();
+
+    final porAlumno = <String, List<Cuota>>{};
+    for (final c in cuotasDeuda) {
+      porAlumno.putIfAbsent(c.alumnoId, () => []).add(c);
+    }
+    final entries = porAlumno.entries.toList()
+      ..sort((a, b) {
+        final aAlumno = _alumnos[a.key];
+        final bAlumno = _alumnos[b.key];
+        return (aAlumno?.apellido ?? '').compareTo(bAlumno?.apellido ?? '');
+      });
+
+    int total = 0;
+    for (final c in cuotasDeuda) {
+      total += _deudaHoy(c);
+    }
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.hourglass_bottom, color: AppTheme.dangerColor),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Por cobrar $nombreMes')),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.dangerColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.dangerColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('¿Qué cuenta este número?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.dangerColor)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Es lo que falta cobrar de las cuotas de $nombreMes $anioActual (cuota del mes actual).',
+                        style: const TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'El monto se calcula con la regla: según el día del mes se cobra 1°, 2° o 3° vencimiento.',
+                        style: TextStyle(fontSize: 12, height: 1.4, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.dangerColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total por cobrar en $nombreMes:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.dangerColor)),
+                      Text(_formatMoney(total), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.dangerColor)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (entries.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No queda nada por cobrar este mes 🎉', textAlign: TextAlign.center),
+                  )
+                else ...[
+                  const Text('Detalle por alumno:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  for (final entry in entries) ...[
+                    Builder(builder: (_) {
+                      final alumno = _alumnos[entry.key];
+                      final cuotas = entry.value;
+                      int subtotal = 0;
+                      for (final c in cuotas) {
+                        subtotal += _deudaHoy(c);
+                      }
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    alumno?.nombreCompleto ?? 'Alumno desconocido',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                                Text(_formatMoney(subtotal), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.dangerColor)),
+                              ],
+                            ),
+                            if (alumno?.nivelInscripcion != null)
+                              Text(alumno!.nivelInscripcion!, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                            for (final c in cuotas)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('  • ${c.concepto}', style: const TextStyle(fontSize: 12)),
+                                    Text(_formatMoney(_deudaHoy(c)), style: const TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+        ],
       ),
     );
   }
@@ -1093,15 +1573,45 @@ class _CuotasScreenState extends State<CuotasScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              // Nombre
+              // Nombre + chip de saldo a favor si tiene
               SizedBox(
                 width: 120,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    '${alumno.apellido}, ${alumno.nombre.split(' ').first}',
-                    style: const TextStyle(fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${alumno.apellido}, ${alumno.nombre.split(' ').first}',
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (alumno.saldoFavor > 0)
+                        Tooltip(
+                          message: 'Saldo a favor del alumno. Se usa al registrar un pago.',
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.account_balance_wallet, size: 10, color: Colors.blue.shade700),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '+${_formatMoney(alumno.saldoFavor.toInt())}',
+                                  style: TextStyle(fontSize: 9, color: Colors.blue.shade900, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -1383,32 +1893,17 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
               ],
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _editarMonto(cuota);
-                    },
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Editar Montos'),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _editarMontoMes(cuota);
-                    },
-                    icon: const Icon(Icons.calendar_month, size: 16),
-                    label: const Text('Editar Mes'),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _editarMonto(cuota);
+                },
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Editar Montos (solo esta cuota)'),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+              ),
             ),
             const SizedBox(height: 12),
             _buildAyudaEdicionCuota(),
@@ -1693,379 +2188,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     }
   }
 
-  Future<void> _abrirGenerarMensuales() async {
-    if (_alumnosDisponibles.isEmpty) {
-      await _loadCuotas();
-    }
-
-    final alumnoSeleccionado = ValueNotifier<String?>(_alumnosDisponibles.isNotEmpty ? _alumnosDisponibles.first.id : null);
-    final montoAlDiaController = TextEditingController();
-    final monto1erVtoController = TextEditingController();
-    final monto2doVtoController = TextEditingController();
-    final anioController = TextEditingController(text: DateTime.now().year.toString());
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cuotas Mensuales'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Se generan cuotas mensuales: 1° año Mar-Dic, 2°/3° año Ene-Dic.',
-                        style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              ValueListenableBuilder<String?>(
-                valueListenable: alumnoSeleccionado,
-                builder: (_, value, __) {
-                  Alumno? alumnoActual;
-                  try {
-                    alumnoActual = _alumnosDisponibles.firstWhere((a) => a.id == value);
-                  } catch (_) {}
-                  final nivel = alumnoActual?.nivelInscripcion ?? '';
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: value,
-                        isExpanded: true,
-                        items: _alumnosDisponibles
-                            .map((a) => DropdownMenuItem(
-                              value: a.id,
-                              child: Text('${a.nombreCompleto} (${a.nivelInscripcion == 'Primer Año' ? '1°' : a.nivelInscripcion == 'Segundo Año' ? '2°' : '3°'})'),
-                            ))
-                            .toList(),
-                        decoration: const InputDecoration(labelText: 'Alumno'),
-                        onChanged: (v) => alumnoSeleccionado.value = v,
-                      ),
-                      if (nivel.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: nivel == 'Primer Año' ? Colors.purple.shade100 : Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            nivel == 'Primer Año'
-                                ? 'Se generarán 10 cuotas (Mar-Dic)'
-                                : 'Se generarán 12 cuotas (Ene-Dic)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: nivel == 'Primer Año' ? Colors.purple.shade800 : Colors.green.shade800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text('Montos de vencimiento (enteros):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: montoAlDiaController,
-                decoration: const InputDecoration(
-                  labelText: '1° Vencimiento (1-10)',
-                  prefixText: '\$ ',
-                  hintText: 'Ej: 15000',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto1erVtoController,
-                decoration: const InputDecoration(
-                  labelText: '2° Vencimiento (11-20)',
-                  prefixText: '\$ ',
-                  hintText: 'Ej: 16500',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: monto2doVtoController,
-                decoration: const InputDecoration(
-                  labelText: '3° Vencimiento (21-31)',
-                  prefixText: '\$ ',
-                  hintText: 'Ej: 18000',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: anioController,
-                decoration: const InputDecoration(labelText: 'Año'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check),
-            label: const Text('Generar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmar == true && alumnoSeleccionado.value != null) {
-      final montoAlDia = int.tryParse(montoAlDiaController.text) ?? 0;
-      final monto1erVto = int.tryParse(monto1erVtoController.text) ?? montoAlDia;
-      final monto2doVto = int.tryParse(monto2doVtoController.text) ?? monto1erVto;
-      final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
-      if (montoAlDia <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Monto inválido'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      try {
-        await _db.generarCuotasMensuales(
-          alumnoSeleccionado.value!,
-          montoAlDia,
-          anio,
-          monto1erVto: monto1erVto,
-          monto2doVto: monto2doVto,
-        );
-        await _loadCuotas();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cuotas mensuales generadas'), backgroundColor: Colors.green),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _abrirAjustarMes({int? mesInicial, int? anioInicial}) async {
-    final niveles = ['Segundo Año', 'Tercer Año'];
-    final controllers = <String, List<TextEditingController>>{};
-    for (final nivel in niveles) {
-      controllers[nivel] = [
-        TextEditingController(),
-        TextEditingController(),
-        TextEditingController(),
-      ];
-    }
-    final anioController = TextEditingController(text: (anioInicial ?? DateTime.now().year).toString());
-    final mesController = ValueNotifier<int>(mesInicial ?? DateTime.now().month);
-    final soloPendientes = ValueNotifier<bool>(true);
-    final incluirVencidas = ValueNotifier<bool>(true);
-
-    Future<void> cargarConfigs(int mes, int anio, void Function(void Function()) setStateDialog) async {
-      for (final nivel in niveles) {
-        final cfg = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: mes, anio: anio);
-        setStateDialog(() {
-          controllers[nivel]![0].text = cfg?.montoAlDia.toString() ?? '';
-          controllers[nivel]![1].text = cfg?.monto1erVto.toString() ?? '';
-          controllers[nivel]![2].text = cfg?.monto2doVto.toString() ?? '';
-        });
-      }
-    }
-
-    bool configCargada = false;
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          if (!configCargada) {
-            configCargada = true;
-            cargarConfigs(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
-          }
-          return AlertDialog(
-            title: const Text('Ajustar montos del mes'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFD32F2F), width: 2),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 22),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Esto actualiza los montos de TODAS las cuotas pendientes del mes/nivel elegido. Revisá bien los 3 vencimientos antes de guardar.',
-                            style: TextStyle(color: Color(0xFFD32F2F), fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text('Actualiza los montos de las cuotas de un mes por nivel.'),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<int>(
-                    valueListenable: mesController,
-                    builder: (_, value, __) {
-                      return DropdownButtonFormField<int>(
-                        value: value,
-                        decoration: const InputDecoration(labelText: 'Mes'),
-                        items: List.generate(12, (i) => i + 1)
-                            .map((m) => DropdownMenuItem(value: m, child: Text(Cuota.nombreMes(m))))
-                            .toList(),
-                        onChanged: (v) {
-                          mesController.value = v ?? DateTime.now().month;
-                          cargarConfigs(mesController.value, int.tryParse(anioController.text) ?? DateTime.now().year, setStateDialog);
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: anioController,
-                    decoration: const InputDecoration(labelText: 'Año'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) => cargarConfigs(mesController.value, int.tryParse(v) ?? DateTime.now().year, setStateDialog),
-                  ),
-                  const SizedBox(height: 16),
-                  for (final nivel in niveles) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(nivel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: controllers[nivel]![0],
-                            decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ ', isDense: true),
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: controllers[nivel]![1],
-                            decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ ', isDense: true),
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: controllers[nivel]![2],
-                            decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ ', isDense: true),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  ValueListenableBuilder<bool>(
-                    valueListenable: soloPendientes,
-                    builder: (_, value, __) {
-                      return CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Solo cuotas no pagadas'),
-                        value: value,
-                        onChanged: (v) => soloPendientes.value = v ?? true,
-                      );
-                    },
-                  ),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: incluirVencidas,
-                    builder: (_, value, __) {
-                      return CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Actualizar también vencidas'),
-                        value: value,
-                        onChanged: (v) => incluirVencidas.value = v ?? true,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Actualizar')),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (confirmar == true) {
-      final anio = int.tryParse(anioController.text) ?? DateTime.now().year;
-      final mes = mesController.value;
-
-      for (final nivel in niveles) {
-        final ctrls = controllers[nivel]!;
-        final montoAlDia = int.tryParse(ctrls[0].text) ?? 0;
-        final monto1erVto = int.tryParse(ctrls[1].text) ?? montoAlDia;
-        final monto2doVto = int.tryParse(ctrls[2].text) ?? monto1erVto;
-        if (montoAlDia <= 0) continue;
-
-        // Guardar config por nivel
-        await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
-          nivel: nivel,
-          mes: mes,
-          anio: anio,
-          montoAlDia: montoAlDia,
-          monto1erVto: monto1erVto,
-          monto2doVto: monto2doVto,
-        ));
-
-        // Actualizar cuotas del nivel
-        await _db.actualizarCuotasConConfigPeriodo(
-          nivel: nivel,
-          mes: mes,
-          anio: anio,
-          soloPendientes: soloPendientes.value,
-          incluirVencidas: incluirVencidas.value,
-        );
-      }
-      await _loadCuotas();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Montos actualizados por nivel'), backgroundColor: Colors.green),
-        );
-      }
-    }
-  }
-
   Future<void> _editarVencimiento(Cuota cuota) async {
     DateTime fechaSeleccionada = cuota.fechaVencimiento;
 
@@ -2095,9 +2217,13 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     final detalleController = TextEditingController(text: cuota.concepto);
     DateTime fechaPagoSeleccionada = DateTime.now();
     bool calculando = false;
+    bool aplicarSaldo = true; // por defecto se sugiere aplicar
 
     // Calcular monto inicial con fecha de hoy antes de mostrar el diálogo
     int montoCalculado = await _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada);
+
+    // Leer saldo a favor del alumno (si tiene)
+    final saldoFavor = await _db.getSaldoFavor(cuota.alumnoId);
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -2142,7 +2268,73 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                 const SizedBox(height: 8),
                 calculando
                     ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('Importe: ${_formatMoney(montoCalculado - cuota.montoPagado)}', style: TextStyle(color: AppTheme.successColor, fontSize: 18)),
+                    : Builder(builder: (_) {
+                        final deudaBase = montoCalculado - cuota.montoPagado;
+                        final usaSaldo = aplicarSaldo && saldoFavor > 0;
+                        final saldoAplicable = usaSaldo ? (saldoFavor >= deudaBase ? deudaBase : saldoFavor) : 0;
+                        final falta = deudaBase - saldoAplicable;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Deuda:', style: TextStyle(color: Colors.grey.shade600)),
+                                Text(_formatMoney(deudaBase)),
+                              ],
+                            ),
+                            if (usaSaldo) ...[
+                              const SizedBox(height: 2),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('− Saldo a favor aplicado:', style: TextStyle(color: Colors.blue.shade700, fontSize: 13)),
+                                  Text('−${_formatMoney(saldoAplicable)}', style: TextStyle(color: Colors.blue.shade700)),
+                                ],
+                              ),
+                            ],
+                            const Divider(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('A cobrar ahora:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                Text(_formatMoney(falta), style: TextStyle(color: AppTheme.successColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ],
+                        );
+                      }),
+                if (saldoFavor > 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.account_balance_wallet, color: Colors.blue.shade700, size: 18),
+                            const SizedBox(width: 6),
+                            Text('Saldo a favor del alumno: ${_formatMoney(saldoFavor)}',
+                              style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          value: aplicarSaldo,
+                          title: const Text('Usar saldo a favor en este pago', style: TextStyle(fontSize: 13)),
+                          onChanged: (v) => setDialogState(() => aplicarSaldo = v ?? true),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextField(
                   controller: reciboController,
@@ -2195,29 +2387,44 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     );
 
     if (confirmar == true && cuota.id != null) {
-      final siguienteCuota = await _db.registrarPagoTotal(
-        cuota.id!,
-        metodoController.text,
-        observaciones: obsController.text.isEmpty ? null : obsController.text,
-        numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
-        detallePago: detalleController.text.isEmpty ? null : detalleController.text,
-        fechaPago: fechaPagoSeleccionada,
-      );
+      int saldoAplicado = 0;
+      if (aplicarSaldo && saldoFavor > 0) {
+        saldoAplicado = await _db.aplicarSaldoFavorACuota(
+          cuota.id!,
+          fechaPago: fechaPagoSeleccionada,
+          numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
+        );
+      }
+
+      // Si después de aplicar el saldo todavía falta, registrar el pago total en efectivo/transferencia
+      final deudaActual = montoCalculado - cuota.montoPagado - saldoAplicado;
+      String? siguienteCuota;
+      if (deudaActual > 0) {
+        siguienteCuota = await _db.registrarPagoTotal(
+          cuota.id!,
+          metodoController.text,
+          observaciones: obsController.text.isEmpty ? null : obsController.text,
+          numRecibo: reciboController.text.isEmpty ? null : reciboController.text,
+          detallePago: detalleController.text.isEmpty ? null : detalleController.text,
+          fechaPago: fechaPagoSeleccionada,
+        );
+      }
       await _loadCuotas();
       if (mounted) {
-        if (siguienteCuota != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Pago adelantado - Siguiente cuota: $siguienteCuota'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pago registrado'), backgroundColor: Colors.green),
-          );
-        }
+        final msg = saldoAplicado > 0
+            ? (deudaActual > 0
+                ? 'Pago registrado. Saldo aplicado: ${_formatMoney(saldoAplicado)}'
+                : 'Cuota pagada con saldo a favor (${_formatMoney(saldoAplicado)})')
+            : (siguienteCuota != null
+                ? 'Pago adelantado - Siguiente cuota: $siguienteCuota'
+                : 'Pago registrado');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: saldoAplicado > 0 ? Colors.blue : Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -2235,6 +2442,9 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     // Calcular monto/deuda inicial según fecha de hoy
     int montoCalculado = await _db.calcularMontoConFecha(cuota, fechaPagoSeleccionada);
     int deudaCalculada = montoCalculado - cuota.montoPagado;
+
+    // Saldo a favor del alumno
+    final saldoFavor = await _db.getSaldoFavor(cuota.alumnoId);
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -2304,6 +2514,29 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                     ],
                   ),
                 ],
+                if (saldoFavor > 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet, color: Colors.blue.shade700, size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Este alumno tiene saldo a favor: ${_formatMoney(saldoFavor)}.\nSi querés aplicarlo, usá "Pago Total".',
+                            style: TextStyle(color: Colors.blue.shade900, fontSize: 12, height: 1.3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Divider(height: 24),
                 TextField(
                   controller: reciboController,
@@ -2318,7 +2551,8 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
                   decoration: InputDecoration(
                     labelText: 'Importe a pagar ahora',
                     prefixText: '\$ ',
-                    helperText: 'Deuda cuota: ${_formatMoney(deudaCalculada)} (excedente va a siguiente)',
+                    helperText: 'Cuota: ${_formatMoney(deudaCalculada)}. Si paga de más, el excedente queda como saldo a favor.',
+                    helperMaxLines: 3,
                     errorText: errorMonto,
                   ),
                   keyboardType: TextInputType.number,
@@ -2378,7 +2612,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
     if (confirmar == true && cuota.id != null) {
       final monto = int.tryParse(montoController.text) ?? 0;
       if (monto > 0) {
-        final excedente = monto > deudaCalculada ? monto - deudaCalculada : 0;
         await _db.registrarPagoParcial(
           cuota.id!,
           monto,
@@ -2388,21 +2621,26 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
           detallePago: detalleController.text.isEmpty ? null : detalleController.text,
           fechaPago: fechaPagoSeleccionada,
         );
+        // Verificar saldo a favor resultante tras la distribución
+        final saldoFinal = await _db.getSaldoFavor(cuota.alumnoId);
         await _loadCuotas();
         if (mounted) {
-          if (excedente > 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Pago registrado - Excedente de ${_formatMoney(excedente)} aplicado a siguiente cuota'),
-                backgroundColor: Colors.blue,
-                duration: const Duration(seconds: 4),
-              ),
-            );
+          final String msg;
+          final Color color;
+          if (saldoFinal > saldoFavor) {
+            final nuevoSaldo = saldoFinal - saldoFavor;
+            msg = 'Pago registrado. Excedente guardado como saldo a favor: ${_formatMoney(nuevoSaldo)}';
+            color = Colors.blue;
+          } else if (monto > deudaCalculada) {
+            msg = 'Pago registrado - Excedente aplicado a cuotas siguientes';
+            color = Colors.blue;
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Pago parcial de ${_formatMoney(monto)} registrado'), backgroundColor: Colors.orange),
-            );
+            msg = 'Pago parcial de ${_formatMoney(monto)} registrado';
+            color = Colors.orange;
           }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: color, duration: const Duration(seconds: 4)),
+          );
         }
       } else {
         if (mounted) {
@@ -2541,145 +2779,6 @@ Widget _buildCeldaEstado(Cuota? cuota, Alumno alumno) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Montos actualizados para esta cuota')),
-        );
-      }
-    }
-  }
-
-  Future<void> _editarMontoMes(Cuota cuota) async {
-    final mesNombre = Cuota.nombreMes(cuota.mes);
-    final alumno = _alumnos[cuota.alumnoId];
-    final nivelOrigen = alumno?.nivelInscripcion ?? 'Segundo Año';
-    final niveles = ['Segundo Año', 'Tercer Año'];
-
-    // Cargar configs actuales por nivel
-    final controllers = <String, List<TextEditingController>>{};
-    for (final nivel in niveles) {
-      final config = await _db.getConfigCuotasPeriodo(nivel: nivel, mes: cuota.mes, anio: cuota.anio);
-      // Para el nivel del alumno actual, pre-cargar los valores de la cuota (pueden estar editados)
-      if (nivel == nivelOrigen) {
-        controllers[nivel] = [
-          TextEditingController(text: cuota.montoAlDia.toString()),
-          TextEditingController(text: cuota.monto1erVto.toString()),
-          TextEditingController(text: cuota.monto2doVto.toString()),
-        ];
-      } else {
-        controllers[nivel] = [
-          TextEditingController(text: config?.montoAlDia.toString() ?? ''),
-          TextEditingController(text: config?.monto1erVto.toString() ?? ''),
-          TextEditingController(text: config?.monto2doVto.toString() ?? ''),
-        ];
-      }
-    }
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-        builder: (context) => AlertDialog(
-        title: Text('Editar Montos - $mesNombre ${cuota.anio}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: const Text(
-                  'Estos valores alimentan la configuración general (config_cuotas_periodo). '
-                  'Se usan para generar cuotas nuevas y para calcular montos si un pago se hace en otro mes (3er vto del mes de pago).',
-                  style: TextStyle(fontSize: 11, color: Colors.black87),
-                ),
-              ),
-              Text(
-                'Esto cambiará los montos de TODAS las cuotas pendientes/vencidas de $mesNombre, por nivel.',
-                style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              for (final nivel in niveles) ...[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: nivel == nivelOrigen ? Colors.blue.shade50 : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: nivel == nivelOrigen ? Colors.blue.shade300 : Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(nivel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      if (nivel == nivelOrigen)
-                        Text('(nivel del alumno actual)', style: TextStyle(fontSize: 11, color: Colors.blue.shade600)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: controllers[nivel]![0],
-                        decoration: const InputDecoration(labelText: '1° Vencimiento (1-10)', prefixText: '\$ ', isDense: true),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: controllers[nivel]![1],
-                        decoration: const InputDecoration(labelText: '2° Vencimiento (11-20)', prefixText: '\$ ', isDense: true),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: controllers[nivel]![2],
-                        decoration: const InputDecoration(labelText: '3° Vencimiento (21-31)', prefixText: '\$ ', isDense: true),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Aplicar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmar == true) {
-      for (final nivel in niveles) {
-        final ctrls = controllers[nivel]!;
-        final montoAlDia = int.tryParse(ctrls[0].text) ?? 0;
-        final monto1erVto = int.tryParse(ctrls[1].text) ?? montoAlDia;
-        final monto2doVto = int.tryParse(ctrls[2].text) ?? monto1erVto;
-        if (montoAlDia <= 0) continue;
-
-        await _db.guardarConfigCuotasPeriodo(ConfigCuotasPeriodo(
-          nivel: nivel,
-          mes: cuota.mes,
-          anio: cuota.anio,
-          montoAlDia: montoAlDia,
-          monto1erVto: monto1erVto,
-          monto2doVto: monto2doVto,
-        ));
-        await _db.actualizarCuotasConConfigPeriodo(
-          nivel: nivel,
-          mes: cuota.mes,
-          anio: cuota.anio,
-          soloPendientes: true,
-          incluirVencidas: true,
-        );
-      }
-      await _loadCuotas();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Montos actualizados por nivel para $mesNombre')),
         );
       }
     }
